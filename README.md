@@ -14,3 +14,6 @@ Once you've selected the template that is right for you, copy the contents to a 
 
 ## Release Notes
 
+### 0.8.0
+- Initial version
+
