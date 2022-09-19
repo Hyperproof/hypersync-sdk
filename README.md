@@ -7,8 +7,8 @@ To use the Hypersync SDK you need to install the [Hyperproof CLI](#).  This comm
 ## Getting Started
 To easiest way to get started with the Hypersync SDK is to start with one of our Hypersync templates.  Templates and other Hypersync samples can be found in the [hypersync-samples GitHub repository](#).
 
-If the service you are connecting to uses OAuth for authorization, check out our [OAuth Hypersync template](#).
-If the service you are connection to uses some other form of authorization, start with the [Custom Auth Hypersync template](#).
+- If the service you are connecting to uses OAuth for authorization, check out our [OAuth Hypersync template](#).
+- If the service you are connection to uses some other form of authorization, start with the [Custom Auth Hypersync template](#).
 
 Once you've selected the template that is right for you, copy the contents to a new folder on your computer.
 
