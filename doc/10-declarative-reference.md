@@ -1,0 +1,1 @@
+# Extending Hypersync Apps Declaratively
