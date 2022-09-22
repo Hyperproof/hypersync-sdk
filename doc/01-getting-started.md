@@ -1,10 +1,10 @@
 # Getting Started
 The Hypersync SDK makes it easy to create a custom Hypersync application that can be used to bring data from external services into Hyperproof.
 
-Every Hypersync app is a [Node.js](https://nodejs.org/en/) [module](https://nodejs.org/api/modules.html) that is installed into your Hyperproof organization using the (Hyperproof CLI)[https://docs.hyperproof.io/hyperproof-cli].  Once installed, your custom Hypersync app can be used by anyone in your organization to create a connection to the external service and bring data into Hyperproof.
+Every Hypersync app is a [Node.js](https://nodejs.org/en/) [module](https://nodejs.org/api/modules.html) that is installed into your Hyperproof organization using the [Hyperproof CLI](https://docs.hyperproof.io/hyperproof-cli).  Once installed, your custom Hypersync app can be used by anyone in your organization to create a connection to the external service and bring data into Hyperproof.
 
 ## Prerequisites
-To use the Hypersync SDK you will need a Windows, Mac or Linux machine with Node.JS version 16 or later.  You will also need to install the (Hyperproof CLI)[https://docs.hyperproof.io/hyperproof-cli].
+To use the Hypersync SDK you will need a Windows, Mac or Linux machine with Node.JS version 16 or later.  You will also need to install the [Hyperproof CLI](https://docs.hyperproof.io/hyperproof-cli).
 
 For development purposes you will also probably want to create a development organization in Hyperproof.  This will allow you to to develop and test your custom Hypersyncs in isolation without affecting the users in your production organization.  To create a development organization contact Hyperproof Customer Support at <support@hyperproof.io>.
 
