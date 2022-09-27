@@ -12,9 +12,9 @@ Finally, we recommend cloning the [hypersync-samples GitHub repository](https://
 
 ## Installing Your First Hypersync App
 
-To easiest way to get started with the Hypersync SDK is to start with one of the samples or templates in the Hypersync-samples GitHub repository.  
+To easiest way to get started with the Hypersync SDK is to start with one of the samples or templates in the @hyperproof/hypersync-samples GitHub repository.  
 
-- Samples are complete Hypersync apps that can be used to bring data from an external service into Hyperproof.  Using the Hyperysnc SDK you can customize these samples to meet your needs.  The Hypersync-samples repository contains samples for Jira, GitHub (**LIST TBD**) and other services.  Your will find the samples in the `/samples` directory.
+- Samples are complete Hypersync apps that can be used to bring data from an external service into Hyperproof.  Using the Hyperysnc SDK you can customize these samples to meet your needs.  The hypersync-samples repository contains samples for Jira, GitHub (**LIST TBD**) and other services.  Your will find the samples in the `/samples` directory.
 
 - Templates provide you with the foundation of a Hyperync app and are a great starting point if you are targeting a service for which there is no sample, or if you want to start with a clean slate.  Templates can be found in the `/templates` directory.
 
