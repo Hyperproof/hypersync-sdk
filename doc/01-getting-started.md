@@ -22,9 +22,10 @@ Once you have decided on the sample or template that you want to start with, fol
 
 1. Copy the sample or template to another folder on your computer.  Feel free to rename the folder if that helps.
 2. From the command line run `hp login` to authorize the Hyerproof CLI to access your develoment organization.  IMPORTANT: When the authorization screen appears make sure you choose your develoment organization from the dropdown.
-3. Next run this command to install the custom Hypersync app.
+3. Change to the directory (`cd`) of your new folder.
+4. Next run this command to install the custom Hypersync app.
 ```
-hp customapps import NEED MORE...
+hp customapps import .
 ```
 
 At this point you will see console output like this:
@@ -59,7 +60,7 @@ hp customapps list
 5. There should be only one item in the list--the app you installed a few minutes ago.  Copy the ID value of the application.
 6. Run this command to update your custom app in Hyperproof:
 ```
-hp customapps update NEED MORE...
+hp customapps import .
 ```
 
 That's it!  You've just made your first edit to an installed Hypersync app.  If you navigate to Hyperproof in the browser you will see that your custom category now shows up in the New Hyperysnc wizard underneath the name of your app.
@@ -74,7 +75,7 @@ hp customapps list
 2. Copy the ID value of the application.
 3. Run this command to uninstall the app.
 ```
-hp customapps rm <ID>
+hp customapps delete <ID>
 ```
 
 Note that when a custom Hypersync app is uninstalled it is no longer available to your users in the New Hypersync wizard.  But all of the proof that has been previously brought in by Hypersyncs created with the app will remain in the organization.
