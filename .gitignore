@@ -1,0 +1,7 @@
+# Ignore VS Code files except for settings.
+.vscode/*
+!.vscode/settings.json
+
+lib/
+node_modules/
+.eslintcache
