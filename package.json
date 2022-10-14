@@ -1,9 +1,13 @@
 {
   "name": "@hyperproof/hypersync-sdk",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Hypersync SDK",
-  "main": "build/index.js",
-  "types": "build/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hyperproof/hypersync-sdk"
+  },
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
   "scripts": {
     "build": "npm run lint && tsc",
     "lint": "./node_modules/eslint/bin/eslint.js src/**/*.ts"
