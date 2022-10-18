@@ -32,7 +32,7 @@ interface IHyperproofUserToken {
   refresh_token_expires_in: number;
 }
 
-interface IHyperproofUserContext {
+interface IHyperproofTokenContext {
   orgId: string;
   userId: string;
   vendorUserIds: string[];
@@ -179,7 +179,7 @@ export const getHyperproofAccessToken = async (
  */
 const refreshHyperproofAccessToken = async (
   fusebitContext: IFusebitContext,
-  hpUserContext: IHyperproofUserContext
+  hpUserContext: IHyperproofTokenContext
 ) => {
   await Logger.debug(
     `Refreshing Hyperproof API client using URL ${process.env.hyperproof_oauth_token_url}`
@@ -227,7 +227,7 @@ export const ensureHyperproofAccessToken = async (
     throw createHttpError(StatusCodes.UNAUTHORIZED, errMessage);
   }
 
-  const hpUserContext: IHyperproofUserContext = userEntry.data;
+  const hpUserContext: IHyperproofTokenContext = userEntry.data;
   const hyperproofToken = hpUserContext.hyperproofToken;
 
   if (
@@ -372,7 +372,7 @@ export const addVendorUserIdToHyperproofUser = async (
 
   // In the initial implementation we only stored a single vendorUserId.  Convert
   // that entry to an array if we are adding a new vendor user link.
-  const hpUserContext: IHyperproofUserContext = entry.data;
+  const hpUserContext: IHyperproofTokenContext = entry.data;
   const vendorUserIds = new Set(
     hpUserContext.vendorUserIds
       ? hpUserContext.vendorUserIds.map(id => id.toString())
@@ -418,7 +418,7 @@ export const removeVendorUserIdFromHyperproofUser = async (
     throw createHttpError(StatusCodes.UNAUTHORIZED, 'User is not authorized.');
   }
 
-  const hpUserContext: IHyperproofUserContext = entry.data;
+  const hpUserContext: IHyperproofTokenContext = entry.data;
   if (hpUserContext.vendorUserIds) {
     hpUserContext.vendorUserIds = hpUserContext.vendorUserIds.filter(
       v => v !== vendorUserId

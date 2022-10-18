@@ -1,30 +1,36 @@
 import { IFusebitContext } from '@fusebit/add-on-sdk';
-import { OAuthConnector, IUserContext } from '@fusebit/oauth-connector';
+import { IUserContext, OAuthConnector } from '@fusebit/oauth-connector';
 import * as express from 'express';
 import fs from 'fs';
-import { StatusCodes } from 'http-status-codes';
 import createHttpError from 'http-errors';
+import { StatusCodes } from 'http-status-codes';
 import path from 'path';
 import { CustomAuthCredentials, IAuthorizationConfigBase } from './authModels';
+import {
+  formatUserKey,
+  getHpUserFromUserKey,
+  listAllStorageKeys,
+  parseStorageKeyFromStorageId
+} from './common';
+import {
+  AuthorizationType,
+  FOREIGN_VENDOR_USER,
+  HttpHeader,
+  HYPERPROOF_VENDOR_KEY,
+  InstanceType
+} from './enums';
+import { HyperproofApiClient } from './HyperproofApiClient';
 import {
   addVendorUserIdToHyperproofUser,
   deleteHyperproofUser,
   getHyperproofAccessToken,
   getHyperproofAuthConfig,
   getVendorUserIdsFromHyperproofUser,
-  removeVendorUserIdFromHyperproofUser
+  HYPERPROOF_USER_STORAGE_ID,
+  removeVendorUserIdFromHyperproofUser,
+  setHyperproofClientSecret
 } from './hyperproofTokens';
-import { formatUserKey, getHpUserFromUserKey } from './common';
-import {
-  HYPERPROOF_VENDOR_KEY,
-  FOREIGN_VENDOR_USER,
-  InstanceType,
-  AuthorizationType,
-  HttpHeader
-} from './enums';
 import { Logger, LoggerContextKey } from './Logger';
-import { HyperproofApiClient } from './HyperproofApiClient';
-import { setHyperproofClientSecret } from './hyperproofTokens';
 
 /**
  * Representation of a user's connection to an external service.
@@ -867,49 +873,59 @@ export function createConnector(superclass: typeof OAuthConnector) {
       userContexts: IHyperproofUserContext[],
       orgId: string,
       resource?: string
-    ) {
-      const deletes = [];
-      deletes.push(
-        ...userContexts.map(async (userContext: IHyperproofUserContext) => {
-          if (userContext) {
-            // The vendor user may be linked to a Hyperproof user in multiple
-            // organizations.  We only want to delete the Hyperproof users in
-            // the specified organization.
-            const identityKeys = Object.keys(userContext.hyperproofIdentities);
-            let identitiesToDelete = identityKeys.filter(key =>
-              key.includes(orgId)
-            );
+    ): Promise<void> {
+      // Must be deleted sequentially since deleteUserIfLast removes one
+      // identity and saves the storage entry. Concurrent writing to one place
+      // causes a conflict error
+      for (const userContext of userContexts) {
+        if (!userContext) {
+          return;
+        }
+        // The vendor user may be linked to a Hyperproof user in multiple
+        // organizations.  We only want to delete the Hyperproof users in
+        // the specified organization.
+        const identityKeys = Object.keys(userContext.hyperproofIdentities);
+        let identitiesToDelete = identityKeys.filter(key =>
+          key.includes(orgId)
+        );
 
-            // If the optional resource was provided, use it to filter the identities.
-            if (resource) {
-              identitiesToDelete = identitiesToDelete.filter(key =>
-                key.includes(resource)
-              );
-            }
+        // If the optional resource was provided, use it to filter the identities.
+        if (resource) {
+          identitiesToDelete = identitiesToDelete.filter(key =>
+            key.includes(resource)
+          );
+        }
 
-            // Delete the matching identities.  Note that when we delete the last
-            // identity on the vendor user, the vendor user will be deleted.
-            for (const identity of identitiesToDelete) {
-              await this.deleteUser(
-                fusebitContext,
-                userContext.hyperproofIdentities[identity].userId,
-                HYPERPROOF_VENDOR_KEY
-              );
-            }
+        // Delete the matching identities.  Note that when we delete the last
+        // identity on the vendor user, the vendor user will be deleted.
+        await Logger.info(
+          `On ${
+            userContext.vendorUserId
+          }, deleting identities: ${identitiesToDelete.toString()}`
+        );
+        for (const identity of identitiesToDelete) {
+          await this.deleteUserIfLast(
+            fusebitContext,
+            userContext,
+            identity,
+            HYPERPROOF_VENDOR_KEY
+          );
+        }
 
-            // Delete the Hyperproof token if it is not being used by another connection.
-            const hpUserId = this.getHpUserFromUserContext(userContext)!.id;
-            await this.deleteHyperproofUserIfUnused(
-              fusebitContext,
-              orgId,
-              hpUserId,
-              userContext.vendorUserId,
-              userContext.instanceType
-            );
-          }
-        })
-      );
-      await Promise.all(deletes);
+        // Delete the Hyperproof token if it is not being used by another connection.
+        const hpUserId = this.getHpUserFromUserContext(userContext)!.id;
+        await Logger.info(`Deleting hyperproof token for ${hpUserId}`);
+        await this.deleteHyperproofUserIfUnused(
+          fusebitContext,
+          orgId,
+          hpUserId,
+          userContext.vendorUserId,
+          userContext.instanceType
+        );
+        await Logger.info(
+          `Deletion finished for user ${userContext.vendorUserId}`
+        );
+      }
     }
 
     /**
@@ -963,6 +979,46 @@ export function createConnector(superclass: typeof OAuthConnector) {
         vendorUserId,
         instanceType
       );
+    }
+
+    async getAllOrgUsers(fusebitContext: IFusebitContext, orgId: string) {
+      try {
+        const location = `${HYPERPROOF_USER_STORAGE_ID}/organizations/${orgId}`;
+        const items = await listAllStorageKeys(fusebitContext, location);
+        const users = [];
+        const processedUsers = new Set();
+        for (const item of items) {
+          const hyperproofUserKey = parseStorageKeyFromStorageId(item);
+          const userKey = hyperproofUserKey.split(
+            `${HYPERPROOF_USER_STORAGE_ID}/`
+          )[1];
+          const hpUser = getHpUserFromUserKey(userKey);
+
+          if (!processedUsers.has(hpUser.id)) {
+            const storageEntry = await fusebitContext.storage.get(
+              hyperproofUserKey
+            );
+            const vendorUserIds = storageEntry.data.vendorUserIds || [
+              storageEntry.data.vendorUserId
+            ];
+            for (const vendorUserId of vendorUserIds) {
+              const userData = (await this.getUser(
+                fusebitContext,
+                vendorUserId
+              )) as IHyperproofUserContext;
+              users.push(userData);
+            }
+            processedUsers.add(hpUser.id);
+          }
+        }
+        await Logger.info(
+          `Found ${users.length} vendor-users, connected to ${items.length} hyperproof-users`
+        );
+        return users;
+      } catch (err) {
+        await Logger.error(err);
+        return [];
+      }
     }
 
     decodeState(fusebitContext: IFusebitContext) {

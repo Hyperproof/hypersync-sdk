@@ -280,6 +280,36 @@ export function createHypersync(superclass: typeof OAuthConnector) {
         }
       );
 
+      /**
+       * Delete all user connections and integrations for an org. Called when
+       * a Hyperproof organization is permanently deleted
+       *
+       * TODO: HYP-27706: Unify all org delete routes
+       */
+      app.delete(
+        '/organizations/:orgId',
+        this.checkAuthorized(),
+        async (req, res) => {
+          try {
+            const fusebitContext = req.fusebit;
+            const orgId = req.params.orgId;
+            await Logger.info(
+              `Received DELETE /organizations/${orgId} request. Starting deletion of all connections in the org`
+            );
+            await this.deleteOrganization(fusebitContext, orgId);
+            res.json({
+              success: true,
+              message: 'Successfully deleted connections'
+            });
+          } catch (err: any) {
+            await Logger.error(err);
+            res
+              .status(err.status || StatusCodes.INTERNAL_SERVER_ERROR)
+              .json({ message: err.message });
+          }
+        }
+      );
+
       // Register a handler that listens for CRON invocations, set by the
       // "schedule.cron" parameter in the configuration file
       app.use(async (req, res, next) => {
@@ -527,6 +557,19 @@ export function createHypersync(superclass: typeof OAuthConnector) {
           });
         })
       );
+    }
+
+    // Delete all the user connections in the organization
+    async deleteOrganization(fusebitContext: IFusebitContext, orgId: string) {
+      // Get all vendor-user entries
+      const users = await this.getAllOrgUsers(fusebitContext, orgId);
+      await Logger.info(
+        `Found ${users.length} to delete. Deleting the ${orgId} hyperproof users from these entries.`,
+        users.map(u => u.vendorUserId).join(', ')
+      );
+      // Delete the hyperproof identities attached to those vendor-user entries
+      // one at a time while ensuring that any hyperproof users not in the target org are unaffected
+      await this.deleteUserConnections(fusebitContext, users, orgId);
     }
   };
 }

@@ -1,8 +1,4 @@
-import {
-  ExternalAPIError,
-  HyperproofApiClient,
-  Logger
-} from '../common';
+import { ExternalAPIError, HyperproofApiClient, Logger } from '../common';
 import { formatHypersyncError } from './common';
 import { HypersyncResult } from './enums';
 import { HypersyncStorageClient } from './HypersyncStorageClient';
