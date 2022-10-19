@@ -1,8 +1,4 @@
-import {
-  IIntegrationSettingsBase,
-  ObjectStatus,
-  ObjectType
-} from '../common';
+import { IIntegrationSettingsBase, ObjectStatus, ObjectType } from '../common';
 import {
   HypersyncPeriod,
   HypersyncProofFormat,

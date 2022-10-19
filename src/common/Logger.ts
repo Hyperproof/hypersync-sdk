@@ -64,7 +64,7 @@ export class Logger {
    * @param {string} detail Additional detail to add to the log entry.
    */
   public static async info(message: any, detail?: string) {
-    console.info(detail ? `${message}: ${detail}` : message);
+    console.log(detail ? `${message}: ${detail}` : message);
     return Logger.postLogEvent(EventType.Information, message, detail);
   }
 
