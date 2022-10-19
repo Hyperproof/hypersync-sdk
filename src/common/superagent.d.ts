@@ -2,7 +2,7 @@
 import { SuperAgentRequest } from 'superagent';
 declare module 'superagent' {
   interface SuperAgentRequest {
-    // Guidance form Fusebit suggest that we should wait for requests to be
+    // Guidance from Fusebit suggest that we should wait for requests to be
     // completely written in certain scenarios.  To do that we need access
     // to a private member on SuperAgentRequest.  See:
     // https://hyperproof.atlassian.net/browse/HYP-16748
