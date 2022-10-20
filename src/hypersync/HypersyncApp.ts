@@ -77,6 +77,10 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     this.credentialsMetadata = credentialsMetadata;
   }
 
+  public resolveImagePath(imageName: string): string {
+    return this.hypersyncApp.resolveImagePath(imageName);
+  }
+
   public async getAuthorizationUrl(
     { configuration }: IFusebitContext,
     state: string,
@@ -338,6 +342,15 @@ export class HypersyncApp<TUserProfile = object> {
    */
   public initialize() {
     return createOAuthConnector(this.connector);
+  }
+
+  /**
+   * Returns a full path to one of the required custom Hypersync app images.
+   *
+   * @param imageName The name of the image.
+   */
+  public resolveImagePath(imageName: string) {
+    return path.join(__dirname, `images/${imageName}`);
   }
 
   /**

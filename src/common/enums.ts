@@ -130,6 +130,7 @@ export enum HttpMethod {
 
 export enum HttpHeader {
   Authorization = 'Authorization',
+  ContentLength = 'Content-Length',
   ContentType = 'Content-Type',
   HyperproofClientSecret = 'hp-client-secret',
   SubscriptionKey = 'hyperproof-subscription-key'
