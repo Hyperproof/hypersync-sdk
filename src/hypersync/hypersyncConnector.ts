@@ -8,6 +8,7 @@ import {
   formatKey,
   formatUserKey,
   getHpUserFromUserKey,
+  HttpHeader,
   HYPERPROOF_VENDOR_KEY,
   IHyperproofUserContext,
   IRetryResponse,
@@ -310,6 +311,48 @@ export function createHypersync(superclass: typeof OAuthConnector) {
         }
       );
 
+      // Route that allows static images to be extracted from custom Hyperysncs.
+      app.get('/images/:imageName', async (req, res) => {
+        try {
+          // We only recognize a specific set of images, and they must be SVG.
+          const image = req.params.imageName;
+          if (
+            ![
+              'icon-small.svg',
+              'icon-medium.svg',
+              'icon-large.svg',
+              'brand.svg'
+            ].includes(image)
+          ) {
+            await Logger.warn(
+              `Received request for unsupported image file: ${image}`
+            );
+            res.sendStatus(StatusCodes.NOT_FOUND);
+            return;
+          }
+
+          const filePath = this.resolveImagePath(image);
+          if (!fs.existsSync(filePath)) {
+            await Logger.error(`Required image file not found: ${image}`);
+            res.sendStatus(StatusCodes.NOT_FOUND);
+            return;
+          }
+
+          const stat = fs.statSync(filePath);
+          res.setHeader(HttpHeader.ContentType, 'image/svg+xml');
+          res.setHeader(HttpHeader.ContentLength, stat.size);
+
+          const readStream = fs.createReadStream(filePath);
+          readStream.pipe(res);
+          res.status(StatusCodes.OK);
+        } catch (err: any) {
+          await Logger.error(err);
+          res
+            .status(err.status || StatusCodes.INTERNAL_SERVER_ERROR)
+            .json({ message: err.message });
+        }
+      });
+
       // Register a handler that listens for CRON invocations, set by the
       // "schedule.cron" parameter in the configuration file
       app.use(async (req, res, next) => {
@@ -322,6 +365,15 @@ export function createHypersync(superclass: typeof OAuthConnector) {
           next();
         }
       });
+    }
+
+    /**
+     * Returns a full path to one of the required custom Hypersync app images.
+     *
+     * @param imageName The name of the image.
+     */
+    resolveImagePath(imageName: string): string {
+      throw new Error('Not implemented');
     }
 
     /**
