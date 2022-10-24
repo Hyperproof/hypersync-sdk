@@ -1,12 +1,12 @@
 /* eslint-disable @typescript-eslint/no-namespace */
-import { IFusebitContext } from '@fusebit/add-on-sdk';
+import { FusebitContext } from '@fusebit/add-on-sdk';
 
 export {};
 
 declare global {
   export namespace Express {
     interface Request {
-      fusebit: IFusebitContext;
+      fusebit: FusebitContext;
     }
 
     type ParsedQs = {

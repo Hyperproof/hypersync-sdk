@@ -1,8 +1,8 @@
-import { IFusebitContext } from '@fusebit/add-on-sdk';
+import { FusebitContext } from '@fusebit/add-on-sdk';
 import {
   createOAuthConnector,
-  IOAuthTokenResponse,
-  IUserContext,
+  OAuthTokenResponse,
+  UserContext,
   OAuthConnector
 } from '@fusebit/oauth-connector';
 import {
@@ -82,7 +82,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   public async getAuthorizationUrl(
-    { configuration }: IFusebitContext,
+    { configuration }: FusebitContext,
     state: string,
     redirectUri: string
   ) {
@@ -94,7 +94,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   public async getAccessToken(
-    { configuration }: IFusebitContext,
+    { configuration }: FusebitContext,
     authorizationCode: string,
     redirectUri: string
   ) {
@@ -106,8 +106,8 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   public async refreshAccessToken(
-    { baseUrl, configuration }: IFusebitContext,
-    tokenContext: IOAuthTokenResponse,
+    { baseUrl, configuration }: FusebitContext,
+    tokenContext: OAuthTokenResponse,
     redirectUri: string
   ) {
     return this.hypersyncApp.refreshAccessToken(
@@ -128,7 +128,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
 
   public async validateCredentials(
     credentials: CustomAuthCredentials,
-    fusebitContext: IFusebitContext,
+    fusebitContext: FusebitContext,
     hyperproofUserId: string
   ): Promise<IValidateCredentialsResponse> {
     const response = await this.hypersyncApp.validateCredentials(
@@ -142,21 +142,21 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     };
   }
 
-  public async getUserProfile(tokenContext: IOAuthTokenResponse) {
+  public async getUserProfile(tokenContext: OAuthTokenResponse) {
     return this.hypersyncApp.getUserProfile(tokenContext);
   }
 
-  public async getUserId(userContext: IUserContext) {
+  public async getUserId(userContext: UserContext) {
     return this.hypersyncApp.getUserId(userContext.vendorUserProfile);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  public getUserAccount(userContext: IUserContext): string {
+  public getUserAccount(userContext: UserContext): string {
     return this.hypersyncApp.getUserAccountName(userContext.vendorUserProfile);
   }
 
   public async generateCriteriaMetadata(
-    fusebitContext: IFusebitContext,
+    fusebitContext: FusebitContext,
     vendorUserId: string,
     criteria: HypersyncCriteria,
     search?: string
@@ -174,7 +174,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   public async generateSchema(
-    fusebitContext: IFusebitContext,
+    fusebitContext: FusebitContext,
     vendorUserId: string,
     criteria: HypersyncCriteria
   ) {
@@ -186,7 +186,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   public async syncNow(
-    fusebitContext: IFusebitContext,
+    fusebitContext: FusebitContext,
     orgId: string,
     objectType: ObjectType,
     objectId: string,
@@ -242,8 +242,8 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   public async keepTokenAlive(
-    fusebitContext: IFusebitContext,
-    userContext: IUserContext
+    fusebitContext: FusebitContext,
+    userContext: UserContext
   ): Promise<boolean> {
     if (this.authorizationType === AuthorizationType.OAUTH) {
       const { access_token: accessToken } = await this.ensureAccessToken(
@@ -259,7 +259,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   public async deleteUserIfLast(
-    fusebitContext: IFusebitContext,
+    fusebitContext: FusebitContext,
     userContext: IHyperproofUserContext,
     vendorUserId: string,
     vendorId?: string
@@ -290,7 +290,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async createDataSource(
-    fusebitContext: IFusebitContext,
+    fusebitContext: FusebitContext,
     vendorUserId: string
   ): Promise<IDataSource> {
     const userContext = await this.getUser(fusebitContext, vendorUserId);
@@ -410,12 +410,12 @@ export class HypersyncApp<TUserProfile = object> {
    * Obtains a new access token using refresh token.
    *
    * @param {StringMap} configuration App configuration values.
-   * @param {IOAuthTokenResponse} tokenContext An object representing the result of the getAccessToken call.
+   * @param {OAuthTokenResponse} tokenContext An object representing the result of the getAccessToken call.
    * @param {string} redirectUri The redirectUri used in the OAuth authorization flow.
    */
   public async refreshAccessToken(
     configuration: StringMap,
-    tokenContext: IOAuthTokenResponse,
+    tokenContext: OAuthTokenResponse,
     redirectUri: string
   ) {
     const currentRefreshToken = tokenContext.refresh_token;
@@ -464,7 +464,7 @@ export class HypersyncApp<TUserProfile = object> {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async getUserProfile(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    tokenContext: IOAuthTokenResponse
+    tokenContext: OAuthTokenResponse
   ): Promise<TUserProfile> {
     throw new Error('OAuth Hypersync apps must implement getUserProfile.');
   }

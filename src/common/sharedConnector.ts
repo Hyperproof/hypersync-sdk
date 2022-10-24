@@ -1,5 +1,5 @@
-import { IFusebitContext } from '@fusebit/add-on-sdk';
-import { IUserContext, OAuthConnector } from '@fusebit/oauth-connector';
+import { FusebitContext } from '@fusebit/add-on-sdk';
+import { UserContext, OAuthConnector } from '@fusebit/oauth-connector';
 import * as express from 'express';
 import fs from 'fs';
 import createHttpError from 'http-errors';
@@ -61,7 +61,7 @@ export interface IUserConnectionPatch {
  * Fusebit's built-in user context object with some additional properties.
  */
 export interface IHyperproofUserContext<TUserProfile = object>
-  extends IUserContext<TUserProfile> {
+  extends UserContext<TUserProfile> {
   // Object which tracks the Hyperproof users which are associated with the
   // vendor user.  The user key is generally of the form '/orgs/orgid/users/userid'
   // although variants do exist for certain integrations like Jira.
@@ -479,7 +479,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
      * @param {*} userContext The user context representing the vendor's user. Contains vendorToken and vendorUserProfile, representing responses
      * from getAccessToken and getUserProfile, respectively.
      */
-    getUserId(userContext: IUserContext): Promise<string> {
+    getUserId(userContext: UserContext): Promise<string> {
       // Derived classes will generally override this method.
       return super.getUserId(userContext);
     }
@@ -493,7 +493,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
      * from getAccessToken and getUserProfile, respectively.
      */
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    getUserAccount(userContext: IUserContext): string {
+    getUserAccount(userContext: UserContext): string {
       throw new Error('getUserAccount must be implemented by derived class');
     }
 
@@ -546,7 +546,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
      * The vendorId must correspond to an entry in userContext.foreignOAuthIdentities.
      */
     async deleteUser(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       vendorUserId: string,
       vendorId?: string
     ) {
@@ -594,7 +594,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
     }
 
     async deleteUserIfLast(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       user: IHyperproofUserContext,
       vendorUserId: string,
       vendorId: string
@@ -631,7 +631,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
      * @param {*} instanceType Optional instance type to use when determining which user to delete.
      */
     async deleteHyperproofUserIfUnused(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       orgId: string,
       userId: string,
       vendorUserId: string,
@@ -675,7 +675,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
      * from getAccessToken and getUserProfile, respectively.
      */
     async saveUser(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       userContext: IHyperproofUserContext
     ) {
       const existingUser = await this.getHyperproofUserContext(
@@ -718,7 +718,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
      * @param {string} vendorId If specified, vendorUserId represents the identity of the user in another system.
      */
     async getHyperproofUserContext(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       vendorUserId: string,
       vendorId?: string
     ) {
@@ -740,7 +740,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
      * connection to an org, but as connections are deleted the org ID inside the user key
      * can be come stale.  See HYP-16177 for an example.
      */
-    getHpUserFromUserContext(userContext: IUserContext) {
+    getHpUserFromUserContext(userContext: UserContext) {
       const userKey = userContext.foreignOAuthIdentities
         ? userContext.foreignOAuthIdentities.hyperproof.userId
         : undefined;
@@ -762,7 +762,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
      * @returns An array of connections.
      */
     async getUserConnections(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       orgId: string,
       userId: string,
       type?: string
@@ -812,7 +812,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
      * @param integrationType Type of integration (optional).
      */
     async getUserConnection(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       orgId: string,
       userId: string,
       vendorUserId: string,
@@ -842,7 +842,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
      * @param userId ID of the Hyperproof user that created the connection.
      */
     async getUserConnectionFromUserContext(
-      userContext: IUserContext,
+      userContext: UserContext,
       userId: string,
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       userKey?: string
@@ -869,7 +869,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
      * @param {*} resource Optional resource to filter for.
      */
     async deleteUserConnections(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       userContexts: IHyperproofUserContext[],
       orgId: string,
       resource?: string
@@ -939,7 +939,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
      * @param resource Resource to which the connection applies (optional)
      */
     async deleteUserConnection(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       orgId: string,
       userId: string,
       vendorUserId: string,
@@ -981,7 +981,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
       );
     }
 
-    async getAllOrgUsers(fusebitContext: IFusebitContext, orgId: string) {
+    async getAllOrgUsers(fusebitContext: FusebitContext, orgId: string) {
       try {
         const location = `${HYPERPROOF_USER_STORAGE_ID}/organizations/${orgId}`;
         const items = await listAllStorageKeys(fusebitContext, location);
@@ -1021,7 +1021,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
       }
     }
 
-    decodeState(fusebitContext: IFusebitContext) {
+    decodeState(fusebitContext: FusebitContext) {
       if (fusebitContext.query && fusebitContext.query.state)
         return JSON.parse(
           Buffer.from(fusebitContext.query.state as string, 'base64').toString()

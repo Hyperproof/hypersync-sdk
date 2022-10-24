@@ -1,4 +1,8 @@
-import { compareValues, FieldType, ISelectOption } from '../common';
+import {
+  compareValues,
+  FieldType,
+  ISelectOption
+} from '../common';
 import fs from 'fs';
 import path from 'path';
 import {

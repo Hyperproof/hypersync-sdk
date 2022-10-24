@@ -1,4 +1,4 @@
-import Sdk, { IFusebitContext } from '@fusebit/add-on-sdk';
+import Sdk, { FusebitContext } from '@fusebit/add-on-sdk';
 import FormData from 'form-data';
 import createHttpError from 'http-errors';
 import mime from 'mime';
@@ -46,7 +46,7 @@ export class HyperproofApiClient {
    * Factory method that creates a new HyperproofApiClient instance.
    */
   public static async createInstance(
-    fusebitContext: IFusebitContext,
+    fusebitContext: FusebitContext,
     orgId: string,
     userId: string,
     instanceType?: InstanceType
@@ -588,7 +588,7 @@ export class HyperproofApiClient {
 }
 
 export const createHyperproofApiClient = async (
-  fusebitContext: IFusebitContext,
+  fusebitContext: FusebitContext,
   orgId: string,
   userId: string,
   instanceType?: InstanceType

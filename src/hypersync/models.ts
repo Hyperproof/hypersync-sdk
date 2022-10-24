@@ -9,7 +9,7 @@ import { IHypersyncSchema } from './ProofProviderBase';
 /**
  * Export this model from Fusebit for use in OAuth Hypersyncs.
  */
-export { IOAuthTokenResponse } from '@fusebit/oauth-connector';
+export { OAuthTokenResponse } from '@fusebit/oauth-connector';
 
 /**
  * Primitive values supported by Hypersyncs in criteria and data binding.
