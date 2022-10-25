@@ -1,8 +1,8 @@
 import Sdk, {
   getFunctionUrl,
-  IFusebitContext,
-  IStorageItem,
-  IListStorageResult
+  FusebitContext,
+  StorageItem,
+  ListStorageResult
 } from '@fusebit/add-on-sdk';
 import Jwt from 'jsonwebtoken';
 
@@ -102,7 +102,7 @@ export const getHpUserFromUserKey = (userKey: string) => {
  *
  * @param {*} storageItem Storage item to inspect.
  */
-export const parseStorageKeyFromStorageId = (storageItem: IStorageItem) => {
+export const parseStorageKeyFromStorageId = (storageItem: StorageItem) => {
   return storageItem.storageId.split('/root/')[1];
 };
 
@@ -128,7 +128,7 @@ export const mapObjectTypesParamToType = (
  * @param integrationId ID of the target integration.
  */
 export const getFusebitUrl = async (
-  fusebitContext: IFusebitContext,
+  fusebitContext: FusebitContext,
   boundaryId: string,
   integrationId: string
 ) => {
@@ -144,7 +144,7 @@ export const getFusebitUrl = async (
 };
 
 const getLocationBody = (
-  fusebitContext: IFusebitContext,
+  fusebitContext: FusebitContext,
   boundaryId: string
 ) => {
   const payload = Jwt.decode(fusebitContext.fusebit.functionAccessToken, {
@@ -159,12 +159,13 @@ const getLocationBody = (
 };
 
 export const listAllStorageKeys = async (
-  fusebitContext: IFusebitContext,
+  fusebitContext: FusebitContext,
   storageKey: string
 ) => {
-  const results: IStorageItem[] = [];
-  let storageKeys: IListStorageResult | null =
-    await fusebitContext.storage.list(storageKey);
+  const results: StorageItem[] = [];
+  let storageKeys: ListStorageResult | null = await fusebitContext.storage.list(
+    storageKey
+  );
   while (storageKeys && storageKeys.items && storageKeys.items.length) {
     Array.prototype.push.apply(results, storageKeys.items);
     if (storageKeys.next) {

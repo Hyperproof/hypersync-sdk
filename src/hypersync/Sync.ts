@@ -38,7 +38,7 @@ export class Sync {
 
   /**
    * @param {HyperproofApiClient} hyperproofClient The client to talk to Hyperproof
-   * @param {IUserContext} user Information about the user in the external system.
+   * @param {UserContext} user Information about the user in the external system.
    * @param {HypersyncStorageClient} storage The storage client for Hypersyncs
    * @param {string} objectKey The key for the object the hypersync is targetting
    * @param {Hypersync} hypersync The Hypersync to run the sync for

@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { IFusebitContext, IStorageItem } from '@fusebit/add-on-sdk';
-import { IUserContext, OAuthConnector } from '@fusebit/oauth-connector';
+import { FusebitContext, StorageItem } from '@fusebit/add-on-sdk';
+import { UserContext, OAuthConnector } from '@fusebit/oauth-connector';
 import {
   AuthorizationType,
   createConnector,
@@ -380,11 +380,11 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * Validates custom auth credentials that are provided when creating a new
      * new user connection.  Designed to be overridden.
      *
-     * @returns An object containing values to be persisted in IUserContext.
+     * @returns An object containing values to be persisted in UserContext.
      */
     async validateCredentials(
       credentials: CustomAuthCredentials,
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       hyperproofUserId: string
     ): Promise<IValidateCredentialsResponse> {
       throw new Error('Not implemented.');
@@ -398,12 +398,12 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * @param {*} userContext The user context representing the vendor's user. Contains vendorToken and vendorUserProfile, representing responses
      * from getAccessToken and getUserProfile, respectively.
      */
-    getUserAccount(userContext: IUserContext): string {
+    getUserAccount(userContext: UserContext): string {
       throw Error('Not implemented.');
     }
 
     async getUserConnection(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       orgId: string,
       userId: string,
       vendorUserId: string
@@ -427,10 +427,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * @param {*} userContext The user context representing the vendor's user. Contains vendorToken and vendorUserProfile, representing responses
      * from getAccessToken and getUserProfile, respectively.
      */
-    async onNewUser(
-      fusebitContext: IFusebitContext,
-      userContext: IUserContext
-    ) {
+    async onNewUser(fusebitContext: FusebitContext, userContext: UserContext) {
       const hpUser = this.getHpUserFromUserContext(userContext);
       if (hpUser) {
         const storage = await createHypersyncStorageClient(fusebitContext);
@@ -453,7 +450,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * The vendorId must correspond to an entry in userContext.foreignOAuthIdentities.
      */
     async deleteUserIfLast(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       user: IHyperproofUserContext,
       vendorUserId: string,
       vendorId?: string
@@ -480,7 +477,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
     }
 
     async deleteUser(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       vendorUserId: string,
       vendorId?: string
     ) {
@@ -499,7 +496,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * Execute a sync operation
      */
     async syncNow(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       orgId: string,
       objectType: ObjectType,
       objectId: string,
@@ -516,7 +513,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * Generate the fields necessary to configure a Hypersync
      */
     async generateCriteriaMetadata(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       vendorUserId: string,
       criteria: HypersyncCriteria,
       search?: string
@@ -528,7 +525,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * Returns the schema of the proof that will be generated.
      */
     async generateSchema(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       vendorUserId: string,
       criteria: HypersyncCriteria
     ): Promise<IHypersyncSchema> {
@@ -546,7 +543,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * @param {string} authorizationUrl The fully formed authorization url to redirect the user to
      */
     async getAuthorizationPageHtml(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       authorizationUrl: string
     ) {
       return undefined;
@@ -569,14 +566,14 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * Keeps an access token alive.  Designed to be overridden in connectors
      * that have tokens that expire.  Behavior varies by connector.
      *
-     * @param {IFusebitContext} fusebitContext The Fusebit context of the request
+     * @param {FusebitContext} fusebitContext The Fusebit context of the request
      * @param {*} userContext The user context representing the vendor's user. Contains vendorToken and vendorUserProfile, representing responses
      * from getAccessToken and getUserProfile, respectively.
      *
      * @returns True if the token was kept alive.
      */
     async keepTokenAlive(
-      fusebitContext: IFusebitContext,
+      fusebitContext: FusebitContext,
       userContext: IHyperproofUserContext
     ): Promise<boolean> {
       return true;
@@ -585,18 +582,18 @@ export function createHypersync(superclass: typeof OAuthConnector) {
     /**
      * Keeps all stored connections alive for the connector.
      *
-     * @param {IFusebitContext} fusebitContext The Fusebit context of the request
+     * @param {FusebitContext} fusebitContext The Fusebit context of the request
      *
      * @returns An array of booleans representing the kept alive status for each token.
      */
     async keepAllTokensAlive(
-      fusebitContext: IFusebitContext
+      fusebitContext: FusebitContext
     ): Promise<boolean[]> {
       const vendorUserPath = 'vendor-user';
       const storage = fusebitContext.storage;
       const listResponse = await storage.list(vendorUserPath);
       return Promise.all(
-        listResponse.items.map(async (item: IStorageItem) => {
+        listResponse.items.map(async (item: StorageItem) => {
           const vendorUserResponse = await storage.get(
             item.storageId.split('root/')[1]
           );
@@ -612,7 +609,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
     }
 
     // Delete all the user connections in the organization
-    async deleteOrganization(fusebitContext: IFusebitContext, orgId: string) {
+    async deleteOrganization(fusebitContext: FusebitContext, orgId: string) {
       // Get all vendor-user entries
       const users = await this.getAllOrgUsers(fusebitContext, orgId);
       await Logger.info(

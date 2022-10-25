@@ -1,4 +1,4 @@
-import { IFusebitContext } from '@fusebit/add-on-sdk';
+import { FusebitContext } from '@fusebit/add-on-sdk';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
 import Superagent from 'superagent';
@@ -56,7 +56,7 @@ export const setHyperproofClientSecret = (clientSecret: string) => {
  * access token.  Not actually used since we avoid the first part of the
  * OAuth authorization flow but needed to complete the auth code exchange.
  */
-export const getHyperproofRedirectUrl = (fusebitContext: IFusebitContext) => {
+export const getHyperproofRedirectUrl = (fusebitContext: FusebitContext) => {
   return `${fusebitContext.baseUrl}/callback`;
 };
 
@@ -81,7 +81,7 @@ const sleep = (ms: number) => {
  * @returns An authorization config structure that can be sent to Hyperproof.
  */
 export const getHyperproofAuthConfig = (
-  fusebitContext: IFusebitContext,
+  fusebitContext: FusebitContext,
   integrationType: string,
   authorizationType: AuthorizationType,
   outboundOnly: boolean
@@ -128,7 +128,7 @@ const setExpiresAt = (token: IHyperproofUserToken) => {
  * @param instanceType Optional instance type to use when saving the token.
  */
 export const getHyperproofAccessToken = async (
-  fusebitContext: IFusebitContext,
+  fusebitContext: FusebitContext,
   orgId: string,
   userId: string,
   vendorUserId: string,
@@ -178,7 +178,7 @@ export const getHyperproofAccessToken = async (
  * @param hpUserContext An object representing the result of the getHyperproofAccessToken call.
  */
 const refreshHyperproofAccessToken = async (
-  fusebitContext: IFusebitContext,
+  fusebitContext: FusebitContext,
   hpUserContext: IHyperproofTokenContext
 ) => {
   await Logger.debug(
@@ -212,7 +212,7 @@ const refreshHyperproofAccessToken = async (
  * @param retryOnFailedRefresh Whether or not we should retry if the refresh fails.
  */
 export const ensureHyperproofAccessToken = async (
-  fusebitContext: IFusebitContext,
+  fusebitContext: FusebitContext,
   orgId: string,
   userId: string,
   instanceType?: InstanceType,
@@ -310,7 +310,7 @@ export const ensureHyperproofAccessToken = async (
  * @param instanceType Optional instance type to use when reading the Hyperproof user data.
  */
 export const getVendorUserIdsFromHyperproofUser = async (
-  fusebitContext: IFusebitContext,
+  fusebitContext: FusebitContext,
   orgId: string,
   userId: string,
   instanceType?: InstanceType
@@ -346,7 +346,7 @@ export const getVendorUserIdsFromHyperproofUser = async (
  * @param instanceType Optional instance type to use when update the Hyperproof user.
  */
 export const addVendorUserIdToHyperproofUser = async (
-  fusebitContext: IFusebitContext,
+  fusebitContext: FusebitContext,
   orgId: string,
   userId: string,
   vendorUserId: string,
@@ -399,7 +399,7 @@ export const addVendorUserIdToHyperproofUser = async (
  * @param instanceType Optional instance type to use when updating the Hyperproof user.
  */
 export const removeVendorUserIdFromHyperproofUser = async (
-  fusebitContext: IFusebitContext,
+  fusebitContext: FusebitContext,
   orgId: string,
   userId: string,
   vendorUserId: string,
@@ -440,7 +440,7 @@ export const removeVendorUserIdFromHyperproofUser = async (
  * @param instanceType Optional instance type which identifies the Hyperproof user to delete.
  */
 export const deleteHyperproofUser = async (
-  fusebitContext: IFusebitContext,
+  fusebitContext: FusebitContext,
   orgId: string,
   userId: string,
   instanceType?: InstanceType

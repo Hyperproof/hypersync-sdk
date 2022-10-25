@@ -1,4 +1,4 @@
-import Sdk, { IFusebitContext } from '@fusebit/add-on-sdk';
+import Sdk, { FusebitContext } from '@fusebit/add-on-sdk';
 import {
   IUserConnection,
   IUserConnectionPatch,
@@ -14,19 +14,19 @@ import StatusCodes from 'http-status-codes';
  * that is stored in the Hypersync service's storage root.
  */
 export class HypersyncStorageClient {
-  private fusebitContext: IFusebitContext;
-  private storage: Sdk.IStorageClient;
+  private fusebitContext: FusebitContext;
+  private storage: Sdk.StorageClient;
 
   private constructor(
-    fusebitContext: IFusebitContext,
-    storage: Sdk.IStorageClient
+    fusebitContext: FusebitContext,
+    storage: Sdk.StorageClient
   ) {
     this.fusebitContext = fusebitContext;
     this.storage = storage;
   }
 
   public static async createInstance(
-    fusebitContext: IFusebitContext,
+    fusebitContext: FusebitContext,
     storageIdPrefix?: string
   ) {
     if (!storageIdPrefix) {
@@ -254,7 +254,7 @@ export class HypersyncStorageClient {
 }
 
 export const createHypersyncStorageClient = async (
-  fusebitContext: IFusebitContext,
+  fusebitContext: FusebitContext,
   storageIdPrefix?: string
 ) => {
   return HypersyncStorageClient.createInstance(fusebitContext, storageIdPrefix);
