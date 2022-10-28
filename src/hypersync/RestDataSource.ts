@@ -119,7 +119,7 @@ export class RestDataSource extends ApiClient implements IDataSource {
     const tokenContext = this.initTokenContext(params);
     let relativeUrl = resolveTokens(dataSet.url, tokenContext);
     const query = { ...dataSet.query };
-    if (query) {
+    if (Object.keys(query).length) {
       for (const key of Object.keys(query)) {
         query[key] = resolveTokens(query[key], tokenContext);
       }
