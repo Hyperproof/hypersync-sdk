@@ -13,6 +13,7 @@ import {
   parseStorageKeyFromStorageId
 } from './common';
 import {
+  AppId,
   AuthorizationType,
   FOREIGN_VENDOR_USER,
   HttpHeader,
@@ -351,6 +352,14 @@ export function createConnector(superclass: typeof OAuthConnector) {
             } = {};
 
             for (const connection of connections) {
+              // Hypersync types don't get archived or connections deleted when user is deactivated.
+              // Connections now only get deleted explicitly.
+              if (
+                connection.type !== AppId.JIRA &&
+                connection.type !== AppId.ASANA
+              ) {
+                continue;
+              }
               let success = true;
               let err = undefined;
               try {
@@ -456,6 +465,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
     /**
      * Whether this connector only communicates outbound from hyperproof. By default all connectors are 2 way
      */
+    // TODO: 28079: update this so Hypersync type return true as it should be outboundOnly
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     outboundOnly(integrationType: string, meta: Express.ParsedQs) {
       return false;

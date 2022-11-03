@@ -10,6 +10,7 @@ import {
   getHpUserFromUserKey,
   HttpHeader,
   HYPERPROOF_VENDOR_KEY,
+  IHyperproofUser,
   IHyperproofUserContext,
   IRetryResponse,
   IUserConnection,
@@ -236,8 +237,8 @@ export function createHypersync(superclass: typeof OAuthConnector) {
                   mapObjectTypesParamToType(req.params.objectType),
                   objectId,
                   req.body.hypersync,
-                  req.body.userId,
                   req.body.syncStartDate,
+                  req.body.user,
                   req.body.page,
                   req.body.metadata
                 );
@@ -501,8 +502,8 @@ export function createHypersync(superclass: typeof OAuthConnector) {
       objectType: ObjectType,
       objectId: string,
       hypersync: IHypersync,
-      userId: string,
       syncStartDate: string,
+      hyperproofUser: IHyperproofUser,
       page: number,
       metadata?: SyncMetadata
     ): Promise<IGetProofDataResponse | IRetryResponse> {

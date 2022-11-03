@@ -1,4 +1,4 @@
-import { ExternalAPIError, HyperproofApiClient, Logger } from '../common';
+import { ExternalAPIError, IHyperproofUser, Logger } from '../common';
 import { formatHypersyncError } from './common';
 import { HypersyncResult } from './enums';
 import { HypersyncStorageClient } from './HypersyncStorageClient';
@@ -27,18 +27,18 @@ export interface IGetProofDataResponse {
 }
 
 export class Sync {
-  public hyperproofClient: HyperproofApiClient;
-  public user: object;
+  public userContext: object;
   public storage: HypersyncStorageClient;
   public objectKey: string;
   public hypersync: IHypersync;
   public syncStartDate: Date;
+  public hyperproofUser: IHyperproofUser;
   public page?: number;
   public metadata?: SyncMetadata;
 
   /**
    * @param {HyperproofApiClient} hyperproofClient The client to talk to Hyperproof
-   * @param {UserContext} user Information about the user in the external system.
+   * @param {UserContext} userContext Information about the user in the external system.
    * @param {HypersyncStorageClient} storage The storage client for Hypersyncs
    * @param {string} objectKey The key for the object the hypersync is targetting
    * @param {Hypersync} hypersync The Hypersync to run the sync for
@@ -47,21 +47,21 @@ export class Sync {
    * @param {SyncMetadata} metadata Hypersync-specific synchronization state.  Optional.
    */
   constructor(
-    hyperproofClient: HyperproofApiClient,
-    user: object,
+    userContext: object,
     storage: HypersyncStorageClient,
     objectKey: string,
     hypersync: IHypersync,
     syncStartDate: string,
+    hyperproofUser: IHyperproofUser,
     page?: number,
     metadata?: SyncMetadata
   ) {
-    this.hyperproofClient = hyperproofClient;
-    this.user = user;
+    this.userContext = userContext;
     this.storage = storage;
     this.objectKey = objectKey;
     this.hypersync = hypersync;
     this.syncStartDate = syncStartDate ? new Date(syncStartDate) : new Date();
+    this.hyperproofUser = hyperproofUser;
     this.page = page;
     this.metadata = metadata;
   }

@@ -7,7 +7,6 @@ import {
 } from '@fusebit/oauth-connector';
 import {
   AuthorizationType,
-  createHyperproofApiClient,
   CustomAuthCredentials,
   ExternalAPIError,
   FieldType,
@@ -191,8 +190,8 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     objectType: ObjectType,
     objectId: string,
     hypersync: IHypersync,
-    userId: string,
     syncStartDate: string,
+    hyperproofUser: IHyperproofUser,
     page?: number,
     metadata?: SyncMetadata
   ) {
@@ -201,12 +200,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       fusebitContext,
       vendorUserId
     );
-    const hyperproofClient = await createHyperproofApiClient(
-      fusebitContext,
-      orgId,
-      userId
-    );
-    const hyperproofUser = await hyperproofClient.getMe();
+
     const userContext = await this.getUser(fusebitContext, vendorUserId);
 
     try {
