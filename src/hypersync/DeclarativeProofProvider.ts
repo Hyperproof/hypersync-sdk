@@ -5,6 +5,7 @@ import { ID_ALL, ID_ANY, ID_NONE, StringMap } from './common';
 import { ICriteriaPage, IProofCriterionRef } from './ICriteriaProvider';
 import { DeclarativeCriteriaProvider } from './DeclarativeCriteriaProvider';
 import {
+  DataSetResultStatus,
   HypersyncDataFormat,
   HypersyncFieldFormat,
   HypersyncFieldType,
@@ -17,7 +18,7 @@ import { dateToLocalizedString } from './time';
 import { resolveTokens, TokenContext } from './tokens';
 import { IProofFile, ProofProviderBase } from './ProofProviderBase';
 import { DataValueMap, IDataSource } from './IDataSource';
-import { SyncMetadata } from './Sync';
+import { IGetProofDataResponse, SyncMetadata } from './Sync';
 
 interface ILookup {
   name: string;
@@ -164,7 +165,7 @@ export class DeclarativeProofProvider extends ProofProviderBase {
     page?: number,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     metadata?: SyncMetadata
-  ): Promise<IProofFile[]> {
+  ): Promise<IProofFile[] | IGetProofDataResponse> {
     await Logger.info(`Generating declarative proof type ${this.proofType}`);
     const settings = hypersync.settings;
     const criteriaValues = settings.criteria;
@@ -182,11 +183,20 @@ export class DeclarativeProofProvider extends ProofProviderBase {
       }
     }
 
-    const {
-      data,
-      apiUrl,
-      context: dataSourceContext
-    } = await this.dataSource.getData(proofSpec.dataSet, params);
+    const response = await this.dataSource.getData(
+      proofSpec.dataSet,
+      params,
+      metadata
+    );
+
+    if (response.status !== DataSetResultStatus.Complete) {
+      return {
+        ...response,
+        data: []
+      };
+    }
+
+    const { data, apiUrl, context: dataSourceContext } = response;
 
     if (dataSourceContext) {
       tokenContext.dataSource = dataSourceContext;
@@ -333,12 +343,17 @@ export class DeclarativeProofProvider extends ProofProviderBase {
             }
           }
         }
-        const { data } = await this.dataSource.getData(
+        const response = await this.dataSource.getData(
           lookup.dataSet,
           lookup.dataSetParams
         );
+        if (response.status !== DataSetResultStatus.Complete) {
+          throw new Error(
+            `Pending response received for proof specification lookup data set: ${lookup.dataSet}`
+          );
+        }
         const lookups = tokenContext.lookups as TokenContext;
-        lookups[lookup.name] = data;
+        lookups[lookup.name] = response.data;
       }
     }
   }

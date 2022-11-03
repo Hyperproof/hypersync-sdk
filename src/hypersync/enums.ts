@@ -55,3 +55,8 @@ export enum HypersyncProofFormat {
   PDF = 'pdf',
   Excel = 'excel'
 }
+
+export enum DataSetResultStatus {
+  Complete = 'complete',
+  Pending = 'pending'
+}

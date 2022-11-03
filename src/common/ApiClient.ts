@@ -8,14 +8,14 @@ import { IThrottleModel, ThrottleManager } from './throttle';
 /**
  * Type alias for the tuple of parameters taken by `ApiClient.sendRequest()`.
  *
- * @property relativeUrl The target URL of the request relative to the `baseUrl` of the client.
+ * @property url The target URL of the request.  Relative to the `baseUrl` if `baseUrl` is configured in the ApiClient.
  * @property method The HTTP method to use for the request.
  * @property body The request body.
  * @property additionalHeaders Additional headers to merge with the client's `commonHeaders` for the
  *           request.
  */
 type ApiClientRequestArgs = [
-  relativeUrl: string,
+  url: string,
   method: string,
   body: object | undefined,
   additionalHeaders: HeadersInit | undefined,
@@ -41,7 +41,7 @@ type ApiClientReturnType = Promise<IApiClientResponse>;
  * Generic client for sending requests to external APIs
  */
 export class ApiClient {
-  protected baseUrl: string;
+  protected baseUrl?: string;
   protected commonHeaders: HeadersInit;
   private throttleManager: ThrottleManager<
     ApiClientRequestArgs,
@@ -49,8 +49,8 @@ export class ApiClient {
   >;
 
   /**
-   * @param baseUrl The base URL off of which relative URLs provided to `sendRequest()` stem.
    * @param commonHeaders Headers to add to all API requests.
+   * @param baseUrl The base URL off of which relative URLs provided to `sendRequest()` stem.
    * @param throttleManager If this is a retry of a previously-attempted sync, provide the result
    *        of a call to `ThrottleManager.toBare()` on the `ThrottleManager` used by the previous
    *        run here to track and limit the number of allowable retries. If this is the
@@ -60,21 +60,21 @@ export class ApiClient {
    *        after a retry will not necessarily grow exponentially.
    */
   constructor(
-    baseUrl: string,
     commonHeaders: HeadersInit,
+    baseUrl?: string,
     throttleModel?: IThrottleModel
   ) {
-    this.baseUrl = baseUrl;
     this.commonHeaders = commonHeaders;
+    this.baseUrl = baseUrl;
     this.throttleManager = new ThrottleManager(
       params => this.doSendRequest(...params),
       throttleModel
     );
   }
 
-  public async getJson(relativeUrl: string, abortController?: AbortController) {
+  public async getJson(url: string, abortController?: AbortController) {
     return this.sendRequest(
-      relativeUrl,
+      url,
       HttpMethod.GET,
       undefined,
       undefined,
@@ -83,12 +83,12 @@ export class ApiClient {
   }
 
   public async postJson(
-    relativeUrl: string,
+    url: string,
     body?: object,
     abortController?: AbortController
   ) {
     return this.sendRequest(
-      relativeUrl,
+      url,
       HttpMethod.POST,
       body,
       undefined,
@@ -115,14 +115,14 @@ export class ApiClient {
 
   private async doSendRequest(
     ...[
-      relativeUrl,
+      url,
       method,
       body,
       additionalHeaders,
       abortController
     ]: ApiClientRequestArgs
   ): ApiClientReturnType {
-    const apiUrl = this.buildUrl(relativeUrl);
+    const apiUrl = this.buildUrl(url);
     await Logger.debug(`Making ${method} request to ${apiUrl}`);
     const response = await fetch(apiUrl, {
       method,
@@ -137,13 +137,13 @@ export class ApiClient {
       await this.handleFailedResponse(response, apiUrl);
     }
 
-    await Logger.debug(`${relativeUrl} returned ${response.status}`);
+    await Logger.debug(`${url} returned ${response.status}`);
 
     const json = await response.json();
     return { apiUrl, json, headers: response.headers.raw() };
   }
 
-  private buildUrl(relativeUrl: string): string {
-    return new URL(relativeUrl, this.baseUrl).href;
+  private buildUrl(url: string): string {
+    return this.baseUrl ? new URL(url, this.baseUrl).href : url;
   }
 }
