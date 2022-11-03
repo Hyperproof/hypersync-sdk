@@ -5,6 +5,7 @@ import {
 } from '../common';
 import fs from 'fs';
 import path from 'path';
+import { DataSetResultStatus } from './enums';
 import {
   IProofCriterionRef,
   IProofCriterionValue,
@@ -224,6 +225,12 @@ export class DeclarativeCriteriaProvider implements ICriteriaProvider {
         criteriaField.dataSet,
         params
       );
+
+      if (result.status !== DataSetResultStatus.Complete) {
+        throw new Error(
+          `Pending response received for critiera field data set: ${criteriaField.dataSet}`
+        );
+      }
 
       if (!Array.isArray(result.data)) {
         throw new Error(

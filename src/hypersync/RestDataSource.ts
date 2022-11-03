@@ -1,12 +1,18 @@
 import { ApiClient, compareValues, Logger } from '../common';
-import fs from 'fs';
 import jsonata from 'jsonata';
 import { HeadersInit } from 'node-fetch';
 import queryString from 'query-string';
 import { StringMap } from './common';
 import { DataObject, DataValue } from './models';
-import { DataValueMap, IDataSource, IGetDataResult } from './IDataSource';
+import {
+  DataValueMap,
+  IDataSource,
+  IDataSetResultComplete,
+  IDataSetResultPending
+} from './IDataSource';
 import { resolveTokens, TokenContext } from './tokens';
+import { SyncMetadata } from './Sync';
+import { DataSetResultStatus } from './enums';
 
 const LOOKUP_DEFAULT_VALUE = '__default__';
 
@@ -37,6 +43,7 @@ export interface IDataSet {
   description: string;
   documentation?: string;
   url: string;
+  property?: string;
   query?: Query;
   joins?: IJoin[];
   lookups?: ILookup[];
@@ -51,6 +58,7 @@ export interface IDataSet {
  * the input to a RestDataSource instance.
  */
 export interface IDataSourceConfig {
+  baseUrl?: string;
   dataSets: {
     [name: string]: IDataSet;
   };
@@ -59,10 +67,21 @@ export interface IDataSourceConfig {
   };
 }
 
-export interface IGetRestDataResult<TData = DataObject>
-  extends IGetDataResult<TData> {
+export interface IRestDataSetComplete<TData = DataObject>
+  extends IDataSetResultComplete<TData> {
   headers: { [name: string]: string[] };
 }
+
+export type RestDataSetResult<TData = DataObject> =
+  | IRestDataSetComplete<TData>
+  | IDataSetResultPending;
+
+export interface IJoinDataSetDone {
+  status: DataSetResultStatus.Complete;
+  data: any;
+}
+
+export type JoinDataSetResult = IJoinDataSetDone | IDataSetResultPending;
 
 interface IPredicateClause {
   leftExpression: jsonata.Expression;
@@ -82,18 +101,12 @@ export class RestDataSource extends ApiClient implements IDataSource {
   private config: IDataSourceConfig;
 
   constructor(
-    baseUrl: string,
-    config: string | IDataSourceConfig,
+    config: IDataSourceConfig,
     messages: StringMap,
     commonHeaders: HeadersInit
   ) {
-    super(baseUrl, commonHeaders);
-    if (typeof config === 'string') {
-      const configJson = fs.readFileSync(config, 'utf8');
-      this.config = JSON.parse(configJson);
-    } else {
-      this.config = config;
-    }
+    super(commonHeaders, config.baseUrl);
+    this.config = config;
     this.messages = messages;
   }
 
@@ -101,12 +114,15 @@ export class RestDataSource extends ApiClient implements IDataSource {
    * Retrieves data from the service.  IDataSource method.
    *
    * @param {string} dataSetName Name of the data set to retrieve.
-   * @param {object} params Parameter values to be used when retrieving data.  Optional.
+   * @param {object} params Parameter values to be used when retrieving data. Optional.
+   * @param {boolean} allowDelay Controls whether pending results are allowed. Optional.
+   * @param {object} metadata Metadata from previous sync run if requeued. Optional.
    */
   public async getData<TData>(
     dataSetName: string,
-    params?: DataValueMap
-  ): Promise<IGetRestDataResult<TData | TData[]>> {
+    params?: DataValueMap,
+    metadata?: SyncMetadata
+  ): Promise<RestDataSetResult<TData>> {
     await Logger.debug(
       `Retrieving Hypersync service data via data set: ${dataSetName}`
     );
@@ -131,15 +147,41 @@ export class RestDataSource extends ApiClient implements IDataSource {
       dataSetName,
       dataSet,
       relativeUrl,
-      params
+      params,
+      metadata
     );
-    let data = response.data;
+    if (response.status !== DataSetResultStatus.Complete) {
+      return response;
+    }
+
+    let data: any = response.data;
+
+    // The `property` attribute can be used to select data out of the response.
+    if (dataSet.property) {
+      const expression = jsonata(dataSet.property);
+      data = expression.evaluate(data);
+    }
 
     // Join in any other data sets.
-    data = await this.applyJoins(dataSetName, dataSet, tokenContext, data);
+    const joinResponse = await this.applyJoins(
+      dataSetName,
+      dataSet,
+      tokenContext,
+      data
+    );
+    if (joinResponse.status !== DataSetResultStatus.Complete) {
+      return joinResponse;
+    }
+    data = joinResponse.data;
 
     // Apply per-row lookups after joins are complete.
-    data = await this.applyLookups(dataSetName, dataSet, tokenContext, data);
+    data = await this.applyLookups(
+      dataSetName,
+      dataSet,
+      tokenContext,
+      data,
+      metadata
+    );
 
     // If a filter was provided, apply that to the result.
     data = await this.applyFilter(
@@ -171,7 +213,12 @@ export class RestDataSource extends ApiClient implements IDataSource {
 
     await Logger.debug(`Data retrieval for ${dataSetName} complete`);
 
-    return { data, apiUrl: response.apiUrl, headers: response.headers };
+    return {
+      status: DataSetResultStatus.Complete,
+      data,
+      apiUrl: response.apiUrl,
+      headers: response.headers
+    };
   }
 
   /**
@@ -183,16 +230,15 @@ export class RestDataSource extends ApiClient implements IDataSource {
   public async getDataObject<TData = DataObject>(
     dataSetName: string,
     params?: DataValueMap
-  ): Promise<IGetRestDataResult<TData>> {
+  ): Promise<IRestDataSetComplete<TData>> {
     const response = await this.getData<TData>(dataSetName, params);
+    if (response.status !== DataSetResultStatus.Complete) {
+      throw new Error(`Invalid response received for data set: ${dataSetName}`);
+    }
     if (Array.isArray(response.data)) {
       throw new Error(`Received array from ${dataSetName}.  Expected object.`);
     }
-    return {
-      data: response.data as TData,
-      apiUrl: response.apiUrl,
-      headers: response.headers
-    };
+    return response;
   }
 
   /**
@@ -204,16 +250,15 @@ export class RestDataSource extends ApiClient implements IDataSource {
   public async getDataObjectArray<TData = DataObject>(
     dataSetName: string,
     params?: DataValueMap
-  ): Promise<IGetRestDataResult<TData[]>> {
-    const response = await this.getData<TData>(dataSetName, params);
+  ): Promise<IRestDataSetComplete<TData[]>> {
+    const response = await this.getData<TData[]>(dataSetName, params);
+    if (response.status !== DataSetResultStatus.Complete) {
+      throw new Error(`Invalid response received for data set: ${dataSetName}`);
+    }
     if (!Array.isArray(response.data)) {
       throw new Error(`Received object from ${dataSetName}.  Expected array.`);
     }
-    return {
-      data: response.data as TData[],
-      apiUrl: response.apiUrl,
-      headers: response.headers
-    };
+    return response;
   }
 
   /**
@@ -223,18 +268,21 @@ export class RestDataSource extends ApiClient implements IDataSource {
    * @param {object} dataSet Data set for which data is being retrieved.
    * @param {string} relativeUrl Service-relative URL from which data should be retrieved.
    * @param {object} params Parameter values to be used when retrieving data.  Optional.
+   * @param {object} metadata Metadata from previous sync run if requeued. Optional.
    *
-   * @returns An object with data and apiUrl members.
+   * @returns RestDataSetResult
    */
   protected async getDataFromUrl(
     dataSetName: string,
     dataSet: IDataSet,
     relativeUrl: string,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    params?: DataValueMap
-  ): Promise<IGetRestDataResult<any>> {
+    params?: DataValueMap,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    metadata?: SyncMetadata
+  ): Promise<RestDataSetResult<any>> {
     const { json: data, apiUrl, headers } = await super.getJson(relativeUrl);
-    return { data, apiUrl, headers };
+    return { status: DataSetResultStatus.Complete, data, apiUrl, headers };
   }
 
   /**
@@ -250,10 +298,13 @@ export class RestDataSource extends ApiClient implements IDataSource {
     dataSet: IDataSet,
     tokenContext: TokenContext,
     data: any
-  ): Promise<any> {
+  ): Promise<JoinDataSetResult> {
     const joins = dataSet.joins;
     if (!joins) {
-      return data;
+      return {
+        data,
+        status: DataSetResultStatus.Complete
+      };
     }
 
     let joinData = Array.isArray(data) ? data : [data];
@@ -262,6 +313,9 @@ export class RestDataSource extends ApiClient implements IDataSource {
         join.dataSet,
         join.dataSetParams
       );
+      if (response.status !== DataSetResultStatus.Complete) {
+        return response;
+      }
       const rhs: any[] = response.data;
       if (!Array.isArray(rhs)) {
         throw new Error('Joined data sets must be array types.');
@@ -289,7 +343,10 @@ export class RestDataSource extends ApiClient implements IDataSource {
       joinData = results;
     }
 
-    return joinData;
+    return {
+      data: joinData,
+      status: DataSetResultStatus.Complete
+    };
   }
 
   /**
@@ -301,12 +358,14 @@ export class RestDataSource extends ApiClient implements IDataSource {
    * @param {object} dataSet Data set for which data is being retrieved.
    * @param {*} tokenContext Context object used in token replacement.
    * @param {*} data Data object(s) into which lookup values will be inserted.
+   * @param {object} metadata Metadata from previous sync run if paging. Optional.
    */
   protected async applyLookups(
     dataSetName: string,
     dataSet: IDataSet,
     tokenContext: TokenContext,
-    data: any
+    data: any,
+    metadata?: SyncMetadata
   ): Promise<any> {
     const lookups = dataSet.lookups;
     if (!lookups) {
@@ -327,7 +386,16 @@ export class RestDataSource extends ApiClient implements IDataSource {
           }
         }
 
-        const response = await this.getData<any>(lookup.dataSet, params);
+        const response = await this.getData<any>(
+          lookup.dataSet,
+          params,
+          metadata
+        );
+        if (response.status !== DataSetResultStatus.Complete) {
+          throw new Error(
+            `Invalid response received for data set: ${dataSetName}`
+          );
+        }
         dataObject[lookup.alias] = response.data;
       }
     }
