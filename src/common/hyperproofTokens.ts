@@ -102,7 +102,7 @@ export const getHyperproofAuthConfig = (
     ...baseConfig,
     hyperproofClientId: process.env.hyperproof_oauth_client_id,
     hyperproofRedirectUrl: getHyperproofRedirectUrl(fusebitContext),
-    hyperproofScopes: process.env.hyperproof_oauth_scope!.split(' ')
+    hyperproofScopes: process.env.hyperproof_oauth_scope?.split(' ')
   } as IAuthorizationConfig;
 };
 
