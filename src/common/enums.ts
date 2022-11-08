@@ -21,11 +21,12 @@ export enum FieldType {
 }
 
 export enum CredentialFieldType {
-  PASSWORD = 'password',
-  TEXT = 'text',
-  TEXT_AREA = 'textArea',
+  GROUP = 'group',
   HIDDEN = 'hidden',
-  SELECT = 'select'
+  PASSWORD = 'password',
+  SELECT = 'select',
+  TEXT = 'text',
+  TEXT_AREA = 'textArea'
 }
 
 export enum AppId {
