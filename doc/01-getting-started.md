@@ -23,7 +23,7 @@ To easiest way to get started with the Hypersync SDK is to start with one of the
 Once you have decided on the sample or template that you want to start with, follow these steps to install the app into your development organization:
 
 1. Copy the sample or template to another folder on your computer. Feel free to rename the folder if that helps.
-2. From the command line run `hp login` to authorize the Hyerproof CLI to access your develoment organization. IMPORTANT: When the authorization screen appears make sure you choose your develoment organization from the dropdown.
+2. From the command line run `hp login` to authorize the Hyperproof CLI to access your develoment organization. IMPORTANT: When the authorization screen appears make sure you choose your develoment organization from the dropdown.
 3. Change to the directory (`cd`) of your new folder.
 4. Next run this command to install the custom Hypersync app.
 
@@ -39,7 +39,7 @@ TODO: Include sample output
 
 The import might take a minute or two to complete. Once it is done, you are ready to try your app in Hyperproof.
 
-1. In the browser, navigate to <https://hyerproof.io> and sign into your devleopment organization.
+1. In the browser, navigate to <https://hyperproof.io> and sign into your development organization.
 2. Navigate to any Control or Label that you have permissions to access.
 3. Click on the **Automations** tab.
 4. Click the **+New Hypersync** button.
