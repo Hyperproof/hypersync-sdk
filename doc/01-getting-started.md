@@ -6,7 +6,19 @@ Every Hypersync app is a [Node.js](https://nodejs.org/en/) [module](https://node
 
 ## Prerequisites
 
-To use the Hypersync SDK you will need a Windows, Mac or Linux machine with Node.JS version 16 or later. You will also need to install the [Hyperproof CLI](./hyperproof-cli.md).
+To use the Hypersync SDK you will need a Windows, Mac or Linux computer with a few software packages installed.
+
+Since each Hypersync is a Node.js module, you will need to have Node.js installed in order to build custom Hypersyncs. The Hypersync platform uses Node.js version 16 which you can install here:
+
+- [Node JS version 16](https://nodejs.org/download/release/v16.18.1/).
+
+You will also need to install the yarn package manager using the link below.
+
+- [yarn package manager](https://yarnpkg.com/)
+
+Finally, you will need to install the Hyperproof CLI to publish and manage your custom Hypersyncs:
+
+- [Hyperproof CLI](./hyperproof-cli.md)
 
 For development purposes you will also probably want to create a development organization in Hyperproof. This will allow you to to develop and test your custom Hypersyncs in isolation without affecting the users in your production organization. To create a development organization contact Hyperproof Customer Support at <support@hyperproof.io>.
 
