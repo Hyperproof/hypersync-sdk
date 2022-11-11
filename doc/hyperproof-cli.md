@@ -27,7 +27,7 @@ It may also be installed on other Debian distributions but the Hyperprof CLI has
 
 Once you have installed the [.Net Runtime 6.0](https://dotnet.microsoft.com/en-us/download/dotnet/6.0), the CLI can be installed by downloading a `.deb` package from the Hyperproof web site. Click the link below to download the latest version of the Hyperproof CLI.
 
-- [Download HP CLI `.deb` for Debian Linux Distributions](https://hpdownload.blob.core.windows.net/hpcli/hpcli_0.8.1-1_amd64.deb)
+- [Download HP CLI `.deb` for Debian Linux Distributions](https://hpdownload.blob.core.windows.net/hpcli/hpcli_0.8.2-1_amd64.deb)
 
 The `.deb` package installs the HP CLI under `/usr/bin`.
 
@@ -44,7 +44,7 @@ The Hyperproof CLI has been tested on the following Windows versions.
 
 Once you have installed the [.Net Runtime 6.0](https://dotnet.microsoft.com/en-us/download/dotnet/6.0), click the link below to download and run the HP CLI Windows installer.
 
-- [Download HP CLI Windows Installer](https://hpdownload.blob.core.windows.net/hpcli/hpcli-0.8.1.exe)
+- [Download HP CLI Windows Installer](https://hpdownload.blob.core.windows.net/hpcli/hpcli-0.8.2.exe)
 
 The Hyperproof CLI will be installed under `C:\Program Files\Hyperproof CLI` unless you choose a different installation location. The installation directory should be added to your path.
 

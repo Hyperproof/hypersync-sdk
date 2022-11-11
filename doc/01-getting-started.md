@@ -6,7 +6,19 @@ Every Hypersync app is a [Node.js](https://nodejs.org/en/) [module](https://node
 
 ## Prerequisites
 
-To use the Hypersync SDK you will need a Windows, Mac or Linux machine with Node.JS version 16 or later. You will also need to install the [Hyperproof CLI](./hyperproof-cli.md).
+To use the Hypersync SDK you will need a Windows, Mac or Linux computer with a few software packages installed.
+
+Since each Hypersync is a Node.js module, you will need to have Node.js installed in order to build custom Hypersyncs. The Hypersync platform uses Node.js version 16 which you can install here:
+
+- [Node JS version 16](https://nodejs.org/download/release/v16.18.1/).
+
+You will also need to install the yarn package manager using the link below.
+
+- [yarn package manager](https://yarnpkg.com/)
+
+Finally, you will need to install the Hyperproof CLI to publish and manage your custom Hypersyncs:
+
+- [Hyperproof CLI](./hyperproof-cli.md)
 
 For development purposes you will also probably want to create a development organization in Hyperproof. This will allow you to to develop and test your custom Hypersyncs in isolation without affecting the users in your production organization. To create a development organization contact Hyperproof Customer Support at <support@hyperproof.io>.
 
@@ -14,11 +26,11 @@ Finally, we recommend cloning the [hypersync-samples GitHub repository](https://
 
 ## Installing Your First Hypersync App
 
-To easiest way to get started with the Hypersync SDK is to start with one of the samples or templates in the @hyperproof/hypersync-samples GitHub repository.
+To easiest way to get started with the Hypersync SDK is to start with one of the samples or templates in the [@hyperproof/hypersync-sdk-samples](https://github.com/Hyperproof/hypersync-sdk-samples) GitHub repository.
 
-- Samples are complete Hypersync apps that can be used to bring data from an external service into Hyperproof. Using the Hyperysnc SDK you can customize these samples to meet your needs. The hypersync-samples repository contains samples for Jira, GitHub (**LIST TBD**) and other services. Your will find the samples in the `/samples` directory.
+- The samples repository contains several complete Hypersync apps that can be used to bring data from an external service into Hyperproof. Using the Hyperysnc SDK you can customize these samples to meet your needs. The hypersync-sdk-samples repository contains samples for Jira, GitHub (**LIST TBD**) and other services. Your will find the these Hypersync apps in the `/apps` directory.
 
-- Templates provide you with the foundation of a Hyperync app and are a great starting point if you are targeting a service for which there is no sample, or if you want to start with a clean slate. Templates can be found in the `/templates` directory.
+- The samples repository also includes a handful of templates to get you started building your own Hypersyncs from scatch. Templates can be found in the `/templates` directory.
 
 Once you have decided on the sample or template that you want to start with, follow these steps to install the app into your development organization:
 
