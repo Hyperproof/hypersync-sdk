@@ -150,11 +150,24 @@ export function createConnector(superclass: typeof OAuthConnector) {
           setHyperproofClientSecret(clientSecret);
         }
 
+        // Split up the URL and look for the orgId and/or userId params.
+        let orgId: string | undefined;
+        let userId: string | undefined;
+        const parts = req.url.split('/');
+        for (let i = 0; i < parts.length - 1; i++) {
+          if (parts[i] === 'organizations') {
+            orgId = parts[i + 1];
+          }
+          if (parts[i] === 'users') {
+            userId = parts[i + 1];
+          }
+        }
+
         Logger.init(
           {
             [LoggerContextKey.IntegrationType]: this.integrationType,
-            [LoggerContextKey.OrgId]: req.params.orgId,
-            [LoggerContextKey.UserId]: req.params.userId
+            [LoggerContextKey.OrgId]: orgId,
+            [LoggerContextKey.UserId]: userId
           },
           subscriptionKey ?? process.env.hyperproof_api_subscription_key
         );
