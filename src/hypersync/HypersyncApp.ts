@@ -1,10 +1,16 @@
 import { FusebitContext } from '@fusebit/add-on-sdk';
 import {
   createOAuthConnector,
+  OAuthConnector,
   OAuthTokenResponse,
-  UserContext,
-  OAuthConnector
+  UserContext
 } from '@fusebit/oauth-connector';
+import fs from 'fs';
+import createHttpError from 'http-errors';
+import { StatusCodes } from 'http-status-codes';
+import path from 'path';
+import { ParsedQs } from 'qs';
+import Superagent from 'superagent';
 import {
   AuthorizationType,
   CustomAuthCredentials,
@@ -18,12 +24,6 @@ import {
   Logger,
   ObjectType
 } from '../common';
-import fs from 'fs';
-import createHttpError from 'http-errors';
-import { StatusCodes } from 'http-status-codes';
-import path from 'path';
-import { ParsedQs } from 'qs';
-import Superagent from 'superagent';
 import { formatHypersyncError, StringMap } from './common';
 import { HypersyncPeriod } from './enums';
 import {
@@ -192,7 +192,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     hypersync: IHypersync,
     syncStartDate: string,
     hyperproofUser: IHyperproofUser,
-    page?: number,
+    page?: string,
     metadata?: SyncMetadata
   ) {
     const vendorUserId = hypersync.settings.vendorUserId;
@@ -596,7 +596,7 @@ export class HypersyncApp<TUserProfile = object> {
     hyperproofUser: IHyperproofUser,
     userProfile: TUserProfile,
     syncStartDate: string,
-    page?: number,
+    page?: string,
     metadata?: SyncMetadata
   ): Promise<IProofFile[] | IGetProofDataResponse> {
     const factory = await this.getProofProviderFactory();

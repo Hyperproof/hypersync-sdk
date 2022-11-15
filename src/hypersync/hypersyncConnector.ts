@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { FusebitContext, StorageItem } from '@fusebit/add-on-sdk';
-import { UserContext, OAuthConnector } from '@fusebit/oauth-connector';
+import { OAuthConnector, UserContext } from '@fusebit/oauth-connector';
+import * as express from 'express';
+import fs from 'fs';
+import createHttpError from 'http-errors';
+import { StatusCodes } from 'http-status-codes';
 import {
   AuthorizationType,
   createConnector,
@@ -19,10 +23,6 @@ import {
   mapObjectTypesParamToType,
   ObjectType
 } from '../common';
-import * as express from 'express';
-import fs from 'fs';
-import createHttpError from 'http-errors';
-import { StatusCodes } from 'http-status-codes';
 import { formatHypersyncError } from './common';
 import { HypersyncStage } from './enums';
 import { createHypersyncStorageClient } from './HypersyncStorageClient';
@@ -504,7 +504,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
       hypersync: IHypersync,
       syncStartDate: string,
       hyperproofUser: IHyperproofUser,
-      page: number,
+      page?: string,
       metadata?: SyncMetadata
     ): Promise<IGetProofDataResponse | IRetryResponse> {
       throw Error('Not implemented');

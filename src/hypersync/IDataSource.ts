@@ -1,5 +1,5 @@
 import { DataSetResultStatus } from './enums';
-import { DataValue, DataObject } from './models';
+import { DataObject, DataValue } from './models';
 import { SyncMetadata } from './Sync';
 import { TokenContext } from './tokens';
 
@@ -12,6 +12,7 @@ export interface IDataSetResultComplete<TData = DataObject> {
   data: TData;
   apiUrl: string;
   context?: TokenContext;
+  nextPage?: string;
 }
 
 export interface IDataSetResultPending {
@@ -39,6 +40,7 @@ export interface IDataSource {
   getData<TData = DataObject>(
     dataSetName: string,
     params?: DataValueMap,
+    page?: string,
     metadata?: SyncMetadata
   ): Promise<DataSetResult<TData>>;
 }

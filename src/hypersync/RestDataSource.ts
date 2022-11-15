@@ -1,18 +1,18 @@
-import { ApiClient, compareValues, Logger } from '../common';
 import jsonata from 'jsonata';
 import { HeadersInit } from 'node-fetch';
 import queryString from 'query-string';
+import { ApiClient, compareValues, Logger } from '../common';
 import { StringMap } from './common';
-import { DataObject, DataValue } from './models';
+import { DataSetResultStatus } from './enums';
 import {
   DataValueMap,
-  IDataSource,
   IDataSetResultComplete,
-  IDataSetResultPending
+  IDataSetResultPending,
+  IDataSource
 } from './IDataSource';
-import { resolveTokens, TokenContext } from './tokens';
+import { DataObject, DataValue } from './models';
 import { SyncMetadata } from './Sync';
-import { DataSetResultStatus } from './enums';
+import { resolveTokens, TokenContext } from './tokens';
 
 const LOOKUP_DEFAULT_VALUE = '__default__';
 
@@ -121,6 +121,7 @@ export class RestDataSource extends ApiClient implements IDataSource {
   public async getData<TData>(
     dataSetName: string,
     params?: DataValueMap,
+    page?: string,
     metadata?: SyncMetadata
   ): Promise<RestDataSetResult<TData>> {
     await Logger.debug(
@@ -148,6 +149,7 @@ export class RestDataSource extends ApiClient implements IDataSource {
       dataSet,
       relativeUrl,
       params,
+      page,
       metadata
     );
     if (response.status !== DataSetResultStatus.Complete) {
@@ -279,6 +281,8 @@ export class RestDataSource extends ApiClient implements IDataSource {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     params?: DataValueMap,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    page?: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     metadata?: SyncMetadata
   ): Promise<RestDataSetResult<any>> {
     const { json: data, apiUrl, headers } = await super.getJson(relativeUrl);
@@ -389,6 +393,7 @@ export class RestDataSource extends ApiClient implements IDataSource {
         const response = await this.getData<any>(
           lookup.dataSet,
           params,
+          undefined,
           metadata
         );
         if (response.status !== DataSetResultStatus.Complete) {
