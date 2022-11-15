@@ -239,8 +239,6 @@ export class DeclarativeProofProvider extends ProofProviderBase {
     const proof = Array.isArray(data) ? data : [data];
 
     return {
-      nextPage: response.nextPage,
-      combine: true,
       data: [
         {
           filename: settings.name,
@@ -279,7 +277,9 @@ export class DeclarativeProofProvider extends ProofProviderBase {
             )!
           }
         }
-      ]
+      ],
+      nextPage: response.nextPage,
+      combine: true
     };
   }
 

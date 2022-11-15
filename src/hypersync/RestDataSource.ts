@@ -115,7 +115,7 @@ export class RestDataSource extends ApiClient implements IDataSource {
    *
    * @param {string} dataSetName Name of the data set to retrieve.
    * @param {object} params Parameter values to be used when retrieving data. Optional.
-   * @param {boolean} allowDelay Controls whether pending results are allowed. Optional.
+   * @param {string} page The page value to continue fetching data from a previous sync. Optional.
    * @param {object} metadata Metadata from previous sync run if requeued. Optional.
    */
   public async getData<TData>(
@@ -270,6 +270,7 @@ export class RestDataSource extends ApiClient implements IDataSource {
    * @param {object} dataSet Data set for which data is being retrieved.
    * @param {string} relativeUrl Service-relative URL from which data should be retrieved.
    * @param {object} params Parameter values to be used when retrieving data.  Optional.
+   * @param {string} page The page value to continue fetching data from a previous sync. Optional.
    * @param {object} metadata Metadata from previous sync run if requeued. Optional.
    *
    * @returns RestDataSetResult
@@ -393,7 +394,7 @@ export class RestDataSource extends ApiClient implements IDataSource {
         const response = await this.getData<any>(
           lookup.dataSet,
           params,
-          undefined,
+          undefined, // Paging is not supported for lookups
           metadata
         );
         if (response.status !== DataSetResultStatus.Complete) {
