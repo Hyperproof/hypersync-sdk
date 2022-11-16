@@ -219,7 +219,8 @@ export class RestDataSource extends ApiClient implements IDataSource {
       status: DataSetResultStatus.Complete,
       data,
       apiUrl: response.apiUrl,
-      headers: response.headers
+      headers: response.headers,
+      nextPage: response.nextPage
     };
   }
 

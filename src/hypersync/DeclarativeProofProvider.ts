@@ -197,7 +197,7 @@ export class DeclarativeProofProvider extends ProofProviderBase {
       };
     }
 
-    const { data, apiUrl, context: dataSourceContext } = response;
+    const { data, apiUrl, context: dataSourceContext, nextPage } = response;
 
     if (dataSourceContext) {
       tokenContext.dataSource = dataSourceContext;
@@ -278,7 +278,7 @@ export class DeclarativeProofProvider extends ProofProviderBase {
           }
         }
       ],
-      nextPage: response.nextPage,
+      nextPage,
       combine: true
     };
   }
