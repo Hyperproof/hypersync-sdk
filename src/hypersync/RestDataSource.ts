@@ -1,18 +1,18 @@
-import { ApiClient, compareValues, Logger } from '../common';
 import jsonata from 'jsonata';
 import { HeadersInit } from 'node-fetch';
 import queryString from 'query-string';
+import { ApiClient, compareValues, Logger } from '../common';
 import { StringMap } from './common';
-import { DataObject, DataValue } from './models';
+import { DataSetResultStatus } from './enums';
 import {
   DataValueMap,
-  IDataSource,
   IDataSetResultComplete,
-  IDataSetResultPending
+  IDataSetResultPending,
+  IDataSource
 } from './IDataSource';
-import { resolveTokens, TokenContext } from './tokens';
+import { DataObject, DataValue } from './models';
 import { SyncMetadata } from './Sync';
-import { DataSetResultStatus } from './enums';
+import { resolveTokens, TokenContext } from './tokens';
 
 const LOOKUP_DEFAULT_VALUE = '__default__';
 
@@ -115,12 +115,13 @@ export class RestDataSource extends ApiClient implements IDataSource {
    *
    * @param {string} dataSetName Name of the data set to retrieve.
    * @param {object} params Parameter values to be used when retrieving data. Optional.
-   * @param {boolean} allowDelay Controls whether pending results are allowed. Optional.
+   * @param {string} page The page value to continue fetching data from a previous sync. Optional.
    * @param {object} metadata Metadata from previous sync run if requeued. Optional.
    */
   public async getData<TData>(
     dataSetName: string,
     params?: DataValueMap,
+    page?: string,
     metadata?: SyncMetadata
   ): Promise<RestDataSetResult<TData>> {
     await Logger.debug(
@@ -148,6 +149,7 @@ export class RestDataSource extends ApiClient implements IDataSource {
       dataSet,
       relativeUrl,
       params,
+      page,
       metadata
     );
     if (response.status !== DataSetResultStatus.Complete) {
@@ -217,7 +219,8 @@ export class RestDataSource extends ApiClient implements IDataSource {
       status: DataSetResultStatus.Complete,
       data,
       apiUrl: response.apiUrl,
-      headers: response.headers
+      headers: response.headers,
+      nextPage: response.nextPage
     };
   }
 
@@ -268,6 +271,7 @@ export class RestDataSource extends ApiClient implements IDataSource {
    * @param {object} dataSet Data set for which data is being retrieved.
    * @param {string} relativeUrl Service-relative URL from which data should be retrieved.
    * @param {object} params Parameter values to be used when retrieving data.  Optional.
+   * @param {string} page The page value to continue fetching data from a previous sync. Optional.
    * @param {object} metadata Metadata from previous sync run if requeued. Optional.
    *
    * @returns RestDataSetResult
@@ -278,6 +282,8 @@ export class RestDataSource extends ApiClient implements IDataSource {
     relativeUrl: string,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     params?: DataValueMap,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    page?: string,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     metadata?: SyncMetadata
   ): Promise<RestDataSetResult<any>> {
@@ -389,6 +395,7 @@ export class RestDataSource extends ApiClient implements IDataSource {
         const response = await this.getData<any>(
           lookup.dataSet,
           params,
+          undefined, // Paging is not supported for lookups
           metadata
         );
         if (response.status !== DataSetResultStatus.Complete) {

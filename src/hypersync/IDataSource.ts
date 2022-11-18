@@ -1,5 +1,5 @@
 import { DataSetResultStatus } from './enums';
-import { DataValue, DataObject } from './models';
+import { DataObject, DataValue } from './models';
 import { SyncMetadata } from './Sync';
 import { TokenContext } from './tokens';
 
@@ -11,6 +11,7 @@ export interface IDataSetResultComplete<TData = DataObject> {
   status: DataSetResultStatus.Complete;
   data: TData;
   apiUrl: string;
+  nextPage?: string;
   context?: TokenContext;
 }
 
@@ -34,11 +35,16 @@ export interface IDataSource {
    *
    * @param {string} dataSetName Name of the data set to retrieve.
    * @param {object} params Parameter values to be used when retrieving data. Optional.
-   * @param {object} metadata Metadata from previous sync run if requeued. Optional.
+   * @param {string} page The page value to continue fetching data from a previous sync.
+   *  This has the same value as the nextPage property returned from the previous sync
+   *  if the status was Complete. Optional.
+   * @param {object} metadata Metadata from previous sync run if requeued. Only returned
+   *  from the previous sync if the status was Pending. Optional.
    */
   getData<TData = DataObject>(
     dataSetName: string,
     params?: DataValueMap,
+    page?: string,
     metadata?: SyncMetadata
   ): Promise<DataSetResult<TData>>;
 }

@@ -1,8 +1,7 @@
-import { IHyperproofUser, Logger } from '../common';
 import fs from 'fs';
 import path from 'path';
+import { IHyperproofUser, Logger } from '../common';
 import { ID_ALL, ID_ANY, ID_NONE, StringMap } from './common';
-import { ICriteriaPage, IProofCriterionRef } from './ICriteriaProvider';
 import { DeclarativeCriteriaProvider } from './DeclarativeCriteriaProvider';
 import {
   DataSetResultStatus,
@@ -13,12 +12,13 @@ import {
   HypersyncPeriod,
   HypersyncTemplate
 } from './enums';
+import { ICriteriaPage, IProofCriterionRef } from './ICriteriaProvider';
+import { DataValueMap, IDataSource } from './IDataSource';
 import { DataObject, HypersyncCriteria, IHypersync } from './models';
+import { IProofFile, ProofProviderBase } from './ProofProviderBase';
+import { IGetProofDataResponse, SyncMetadata } from './Sync';
 import { dateToLocalizedString } from './time';
 import { resolveTokens, TokenContext } from './tokens';
-import { IProofFile, ProofProviderBase } from './ProofProviderBase';
-import { DataValueMap, IDataSource } from './IDataSource';
-import { IGetProofDataResponse, SyncMetadata } from './Sync';
 
 interface ILookup {
   name: string;
@@ -162,7 +162,7 @@ export class DeclarativeProofProvider extends ProofProviderBase {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     syncStartDate: Date,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    page?: number,
+    page?: string,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     metadata?: SyncMetadata
   ): Promise<IProofFile[] | IGetProofDataResponse> {
@@ -186,6 +186,7 @@ export class DeclarativeProofProvider extends ProofProviderBase {
     const response = await this.dataSource.getData(
       proofSpec.dataSet,
       params,
+      page,
       metadata
     );
 
@@ -196,7 +197,7 @@ export class DeclarativeProofProvider extends ProofProviderBase {
       };
     }
 
-    const { data, apiUrl, context: dataSourceContext } = response;
+    const { data, apiUrl, context: dataSourceContext, nextPage } = response;
 
     if (dataSourceContext) {
       tokenContext.dataSource = dataSourceContext;
@@ -237,45 +238,49 @@ export class DeclarativeProofProvider extends ProofProviderBase {
     // Proof is always stored as an array.
     const proof = Array.isArray(data) ? data : [data];
 
-    return [
-      {
-        filename: settings.name,
-        contents: {
-          type: process.env.integration_type!,
-          title: resolveTokens(proofSpec.title, tokenContext),
-          subtitle: resolveTokens(proofSpec.subtitle, tokenContext),
-          source: apiUrl,
-          webPageUrl: resolveTokens(proofSpec.webPageUrl, tokenContext),
-          orientation: proofSpec.orientation,
-          userTimeZone: hyperproofUser.timeZone,
-          criteria,
-          proofFormat: settings.proofFormat,
-          template: HypersyncTemplate.UNIVERSAL,
-          layout: {
-            format: proofSpec.format,
-            noResultsMessage:
-              proof.length > 0 || !proofSpec.noResultsMessage
-                ? ''
-                : resolveTokens(proofSpec.noResultsMessage, tokenContext),
-            fields: proofSpec.fields.map(f => ({
-              property: f.property,
-              label: resolveTokens(f.label, tokenContext),
-              width: f.width,
-              type: f.type === HypersyncFieldType.TEXT ? undefined : f.type
-            }))
-          },
-          proof,
-          authorizedUser,
-          collector: this.connectorName,
-          collectedOn: dateToLocalizedString(
-            syncStartDate,
-            hyperproofUser.timeZone,
-            hyperproofUser.language,
-            hyperproofUser.locale
-          )!
+    return {
+      data: [
+        {
+          filename: settings.name,
+          contents: {
+            type: process.env.integration_type!,
+            title: resolveTokens(proofSpec.title, tokenContext),
+            subtitle: resolveTokens(proofSpec.subtitle, tokenContext),
+            source: apiUrl,
+            webPageUrl: resolveTokens(proofSpec.webPageUrl, tokenContext),
+            orientation: proofSpec.orientation,
+            userTimeZone: hyperproofUser.timeZone,
+            criteria,
+            proofFormat: settings.proofFormat,
+            template: HypersyncTemplate.UNIVERSAL,
+            layout: {
+              format: proofSpec.format,
+              noResultsMessage:
+                proof.length > 0 || !proofSpec.noResultsMessage
+                  ? ''
+                  : resolveTokens(proofSpec.noResultsMessage, tokenContext),
+              fields: proofSpec.fields.map(f => ({
+                property: f.property,
+                label: resolveTokens(f.label, tokenContext),
+                width: f.width,
+                type: f.type === HypersyncFieldType.TEXT ? undefined : f.type
+              }))
+            },
+            proof,
+            authorizedUser,
+            collector: this.connectorName,
+            collectedOn: dateToLocalizedString(
+              syncStartDate,
+              hyperproofUser.timeZone,
+              hyperproofUser.language,
+              hyperproofUser.locale
+            )!
+          }
         }
-      }
-    ];
+      ],
+      nextPage,
+      combine: true
+    };
   }
 
   /**

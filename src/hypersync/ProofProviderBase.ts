@@ -171,7 +171,7 @@ export class ProofProviderBase<T = any> {
     hyperproofUser: IHyperproofUser,
     authorizedUser: string,
     syncStartDate: Date,
-    page?: number,
+    page?: string,
     metadata?: SyncMetadata
   ): Promise<IGetProofDataResponse | IProofFile[]> {
     throw new Error('getProofData must be implemented by derived class.');
