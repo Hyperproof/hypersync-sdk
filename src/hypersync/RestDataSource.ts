@@ -577,7 +577,7 @@ export class RestDataSource extends ApiClient implements IDataSource {
         }
 
         if (value === undefined || value === null) {
-          if (!lookup[LOOKUP_DEFAULT_VALUE]) {
+          if (lookup[LOOKUP_DEFAULT_VALUE] === undefined) {
             throw new Error(
               `Invalid lookup: ${lookupName}.  Default value not defined.`
             );

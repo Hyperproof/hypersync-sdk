@@ -268,14 +268,17 @@ export function createHypersync(superclass: typeof OAuthConnector) {
             }
 
             await Logger.error('Failed to sync Hypersync', err);
-            res.status(err.status || StatusCodes.INTERNAL_SERVER_ERROR).json({
+            const statusCode =
+              err.status || err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR;
+            res.status(statusCode).json({
               message: err.message,
               extendedError: {
                 ...err,
                 [LogContextKey.HypersyncStage]: HypersyncStage.SYNCING,
                 [LogContextKey.IntegrationId]: req.body.hypersync.id,
                 [LogContextKey.HypersyncSettings]: req.body.hypersync.settings,
-                [LogContextKey.StackTrace]: err.stack
+                [LogContextKey.StackTrace]: err.stack,
+                [LogContextKey.StatusCode]: statusCode
               }
             });
           }
