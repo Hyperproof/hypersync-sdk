@@ -1,0 +1,140 @@
+{
+  "$schema": "https://cdn.jsdelivr.net/gh/Hyperproof/hypersync-sdk/schema/restDataSource.schema.json",
+  "baseUrl": "https://api.example.com/api/v1",
+  "dataSets": {
+    "orders": {
+      "description": "Fetches an array of Order objects from a REST endpoint.",
+      "documentation": "https://docs.example.com/api/orders",
+      "url": "/orders",
+      "result": "array"
+    },
+
+    "customers": {
+      "description": "Fetches an array of Customer objects from a REST endpoint.",
+      "documentation": "https://docs.example.com/api/customers",
+      "url": "/customers",
+      "result": "array"
+    },
+
+    "customerById": {
+      "description": "Returns a Customer object from a REST endpoint using query parameters.",
+      "url": "/customers",
+      "query": {
+        "customerIdentifier": "{{customerId}}",
+        "active": true
+      },
+      "result": "object"
+    },
+
+    "customersInNewYork": {
+      "description": "Fetches an array of Customer objects and then applies a filter.",
+      "url": "/customers",
+      "filter": [
+        { "property": "state", "value": "NY" },
+        { "property": "postalCode", "value": 10001 }
+      ],
+      "result": "array"
+    },
+
+    "customersInStateAndZip": {
+      "description": "Fetches an array of Customer objects and then applies a filter from a param.",
+      "url": "/customers",
+      "filter": [
+        { "property": "state", "value": "{{state}}" },
+        { "property": "postalCode", "value": "{{postalCode}}" },
+        { "property": "isActive", "value": "{{isActive}}" }
+      ],
+      "result": "array"
+    },
+
+    "customersTransformed": {
+      "description": "Fetches an array of Customer objects and then transforms each item in the array.",
+      "url": "/customers",
+      "transform": {
+        "name": "companyName",
+        "address": "address",
+        "city": "address",
+        "state": "address",
+        "zipCode": "postalCode",
+        "region": "$mlookup('regions', region)",
+        "representative": "representative.fullName"
+      },
+      "result": "array"
+    },
+
+    "customersSorted": {
+      "description": "Fetches an array of Customer objects and then sorts the result.",
+      "url": "/customers",
+      "sort": [
+        {
+          "property": "ytdOrderCount",
+          "direction": "descending"
+        },
+        {
+          "property": "lastName",
+          "direction": "ascending"
+        },
+        {
+          "property": "firstName",
+          "direction": "ascending"
+        }
+      ],
+      "result": "array"
+    },
+
+    "ordersWithCustomers": {
+      "description": "Fetches an array of objects and performs a lookup for each row in the array.",
+      "url": "/orders",
+      "lookups": [
+        {
+          "alias": "c",
+          "dataSet": "customerById",
+          "dataSetParams": {
+            "customerId": "{{source.customerId}}"
+          }
+        }
+      ],
+      "transform": {
+        "orderDate": "date",
+        "orderAmount": "amount",
+        "customer": "c.companyName"
+      },
+      "result": "array"
+    },
+
+    "customerOrderJoin": {
+      "description": "Fetches a list of Customer objects and then joins in their Orders.",
+      "url": "customers",
+      "joins": [
+        {
+          "alias": "o",
+          "dataSet": "orders",
+          "on": [
+            { "leftProperty": "customerId", "rightProperty": "customerId" }
+          ]
+        }
+      ],
+      "transform": {
+        "customer": "companyName",
+        "orderDate": "o.date",
+        "orderAmount": "o.amount"
+      },
+      "result": "array"
+    }
+  },
+  "messages": {
+    "regions": {
+      "east": "East Region",
+      "west": "West Region",
+      "north": "North Region",
+      "south": "South Region",
+      "__default__": "Unknown Region"
+    },
+    "priorities": {
+      "low": "Low",
+      "med": "Medium",
+      "hi": "High",
+      "__default__": "Priority Not Specified"
+    }
+  }
+}

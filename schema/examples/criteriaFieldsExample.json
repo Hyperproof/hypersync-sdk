@@ -2,46 +2,43 @@
   "$schema": "https://cdn.jsdelivr.net/gh/Hyperproof/hypersync-sdk/schema/criteriaFields.schema.json",
   "selectField": {
     "type": "select",
-    "property": "theProperty",
-    "label": "The Property",
+    "property": "customer",
+    "label": "Customer",
     "isRequired": true,
-    "dataSet": "listOfValuesDataSet",
-    "valueProperty": "id",
-    "labelProperty": "name"
+    "dataSet": "customers",
+    "valueProperty": "customerId",
+    "labelProperty": "companyName"
   },
   "selectFieldWithDataSetParams": {
     "type": "select",
-    "property": "theProperty",
-    "label": "The Property",
+    "property": "customer",
+    "label": "East Bellevue Customers",
     "isRequired": true,
-    "dataSet": "listOfValuesDataSet",
+    "dataSet": "customersByStateAndZip",
     "dataSetParams": {
-      "param1": "foo",
-      "param2": 1234,
-      "param3": true
+      "state": "WA",
+      "postalCode": 98008,
+      "isActive": true
     },
-    "valueProperty": "id",
-    "labelProperty": "name"
+    "valueProperty": "customerId",
+    "labelProperty": "companyName"
   },
   "selectFieldWithFixedValues": {
     "type": "select",
-    "property": "theProperty",
-    "label": "The Property",
+    "property": "customer",
+    "label": "Customer",
     "isRequired": true,
-    "dataSet": "listOfValuesDataSet",
-    "valueProperty": "id",
-    "labelProperty": "name",
-    "fixedValues": [
-      { "value": 1, "label": "Fixed Value 1" },
-      { "value": 2, "label": "Fixed Value 2" }
-    ]
+    "dataSet": "customers",
+    "valueProperty": "customerId",
+    "labelProperty": "companyName",
+    "fixedValues": [{ "value": "_ALL_", "label": "All Customers" }]
   },
   "textField": {
     "type": "text",
-    "property": "theProperty",
-    "label": "The Property",
+    "property": "searchParam",
+    "label": "Search",
     "isRequired": false,
-    "placeholder": "Enter The Property value here",
+    "placeholder": "Enter search criteria here",
     "defaultDisplayValue": "Default Value"
   }
 }
