@@ -1,0 +1,47 @@
+{
+  "$schema": "https://cdn.jsdelivr.net/gh/Hyperproof/hypersync-sdk/schema/criteriaFields.schema.json",
+  "selectField": {
+    "type": "select",
+    "property": "theProperty",
+    "label": "The Property",
+    "isRequired": true,
+    "dataSet": "listOfValuesDataSet",
+    "valueProperty": "id",
+    "labelProperty": "name"
+  },
+  "selectFieldWithDataSetParams": {
+    "type": "select",
+    "property": "theProperty",
+    "label": "The Property",
+    "isRequired": true,
+    "dataSet": "listOfValuesDataSet",
+    "dataSetParams": {
+      "param1": "foo",
+      "param2": 1234,
+      "param3": true
+    },
+    "valueProperty": "id",
+    "labelProperty": "name"
+  },
+  "selectFieldWithFixedValues": {
+    "type": "select",
+    "property": "theProperty",
+    "label": "The Property",
+    "isRequired": true,
+    "dataSet": "listOfValuesDataSet",
+    "valueProperty": "id",
+    "labelProperty": "name",
+    "fixedValues": [
+      { "value": 1, "label": "Fixed Value 1" },
+      { "value": 2, "label": "Fixed Value 2" }
+    ]
+  },
+  "textField": {
+    "type": "text",
+    "property": "theProperty",
+    "label": "The Property",
+    "isRequired": false,
+    "placeholder": "Enter The Property value here",
+    "defaultDisplayValue": "Default Value"
+  }
+}
