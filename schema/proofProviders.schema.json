@@ -4,14 +4,13 @@
   "title": "Hypersync Proof Providers Schema",
   "description": "Describes the information stored in a Hypersync proof providers JSON file.",
   "type": "object",
-  "additionalProperties": false,
   "properties": {
     "$schema": {
       "type": "string"
     }
   },
   "patternProperties": {
-    "^[^$].*$": {
+    "^.*$": {
       "type": "object",
       "properties": {
         "label": {
