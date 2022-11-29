@@ -1,0 +1,44 @@
+{
+  "$schema": "https://cdn.jsdelivr.net/gh/Hyperproof/hypersync-sdk/schema/criteriaFields.schema.json",
+  "selectField": {
+    "type": "select",
+    "property": "customer",
+    "label": "Customer",
+    "isRequired": true,
+    "dataSet": "customers",
+    "valueProperty": "customerId",
+    "labelProperty": "companyName"
+  },
+  "selectFieldWithDataSetParams": {
+    "type": "select",
+    "property": "customer",
+    "label": "East Bellevue Customers",
+    "isRequired": true,
+    "dataSet": "customersByStateAndZip",
+    "dataSetParams": {
+      "state": "WA",
+      "postalCode": 98008,
+      "isActive": true
+    },
+    "valueProperty": "customerId",
+    "labelProperty": "companyName"
+  },
+  "selectFieldWithFixedValues": {
+    "type": "select",
+    "property": "customer",
+    "label": "Customer",
+    "isRequired": true,
+    "dataSet": "customers",
+    "valueProperty": "customerId",
+    "labelProperty": "companyName",
+    "fixedValues": [{ "value": "_ALL_", "label": "All Customers" }]
+  },
+  "textField": {
+    "type": "text",
+    "property": "searchParam",
+    "label": "Search",
+    "isRequired": false,
+    "placeholder": "Enter search criteria here",
+    "defaultDisplayValue": "Default Value"
+  }
+}

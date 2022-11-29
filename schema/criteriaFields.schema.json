@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema#",
+  "$id": "criteriaFields.schema.json",
+  "title": "Hypersync Criteria Fields Schema",
+  "description": "Describes the information stored in a Hypersync criteria fields JSON file.",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    }
+  },
+  "patternProperties": {
+    "^.*$": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "select",
+            "text",
+            "search",
+            "radio",
+            "pairedSelect",
+            "keyValueSet"
+          ]
+        },
+        "property": {
+          "type": "string"
+        },
+        "label": {
+          "type": "string"
+        },
+        "isRequired": {
+          "type": "boolean"
+        },
+        "placeholder": {
+          "type": "string"
+        },
+        "defaultDisplayValue": {
+          "type": "string"
+        },
+        "dataSet": {
+          "type": "string"
+        },
+        "dataSetParams": {
+          "type": "object",
+          "patternProperties": {
+            "^.*$": {
+              "anyOf": [
+                { "type": "string" },
+                { "type": "number" },
+                { "type": "boolean" }
+              ]
+            }
+          }
+        },
+        "valueProperty": {
+          "type": "string"
+        },
+        "labelProperty": {
+          "type": "string"
+        },
+        "fixedValues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "value": {
+                "anyOf": [{ "type": "string" }, { "type": "number" }]
+              },
+              "label": {
+                "type": "string"
+              }
+            },
+            "required": ["value", "label"]
+          }
+        }
+      },
+      "required": ["type", "property", "label", "isRequired"]
+    }
+  }
+}

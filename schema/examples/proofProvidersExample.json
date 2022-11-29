@@ -1,0 +1,12 @@
+{
+  "$schema": "https://cdn.jsdelivr.net/gh/Hyperproof/hypersync-sdk/schema/proofProviders.schema.json",
+  "customerList": {
+    "label": "Customer List"
+  },
+  "ordersWithCustomers": {
+    "label": "List of Orders with Customer Info"
+  },
+  "ordersByAmount": {
+    "label": "Orders by Amount"
+  }
+}

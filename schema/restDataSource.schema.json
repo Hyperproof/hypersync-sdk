@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema#",
+  "$id": "restDataSource.schema.json",
+  "title": "Hypersync REST Data Source Schema",
+  "description": "Describes the information stored in a Hypersync REST data source JSON file.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "baseUrl": {
+      "type": "string"
+    },
+    "dataSets": {
+      "type": "object",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^.*$": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "description": {
+              "type": "string"
+            },
+            "documentation": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "query": {
+              "type": "object",
+              "patternProperties": {
+                "^[^$].*$": {
+                  "anyOf": [
+                    { "type": "string" },
+                    { "type": "number" },
+                    { "type": "boolean" }
+                  ]
+                }
+              }
+            },
+            "lookups": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "alias": {
+                    "type": "string"
+                  },
+                  "dataSet": {
+                    "type": "string"
+                  },
+                  "dataSetParams": {
+                    "type": "object",
+                    "patternProperties": {
+                      "^.*$": {
+                        "anyOf": [
+                          { "type": "string" },
+                          { "type": "number" },
+                          { "type": "boolean" }
+                        ]
+                      }
+                    }
+                  }
+                },
+                "required": ["alias", "dataSet"]
+              }
+            },
+            "joins": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "alias": {
+                    "type": "string"
+                  },
+                  "dataSet": {
+                    "type": "string"
+                  },
+                  "on": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "properties": {
+                        "leftProperty": "string",
+                        "rightProperty": "string"
+                      },
+                      "required": ["leftProperty", "rightProperty"]
+                    }
+                  }
+                },
+                "required": ["alias", "dataSet", "on"]
+              }
+            },
+            "filter": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "property": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "anyOf": [
+                      { "type": "string" },
+                      { "type": "number" },
+                      { "type": "boolean" }
+                    ]
+                  },
+                  "required": ["property", "value"]
+                }
+              }
+            },
+            "transform": {
+              "type": "object",
+              "patternProperties": {
+                "^.*$": {
+                  "anyOf": [
+                    { "type": "string" },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "sort": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "property": {
+                    "type": "string"
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": ["ascending", "descending"]
+                  }
+                },
+                "required": ["property", "type"]
+              }
+            },
+            "result": {
+              "type": "string",
+              "enum": ["array", "object"]
+            }
+          },
+          "required": ["url", "result"]
+        }
+      }
+    },
+    "messages": {
+      "type": "object",
+      "patternProperties": {
+        "^.*$": {
+          "type": "object",
+          "patternProperties": {
+            "^.*$": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}
