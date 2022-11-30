@@ -7,7 +7,7 @@ import { TokenContext } from './tokens';
 export type DataValueMap = { [name: string]: DataValue };
 
 // Result returned from IDataSource's getData method.
-export interface IDataSetResultComplete<TData = DataObject> {
+export interface IDataSetResultComplete<TData> {
   status: DataSetResultStatus.Complete;
   data: TData;
   apiUrl: string;
@@ -41,10 +41,10 @@ export interface IDataSource {
    * @param {object} metadata Metadata from previous sync run if requeued. Only returned
    *  from the previous sync if the status was Pending. Optional.
    */
-  getData<TData = DataObject>(
+  getData(
     dataSetName: string,
     params?: DataValueMap,
     page?: string,
     metadata?: SyncMetadata
-  ): Promise<DataSetResult<TData>>;
+  ): Promise<DataSetResult<DataObject | DataObject[]>>;
 }
