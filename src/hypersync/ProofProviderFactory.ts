@@ -50,6 +50,8 @@ export class ProofProviderFactory {
     );
     if (fs.existsSync(proofProvidersPath)) {
       this.providers = JSON.parse(fs.readFileSync(proofProvidersPath, 'utf8'));
+      // If a JSON schema ref was provided, remove it from map.
+      delete this.providers['$schema'];
     } else {
       this.providers = {};
     }
