@@ -1,0 +1,1 @@
+# criteriaFields.json Format
