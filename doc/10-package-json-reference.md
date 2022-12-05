@@ -13,7 +13,7 @@ The `package.json` file for a custom Hypersync app must contain the values shown
         "appType": "hypersync",
         "authType": "custom",
         "category": "Identity Services",
-        "descriptionCapabilities": "This integration allows extracts users and group information from The Target Service.",
+        "descriptionCapabilities": "This integration extracts user and group information from The Target Service.",
         "descriptionConnected": "The My Custom Hypersync App integration automatically imports proof to your controls and labels.",
         "writeScope": "Update Hyperproof with user information collected from The Target Service.",
         "debug": true,
@@ -41,7 +41,7 @@ More information on the version attribute can be found [here](https://docs.npmjs
 
 ## app_hyperproof
 
-The `app_hyperproof` value in `pakage.json` is an object that contains values that Hyperproof uses to properly expose and run your custom Hypersync app. The object must contain the values in the table below.
+The `app_hyperproof` value in `package.json` is an object that contains values that Hyperproof uses to properly expose and run your custom Hypersync app. The object must contain the values in the table below.
 
 | Attribute               | Description                                                                                                                                                                                                                                                                              |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

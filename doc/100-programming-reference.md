@@ -28,7 +28,7 @@ export class MyDataSource extends DeclarativeDataSource {
 
 ### Custom Data Sources
 
-If the service you are connecting to is not REST, or if you would like to connect to the service using some other communication facility like an SDK, you can creat your own custom data source. Simply create an object that implements the `IDataSource` interface.
+If the service you are connecting to is not REST, or if you would like to connect to the service using some other communication facility like an SDK, you can create your own custom data source. Simply create an object that implements the `IDataSource` interface.
 
 ```
 export class MyDataSource implements IDataSource {
