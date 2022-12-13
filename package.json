@@ -1,6 +1,6 @@
 {
   "name": "@hyperproof/hypersync-sdk",
-  "version": "0.8.16",
+  "version": "0.8.17",
   "description": "Hypersync SDK",
   "repository": {
     "type": "git",
@@ -30,6 +30,7 @@
     "http-status-codes": "2.1.4",
     "jsonata": "1.8.6",
     "jsonwebtoken": "^8.5.1",
+    "mime": "3.0.0",
     "node-fetch": "2.6.1",
     "query-string": "7.0.0",
     "superagent": "7.1.5",
@@ -39,7 +40,7 @@
   "devDependencies": {
     "@types/http-errors": "^1.8.2",
     "@types/jsonwebtoken": "^8.5.8",
-    "@types/mime": "^2.0.3",
+    "@types/mime": "^3.0.1",
     "@types/superagent": "^4.1.15",
     "@typescript-eslint/eslint-plugin": "^5.25.0",
     "@typescript-eslint/parser": "^5.25.0",
