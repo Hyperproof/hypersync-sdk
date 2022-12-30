@@ -109,7 +109,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
     public connectorName: string;
     public authorizationType: AuthorizationType;
 
-    constructor(connectorName: string, authorizationType: AuthorizationType) {
+    constructor(connectorName: string) {
       super();
       if (!process.env.integration_type) {
         throw new Error(
@@ -118,7 +118,9 @@ export function createConnector(superclass: typeof OAuthConnector) {
       }
       this.integrationType = process.env.integration_type;
       this.connectorName = connectorName;
-      this.authorizationType = authorizationType;
+      this.authorizationType = process.env.oauth_client_id
+        ? AuthorizationType.OAUTH
+        : AuthorizationType.CUSTOM;
       this.checkAuthorized = this.checkAuthorized.bind(this);
     }
 

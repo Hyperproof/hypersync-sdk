@@ -1,8 +1,4 @@
-import {
-  compareValues,
-  FieldType,
-  ISelectOption
-} from '../common';
+import { compareValues, FieldType, ISelectOption } from '../common';
 import fs from 'fs';
 import path from 'path';
 import { DataSetResultStatus } from './enums';
@@ -54,7 +50,7 @@ export class DeclarativeCriteriaProvider implements ICriteriaProvider {
     this.dataSource = dataSource;
     this.criteriaFields = JSON.parse(
       fs.readFileSync(
-        path.resolve(appRootDir, 'build/decl/criteriaFields.json'),
+        path.resolve(appRootDir, 'decl/criteriaFields.json'),
         'utf8'
       )
     );

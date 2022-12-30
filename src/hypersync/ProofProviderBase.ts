@@ -75,7 +75,7 @@ export interface IHypersyncContents {
   type: string;
   title: string;
   subtitle: string;
-  source: string;
+  source?: string;
   webPageUrl?: string;
   orientation?: HypersyncPageOrientation;
   zoom?: number;

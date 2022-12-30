@@ -10,7 +10,7 @@ export type DataValueMap = { [name: string]: DataValue };
 export interface IDataSetResultComplete<TData> {
   status: DataSetResultStatus.Complete;
   data: TData;
-  apiUrl: string;
+  source?: string;
   nextPage?: string;
   context?: TokenContext;
 }

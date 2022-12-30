@@ -93,7 +93,7 @@ export class DeclarativeProofProvider extends ProofProviderBase {
     this.messages = messages;
     this.definition = JSON.parse(
       fs.readFileSync(
-        path.resolve(appRootDir, `build/decl/proof/${this.proofType}.json`),
+        path.resolve(appRootDir, `decl/proof/${this.proofType}.json`),
         'utf8'
       )
     );
@@ -197,7 +197,7 @@ export class DeclarativeProofProvider extends ProofProviderBase {
       };
     }
 
-    const { data, apiUrl, context: dataSourceContext, nextPage } = response;
+    const { data, source, context: dataSourceContext, nextPage } = response;
 
     if (dataSourceContext) {
       tokenContext.dataSource = dataSourceContext;
@@ -246,7 +246,7 @@ export class DeclarativeProofProvider extends ProofProviderBase {
             type: process.env.integration_type!,
             title: resolveTokens(proofSpec.title, tokenContext),
             subtitle: resolveTokens(proofSpec.subtitle, tokenContext),
-            source: apiUrl,
+            source: source,
             webPageUrl: resolveTokens(proofSpec.webPageUrl, tokenContext),
             orientation: proofSpec.orientation,
             userTimeZone: hyperproofUser.timeZone,
