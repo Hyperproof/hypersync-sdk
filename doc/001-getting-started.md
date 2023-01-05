@@ -32,7 +32,7 @@ For development purposes you will want to create a separate development organiza
 
 ## Next Steps
 
-Once you have installed the prerequisites and obtained a development organization, you are ready to install your first custom HypersyncApp. Follow the guidance in [App Development Workflow](./002-dev-workflow.md) to install, use and update one of the pre-built sample apps.
+Once you have installed the prerequisites and obtained a development organization, you are ready to install your first custom Hypersync app. Follow the guidance in [App Development Workflow](./002-dev-workflow.md) to install, test and update one of the pre-built sample apps.
 
 <br></br>
 [Return to Table of Contents](./000-toc.md)

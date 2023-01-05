@@ -1,6 +1,6 @@
 # App Development Workflow
 
-To easiest way to get started with the Hypersync SDK is to start with one of the sample apps in the [Hypersync SDK Samples GitHub Repository](https://github.com/Hyperproof/hypersync-sdk-samples). This article will show you how to install and update the [Open Library sample app](https://github.com/Hyperproof/hypersync-sdk-samples/tree/main/apps/open-library) in that repository. Once you have completed the steps below, you should have a good idea of the development workflow for your own custom Hypersync apps.
+The easiest way to get started with the Hypersync SDK is to start with one of the sample apps in the [Hypersync SDK Samples GitHub Repository](https://github.com/Hyperproof/hypersync-sdk-samples). This article will show you how to install and update the [Open Library sample app](https://github.com/Hyperproof/hypersync-sdk-samples/tree/main/apps/open-library) in that repository. Once you have completed the steps below, you should have a good idea of the development workflow for your own custom Hypersync apps.
 
 > NOTE: The Open Library Hypersync app imports book and author information from a the public [Open Library API](https://openlibrary.org/developers/api). This Hypersync app has been provided for illustrative purposes only--you wouldn't generally use this sort of information in a compliance program.
 
@@ -107,6 +107,7 @@ Once you've made changes to your app, you are just a couple of steps away from p
         "width": "200px",
         "type": "text"
       }
+...
 ```
 
 3. Save `booksByAuthor.json`.
