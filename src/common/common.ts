@@ -19,6 +19,10 @@ export const compareValues = (
   s1?: string | number | boolean | BigInt | Date,
   s2?: string | number | boolean | BigInt | Date
 ) => {
+  // Treat null and undefined values as undefined.
+  s1 = s1 ?? undefined;
+  s2 = s2 ?? undefined;
+
   if (s1 === undefined || s2 === undefined) {
     return compareBlanks(s1, s2);
   }

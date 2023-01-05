@@ -371,6 +371,10 @@ export function createHypersync(superclass: typeof OAuthConnector) {
       });
     }
 
+    outboundOnly(integrationType: string, meta: Express.ParsedQs) {
+      return true;
+    }
+
     /**
      * Returns a full path to one of the required custom Hypersync app images.
      *

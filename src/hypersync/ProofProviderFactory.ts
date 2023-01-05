@@ -44,10 +44,7 @@ export class ProofProviderFactory {
     this.messages = messages;
 
     // If there are any declarative proof providers, load those now.
-    const proofProvidersPath = path.resolve(
-      appRootDir,
-      'build/decl/proofProviders.json'
-    );
+    const proofProvidersPath = path.resolve(appRootDir, 'decl/proofTypes.json');
     if (fs.existsSync(proofProvidersPath)) {
       this.providers = JSON.parse(fs.readFileSync(proofProvidersPath, 'utf8'));
       // If a JSON schema ref was provided, remove it from map.

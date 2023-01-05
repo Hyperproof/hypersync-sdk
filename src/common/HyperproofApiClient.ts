@@ -203,46 +203,57 @@ export class HyperproofApiClient {
     user?: IExternalUser,
     size?: number
   ) {
-    if (size && Number(size) >= MAX_FILE_SIZE) {
-      const err = new Error(
-        `Proof from source ${sourceId} is larger than max file size.`
-      );
-      Sdk.debug(err.message);
-      throw err;
-    }
-
-    const fileResults = this.formatFilename(filename, mimeType);
-    filename = fileResults.filename;
-    mimeType = fileResults.mimeType;
-
-    const formData = new FormData();
-    formData.append('proof', file, { filename, contentType: mimeType });
-
-    if (sourceId) {
-      formData.append('hp-proof-source-id', sourceId);
-    }
-
-    if (sourceFileId) {
-      formData.append('hp-proof-source-file-id', sourceFileId);
-    }
-
-    if (sourceModifiedOn) {
-      formData.append('hp-proof-source-modified-on', sourceModifiedOn);
-    }
-
-    if (user) {
-      formData.append('hp-proof-ext-user-id', user.id);
-      if (user.email) {
-        formData.append('hp-proof-ext-user-email', user.email);
-      }
-      if (user.resource) {
-        formData.append('hp-proof-ext-user-resource', user.resource);
-      }
-      formData.append('hp-proof-ext-user-given-name', user.givenName);
-      formData.append('hp-proof-ext-user-surname', user.surname);
-    }
+    const formData = this.buildProofFormData(
+      file,
+      filename,
+      mimeType,
+      sourceId,
+      sourceFileId,
+      sourceModifiedOn,
+      user,
+      size
+    );
 
     return this.postNewProof(objectType, objectId, formData);
+  }
+
+  public async postProofVersion(
+    file: Buffer,
+    filename: string,
+    mimeType: string,
+    proofId: string,
+    sourceId: string,
+    sourceFileId: string,
+    sourceModifiedOn?: string,
+    user?: IExternalUser,
+    size?: number
+  ) {
+    const formData = this.buildProofFormData(
+      file,
+      filename,
+      mimeType,
+      sourceId,
+      sourceFileId,
+      sourceModifiedOn,
+      user,
+      size
+    );
+
+    const url = `${process.env.hyperproof_api_url}/beta/proof/${proofId}/versions`;
+    const response = await fetch(url, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        [HttpHeader.Authorization]: `Bearer ${this.accessToken}`,
+        [HttpHeader.SubscriptionKey]:
+          process.env.hyperproof_api_subscription_key!
+      }
+    });
+    Sdk.debug(`POST ${url} - ${response.status}`);
+    if (!response.ok) {
+      throw createHttpError(response.status, await response.text());
+    }
+    return response.json();
   }
 
   /**
@@ -584,6 +595,54 @@ export class HyperproofApiClient {
     // Escaping other special characters is not necessary since the export will sanitize
     // the filename
     return { filename: filename.replace(/\//g, ' '), mimeType };
+  }
+
+  private buildProofFormData(
+    file: Buffer,
+    filename: string,
+    mimeType: string,
+    sourceId?: string,
+    sourceFileId?: string,
+    sourceModifiedOn?: string,
+    user?: IExternalUser,
+    size?: number
+  ) {
+    if (size && Number(size) >= MAX_FILE_SIZE) {
+      const err = new Error(
+        `Proof from source ${sourceId} is larger than max file size.`
+      );
+      Sdk.debug(err.message);
+      throw err;
+    }
+
+    const fileResults = this.formatFilename(filename, mimeType);
+    filename = fileResults.filename;
+    mimeType = fileResults.mimeType;
+
+    const formData = new FormData();
+    formData.append('proof', file, { filename, contentType: mimeType });
+    if (sourceId) {
+      formData.append('hp-proof-source-id', sourceId);
+    }
+    if (sourceFileId) {
+      formData.append('hp-proof-source-file-id', sourceFileId);
+    }
+    if (sourceModifiedOn) {
+      formData.append('hp-proof-source-modified-on', sourceModifiedOn);
+    }
+    if (user) {
+      formData.append('hp-proof-ext-user-id', user.id);
+      formData.append('hp-proof-ext-user-given-name', user.givenName);
+      formData.append('hp-proof-ext-user-surname', user.surname);
+      if (user.email) {
+        formData.append('hp-proof-ext-user-email', user.email);
+      }
+      if (user.resource) {
+        formData.append('hp-proof-ext-user-resource', user.resource);
+      }
+    }
+
+    return formData;
   }
 }
 

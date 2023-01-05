@@ -7,9 +7,9 @@ import { DataSetResultStatus } from './enums';
 import {
   DataValueMap,
   IDataSetResultComplete,
-  IDataSetResultPending,
-  IDataSource
+  IDataSetResultPending
 } from './IDataSource';
+import { DataSourceBase } from './DataSourceBase';
 import { DataObject, DataValue } from './models';
 import { SyncMetadata } from './Sync';
 import { resolveTokens, TokenContext } from './tokens';
@@ -57,7 +57,7 @@ export interface IDataSet {
  * Configuration information stored in a JSON file that is used as
  * the input to a RestDataSource instance.
  */
-export interface IDataSourceConfig {
+export interface IRestDataSourceConfig {
   baseUrl?: string;
   dataSets: {
     [name: string]: IDataSet;
@@ -96,18 +96,20 @@ interface IPredicateClause {
  * Connectors should override this class and add support for service-specific
  * functionality like paging.
  */
-export class RestDataSource extends ApiClient implements IDataSource {
+export class RestDataSource extends DataSourceBase {
+  protected config: IRestDataSourceConfig;
+  protected apiClient: ApiClient;
   private messages: StringMap;
-  private config: IDataSourceConfig;
 
   constructor(
-    config: IDataSourceConfig,
+    config: IRestDataSourceConfig,
     messages: StringMap,
-    commonHeaders: HeadersInit
+    headers: HeadersInit
   ) {
-    super(commonHeaders, config.baseUrl);
+    super();
     this.config = config;
     this.messages = messages;
+    this.apiClient = new ApiClient(headers, config.baseUrl);
   }
 
   /**
@@ -125,7 +127,7 @@ export class RestDataSource extends ApiClient implements IDataSource {
     metadata?: SyncMetadata
   ): Promise<RestDataSetResult<TData>> {
     await Logger.debug(
-      `Retrieving Hypersync service data via data set: ${dataSetName}`
+      `RestDataSource: Retrieving Hypersync service data for data set '${dataSetName}'`
     );
     const dataSet = this.config.dataSets[dataSetName];
     if (!dataSet) {
@@ -160,8 +162,19 @@ export class RestDataSource extends ApiClient implements IDataSource {
 
     // The `property` attribute can be used to select data out of the response.
     if (dataSet.property) {
+      await Logger.info(
+        `RestDataSource: Extracting data from '${dataSet.property}' property.`
+      );
       const expression = jsonata(dataSet.property);
       data = expression.evaluate(data);
+    }
+
+    if (Array.isArray(data)) {
+      await Logger.info(
+        `RestDataSource: Received array of length ${data.length} from REST API.`
+      );
+    } else {
+      await Logger.info(`RestDataSource: Received object from REST API.`);
     }
 
     // Join in any other data sets.
@@ -213,15 +226,26 @@ export class RestDataSource extends ApiClient implements IDataSource {
       data = await this.applySort(dataSetName, dataSet, data, params);
     }
 
-    await Logger.debug(`Data retrieval for ${dataSetName} complete`);
+    await Logger.debug(
+      `RestDataSource: Data retrieval and processing for '${dataSetName}' complete`
+    );
 
     return {
       status: DataSetResultStatus.Complete,
       data,
-      apiUrl: response.apiUrl,
+      source: response.source,
       headers: response.headers,
       nextPage: response.nextPage
     };
+  }
+
+  /**
+   * Sets the headers that will be sent in each request.
+   *
+   * @param headers Headers to apply to each request.
+   */
+  protected setHeaders(headers: HeadersInit) {
+    this.apiClient = new ApiClient(headers, this.config.baseUrl);
   }
 
   /**
@@ -234,14 +258,8 @@ export class RestDataSource extends ApiClient implements IDataSource {
     dataSetName: string,
     params?: DataValueMap
   ): Promise<IRestDataSetComplete<TData>> {
-    const response = await this.getData<TData>(dataSetName, params);
-    if (response.status !== DataSetResultStatus.Complete) {
-      throw new Error(`Invalid response received for data set: ${dataSetName}`);
-    }
-    if (Array.isArray(response.data)) {
-      throw new Error(`Received array from ${dataSetName}.  Expected object.`);
-    }
-    return response;
+    const response = await super.getDataObject<TData>(dataSetName, params);
+    return response as IRestDataSetComplete<TData>;
   }
 
   /**
@@ -254,14 +272,8 @@ export class RestDataSource extends ApiClient implements IDataSource {
     dataSetName: string,
     params?: DataValueMap
   ): Promise<IRestDataSetComplete<TData[]>> {
-    const response = await this.getData<TData[]>(dataSetName, params);
-    if (response.status !== DataSetResultStatus.Complete) {
-      throw new Error(`Invalid response received for data set: ${dataSetName}`);
-    }
-    if (!Array.isArray(response.data)) {
-      throw new Error(`Received object from ${dataSetName}.  Expected array.`);
-    }
-    return response;
+    const response = await super.getDataObjectArray<TData>(dataSetName, params);
+    return response as IRestDataSetComplete<TData[]>;
   }
 
   /**
@@ -287,8 +299,15 @@ export class RestDataSource extends ApiClient implements IDataSource {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     metadata?: SyncMetadata
   ): Promise<RestDataSetResult<any>> {
-    const { json: data, apiUrl, headers } = await super.getJson(relativeUrl);
-    return { status: DataSetResultStatus.Complete, data, apiUrl, headers };
+    await Logger.info(
+      `RestDataSource: Retrieving data from URL '${relativeUrl}'`
+    );
+    const {
+      json: data,
+      source,
+      headers
+    } = await this.apiClient.getJson(relativeUrl);
+    return { status: DataSetResultStatus.Complete, data, source, headers };
   }
 
   /**
@@ -312,6 +331,8 @@ export class RestDataSource extends ApiClient implements IDataSource {
         status: DataSetResultStatus.Complete
       };
     }
+
+    await Logger.info(`RestDataSource: Applying ${joins.length} join(s).`);
 
     let joinData = Array.isArray(data) ? data : [data];
     for (const join of joins) {
@@ -378,6 +399,8 @@ export class RestDataSource extends ApiClient implements IDataSource {
       return data;
     }
 
+    await Logger.info(`RestDataSource: Applying ${lookups.length} lookup(s).`);
+
     const result = Array.isArray(data) ? data : [data];
     for (const lookup of lookups) {
       for (const dataObject of result) {
@@ -428,6 +451,8 @@ export class RestDataSource extends ApiClient implements IDataSource {
     params?: DataValueMap
   ): Promise<any> {
     if (dataSet.filter !== undefined) {
+      await Logger.info(`RestDataSource: Filtering data set.`);
+
       if (!Array.isArray(data)) {
         throw new Error(
           'Filter specified on data set but retrieved data is not an array.'
@@ -481,6 +506,9 @@ export class RestDataSource extends ApiClient implements IDataSource {
     if (!transform) {
       return data;
     }
+
+    await Logger.info(`RestDataSource: Transforming data set.`);
+
     if (Array.isArray(data)) {
       return data.map(item => this.transformObject(transform, item, params));
     } else {
@@ -508,6 +536,8 @@ export class RestDataSource extends ApiClient implements IDataSource {
     if (!sort) {
       return data;
     }
+
+    await Logger.info(`RestDataSource: Sorting data set.`);
 
     data.sort((a, b) => {
       for (const s of sort) {

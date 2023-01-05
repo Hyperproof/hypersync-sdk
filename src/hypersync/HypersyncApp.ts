@@ -49,7 +49,6 @@ export interface IHypersyncAppConfig {
   appRootDir: string;
   connectorName: string;
   messages: StringMap;
-  authorizationType: AuthorizationType;
   credentialsMetadata?: ICredentialsMetadata;
 }
 
@@ -67,11 +66,10 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
 
   constructor(
     connectorName: string,
-    authorizationType: AuthorizationType,
     hypersyncApp: HypersyncApp<any>,
     credentialsMetadata?: ICredentialsMetadata
   ) {
-    super(connectorName, authorizationType);
+    super(connectorName);
     this.hypersyncApp = hypersyncApp;
     this.credentialsMetadata = credentialsMetadata;
   }
@@ -302,9 +300,17 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       );
       return this.hypersyncApp.createDataSource(accessToken);
     } else {
-      return this.hypersyncApp.createDataSource(
-        (userContext as IHyperproofUserContext).keys!
+      const credentials = (userContext as IHyperproofUserContext).keys!;
+      const newCredentials = await this.hypersyncApp.refreshCredentials(
+        credentials
       );
+      if (newCredentials) {
+        await this.saveUser(fusebitContext, {
+          ...(userContext as IHyperproofUserContext),
+          keys: credentials
+        });
+      }
+      return this.hypersyncApp.createDataSource(newCredentials ?? credentials);
     }
   }
 }
@@ -322,7 +328,6 @@ export class HypersyncApp<TUserProfile = object> {
     this.appRootDir = config.appRootDir;
     this.connector = new HypersyncAppConnector(
       config.connectorName,
-      config.authorizationType,
       this,
       config.credentialsMetadata
     );
@@ -448,6 +453,19 @@ export class HypersyncApp<TUserProfile = object> {
     throw new Error(
       'Custom auth Hypersync apps must implement validateCredentials.'
     );
+  }
+
+  /**
+   * Refreshes credentials provided by the user in a custom auth application.
+   * Returns updated credentials or undefined if unneeded
+   *
+   * @param {CustomAuthCredentails} credentials User's current credentials.
+   */
+  public async refreshCredentials(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    credentials: CustomAuthCredentials
+  ): Promise<CustomAuthCredentials | undefined> {
+    return undefined;
   }
 
   /**
@@ -635,14 +653,11 @@ export class HypersyncApp<TUserProfile = object> {
    */
   protected async getProofProviderFactory(): Promise<ProofProviderFactory> {
     if (!this.proofProviderFactory) {
-      const providersPath = path.resolve(
-        this.appRootDir,
-        'build/proof-providers'
-      );
+      const providersPath = path.resolve(this.appRootDir, 'proof-providers');
       let providers: typeof ProofProviderBase[] = [];
       if (fs.existsSync(providersPath)) {
         const exportedProviders = await import(
-          path.resolve(this.appRootDir, 'build/proof-providers')
+          path.resolve(this.appRootDir, 'proof-providers')
         );
         providers = Object.values(exportedProviders);
       }

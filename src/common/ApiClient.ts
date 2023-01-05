@@ -31,7 +31,7 @@ type ResponseHeaders = { [name: string]: string[] };
  * Type alias for the return type of `ApiClient.sendRequest()`.
  */
 export interface IApiClientResponse<T = any> {
-  apiUrl: string;
+  source: string;
   json: T;
   headers: ResponseHeaders;
 }
@@ -140,7 +140,7 @@ export class ApiClient {
     await Logger.debug(`${url} returned ${response.status}`);
 
     const json = await response.json();
-    return { apiUrl, json, headers: response.headers.raw() };
+    return { source: apiUrl, json, headers: response.headers.raw() };
   }
 
   private buildUrl(url: string): string {
