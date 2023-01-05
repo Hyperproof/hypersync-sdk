@@ -16,7 +16,7 @@ You will also need to install the yarn package manager using the link below.
 
 - [yarn package manager](https://yarnpkg.com/)
 
-Finally, you will need to install the Hyperproof CLI to publish and manage your custom Hypersyncs:
+The Hyperproof CLI is needed to publish and manage your custom Hypersyncs:
 
 - [Hyperproof CLI](./hyperproof-cli.md)
 
@@ -28,11 +28,11 @@ Finally, we recommend cloning the [Hypersync SDK Samples GitHub repository](http
 
 ## Development Organization
 
-For development purposes you will also want to create a development organization in Hyperproof. This will allow you to to develop and test your custom Hypersyncs in isolation without affecting the users in your production Hyperproof organization. To create a development organization, contact Hyperproof Customer Support at <support@hyperproof.io>.
+For development purposes you will want to create a separate development organization in Hyperproof. This will allow you to to develop and test your custom Hypersync apps in isolation without affecting the users in your production Hyperproof organization. To create a development organization, contact Hyperproof Customer Support at <support@hyperproof.io>.
 
 ## Next Steps
 
-Once you have installed the prerequisites and obtained a development organization, you are ready to install your first custom HypersyncApp. Follow the guidance in [App Development Workflow](./002-dev-workflow.md) to install, use and update one of the pre-built sample apps in the Hypersync SDK Samples repo.
+Once you have installed the prerequisites and obtained a development organization, you are ready to install your first custom HypersyncApp. Follow the guidance in [App Development Workflow](./002-dev-workflow.md) to install, use and update one of the pre-built sample apps.
 
 <br></br>
 [Return to Table of Contents](./000-toc.md)

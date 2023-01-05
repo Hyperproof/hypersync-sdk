@@ -1,6 +1,6 @@
 # App Development Workflow
 
-To easiest way to get started with the Hypersync SDK is to start with one of the sample apps in the [Hypersync SDK Samples GitHub Repository](https://github.com/Hyperproof/hypersync-sdk-samples). This article will show you how to install and update the [Open Library sample app](https://github.com/Hyperproof/hypersync-sdk-samples/tree/main/apps/open-library) in that repository. Once you have completed the steps below, you should have a good idea of the development workflow for custom Hypersync apps.
+To easiest way to get started with the Hypersync SDK is to start with one of the sample apps in the [Hypersync SDK Samples GitHub Repository](https://github.com/Hyperproof/hypersync-sdk-samples). This article will show you how to install and update the [Open Library sample app](https://github.com/Hyperproof/hypersync-sdk-samples/tree/main/apps/open-library) in that repository. Once you have completed the steps below, you should have a good idea of the development workflow for your own custom Hypersync apps.
 
 > NOTE: The Open Library Hypersync app imports book and author information from a the public [Open Library API](https://openlibrary.org/developers/api). This Hypersync app has been provided for illustrative purposes only--you wouldn't generally use this sort of information in a compliance program.
 
@@ -16,7 +16,7 @@ After installing the CLI, you will first need to sign in using this command:
 hp signin
 ```
 
-This command will launch a new browser window and allow you to log in (if you are not already logged in) and then authorize CLI access to your Hyperproof organization.
+This command will launch a new browser window and allow you to sign in (if you are not already signed in) and then authorize CLI access to your Hyperproof organization.
 
 > NOTE: If you are a member of more than one organization, you will be asked to choose the organization on the authorization screen. Make sure you choose your development organization.
 
@@ -83,7 +83,7 @@ At this point your custom app will retrieve the list of books written by William
 
 ### Updating Your Hypersync App
 
-Because custom Hypersync apps are just Node.js modules, updating them is a straightforward process. Additionally, many of the elements inside a Hypersync app can be represented as easy-to-edit JSON files.
+Because custom Hypersync apps are just Node.js modules, updating them is a straightforward process. Additionally, many of the elements inside a Hypersync app can be represented as easy-to-edit JSON files. It is often possible to make the changes you need just by editing these files--no code required!
 
 Once you've made changes to your app, you are just a couple of steps away from publishing those updates to your Hyperproof organization.
 
