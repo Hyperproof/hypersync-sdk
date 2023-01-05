@@ -1,1 +1,0 @@
-# Hypersync Proof Types

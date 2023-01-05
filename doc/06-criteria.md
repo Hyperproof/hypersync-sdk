@@ -1,1 +1,0 @@
-# Hypersync Proof Type Criteria
