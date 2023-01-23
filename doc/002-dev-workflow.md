@@ -22,7 +22,7 @@ This command will launch a new browser window and allow you to sign in (if you a
 
 ### Importing Your Hypersync App
 
-Once you have signed in and authorized the CLI, you are ready to import your custom app. Begin by making a copy of the Open Library folder.
+Once you have signed in and authorized the CLI, you are ready to import a custom Hyperysnc app.
 
 1. Find the `apps/open-library/` directory in your clone of the Hypersync SDK Samples repository.
 2. Make a copy of that folder somewhere else on your computer. Feel free to rename the folder if that helps.
@@ -62,22 +62,20 @@ The import might take a minute or two to complete. Once it is done, you are read
 3. Click on the **Automations** tab.
 4. Click the **+New Hypersync** button.
 
-At this point the New Hypersync wizard will appear. All of the built-in Hypersyncs will be shown at the top of the first page. If you scroll down you should see the custom Open Library Hypersync app at the bottom of the list.
-
-You can use this new app icon to build a new Hypersync.
+At this point the New Hypersync wizard will appear. All of the built-in Hypersyncs will be shown at the top of the first page. If you scroll down you should see the custom Open Library Hypersync app at the bottom of the list. You can use this new app icon to build a new Hypersync.
 
 1. Click the **Open Library** icon.
 2. On the **Create Connection** page, click **Next**.
 
 > Because the Open Library API is anonymous, there is no need for you to provide any credentials like you will in most other Hypersyncs.
 
-3. Choose **Books by Author** as the proof type.
-4. Type "Gibson, William" into the search field.
-5. Choose "William F. Gibson" from the **Author** list.
-6. Click **Next**.
-7. On the **Configure Workflow** page, choose **New Files**.
+5. Choose **Books by Author** as the proof type.
+6. Type "Gibson, William" into the search field.
+7. Choose "William F. Gibson" from the **Author** list.
 8. Click **Next**.
-9. Click **Save and Sync**.
+9. On the **Configure Workflow** page, choose **New Files**.
+10. Click **Next**.
+11. Click **Save and Sync**.
 
 At this point your custom app will retrieve the list of books written by William F. Gibson and then generate a PDF showing you those books.
 

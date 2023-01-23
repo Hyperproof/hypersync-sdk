@@ -1,0 +1,158 @@
+# Connections
+
+A Hypersync connection is an object stored in Hyperproof that contains the information necessary to connect to an external service and obtain data from that service's API. The connection must adhere to the authentication and/or authorization rules for that service.
+
+There are many different forms of authentication and authorization used by external services:
+
+- Some REST APIs use [basic authentication](https://en.wikipedia.org/wiki/Basic_access_authentication) which requires an email and password formatted in a specific way.
+- Other REST APIs require an API Key which is included as a header in each request.
+- [OAuth 2.0](https://www.oauth.com/) APIs require that an access token be included in each request.
+- Databases like SQL Server and MySQL generally require that a username and password be provided when a connection to the database is established.
+
+In a Hypersync app, there are two types connections: [OAuth connections](#oauth-authorization) and [Custom authentication connections](#custom-authentication).
+
+## OAuth Authorization
+
+For services that use OAuth 2.0 for authorization, the Hypersync SDK includes functionality that obtains and manages the access tokens that these APIs require.
+
+To configure a Hypersync app for OAuth authorization, begin by setting `authType` in `package.json` to `oauth`. See [Custom Hypersync App package.json Reference](./030-package-json-reference.md) for more information.
+
+Next, make sure you have a `.env` file at the root of your project with the following values:
+
+```
+oauth_authorization_url=https://YOUR_EXTERNAL_SERVICE/oauth/v2/auth
+oauth_token_url=https://YOUR_EXTERNAL_SERVICE/oauth/v2/token
+oauth_scope=obj1.read obj1.update obj2.read obj2.update
+oauth_extra_params=
+oauth_client_id=YOUR_CLIENT_ID
+oauth_client_secret=YOUR_CLIENT_SECRET
+```
+
+> Note that in the [Hypersync SDK Samples](https://github.com/Hyperproof/hypersync-sdk-samples) repository, all OAuth sample apps include a `.env.template` file that you can copy to `.env` and then customize for your needs.
+
+Once you've configured your `.env` file, implement the `getUserProfle` method on your HypersyncApp class. This method returns an object containing information about the authorizing user.
+
+```
+  interface IMyServiceUser {
+    userId: string;
+    firstName: string;
+    lastName: string;
+  }
+
+  async getUserProfile(tokenContext: OAuthTokenResponse) {
+    const dataSource = new MyServiceDataSource(tokenContext.access_token);
+    const serviceUser = await dataSource.getDataObject('currentUser');
+    const userProfile: IMyServiceUser = {
+      userId: serviceUser.id
+      firstName: serviceUser.givenName,
+      lastName: serviceUser.surname
+    };
+    return userProfile;
+  }
+```
+
+Finally, implement the `getUserId` and `getUserAccountName` methods. `getUserId` used to uniquely identify the user within the external service. `getUserAccountName` returns a friendly name for the connection. This value is shown in the Connected Accounts page in Hyperproof.
+
+> IMPORTANT: The user ID must be unique to the authorizing user!
+
+```
+  public async getUserId(userProfile: IMyServiceUser) {
+    return userProfile.userId;
+  }
+
+  /**
+   * Returns a human readable string which identifies the user's Zoho account.
+   * This string is displayed in Hyperproof's Connected Accounts page to help the
+   * user distinguish between multiple connections that use different accounts.
+   *
+   * @param userProfile The profile of the user returned by getUserProfile.
+   */
+  public getUserAccountName(userProfile: IMyServiceUser) {
+    return `${userProfile.firstName} ${userProfile.lastName}`;
+  }
+```
+
+## Custom Authentication
+
+All non-OAuth authentication/authorization schemes are classified as "Custom" in the Hyperysnc SDK. If your service does not use OAuth 2.0, you should specify `custom` as your `authType` in `package.json`. See [Custom Hypersync App package.json Reference](./030-package-json-reference.md) for more information.
+
+Your apps' HypersyncApp class must be modified to support custom authentication. Begin by updating the `credentialsMetadata` field in the constructor:
+
+```
+  constructor() {
+    super({
+      appRootDir: __dirname,
+      connectorName: 'My Service Connector',
+      messages: Messages,
+      credentialsMetadata: {
+        instructionHeader: 'Please enter your My Service credentials',
+        fields: [
+          {
+            name: 'username',
+            type: CredentialFieldType.TEXT,
+            label: 'User Name'
+          },
+          {
+            name: 'password',
+            type: CredentialFieldType.PASSWORD,
+            label: 'Password'
+          }
+        ]
+      }
+    });
+  }
+```
+
+The instruction header along with each of the fields will be shown to the user when they attempt to create a connection to your service.
+
+Next, implement the `validateCredentials` method. This method will be called by Hyperproof as soon as the user provides the credentials and clicks Save.
+
+```
+  interface IMyServiceUser {
+    firstName: string;
+    lastName: string;
+  }
+
+  public async validateCredentials(
+    credentials: CustomAuthCredentials
+  ): Promise<IValidatedUser<IMyServiceUser>> {
+    try {
+      // Get the username and password provided by the user.
+      const { username, password } = credentials as {
+        [key: string]: string;
+      };
+
+      // TODO: Connect to My Service and validate credentials.  Then
+      // retrieve identifying information for the user (e.g. through
+      // some sort of /users/me route).
+      const userDetails = ...
+
+      return {
+        userId: username as string,
+        profile: {
+          firstName: userDetails.givenName,
+          lastName: userDetails.surname
+        }
+      };
+    } catch (err) {
+      Logger.debug('My Service credentials validation failed.');
+      Logger.debug(err);
+      throw createHttpError(
+        StatusCodes.UNAUTHORIZED,
+        'Invalid Credentials'
+      );
+    }
+  }
+```
+
+Finally, implement the `getAccountName` method which returns a friendly name for the connection. This value is shown in the Connected Accounts page in Hyperproof.
+
+```
+  public getUserAccountName(userProfile: IMyServiceUser) {
+    return `${userProfile.firstName} ${userProfile.lastName}`;
+  }
+
+```
+
+<br></br>
+[Return to Table of Contents](./000-toc.md)

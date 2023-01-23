@@ -27,13 +27,13 @@ It may also be installed on other Debian distributions but the Hyperprof CLI has
 
 Once you have installed the [.Net Runtime 6.0](https://dotnet.microsoft.com/en-us/download/dotnet/6.0), the CLI can be installed by downloading a `.deb` package from the Hyperproof web site. Click the link below to download the latest version of the Hyperproof CLI.
 
-- [Download HP CLI `.deb` for Debian Linux Distributions](https://downloads.hyperproof.app/hpcli/hpcli_0.8.3-1_amd64.deb)
+- [Download HP CLI `.deb` for Debian Linux Distributions](https://downloads.hyperproof.app/hpcli/hpcli_0.8.9-1_amd64.deb)
 
 The `.deb` package installs the HP CLI under `/usr/bin`.
 
 ### Install on Windows
 
-For Windows, the Azure CLI is intalled using an installation executable that can be downloaded from the Hyperproof web site.
+For Windows, the Hyperproof CLI is intalled using an installation executable that can be downloaded from the Hyperproof web site.
 
 The Hyperproof CLI has been tested on the following Windows versions.
 
@@ -44,9 +44,22 @@ The Hyperproof CLI has been tested on the following Windows versions.
 
 Once you have installed the [.Net Runtime 6.0](https://dotnet.microsoft.com/en-us/download/dotnet/6.0), click the link below to download and run the HP CLI Windows installer.
 
-- [Download HP CLI Windows Installer](https://downloads.hyperproof.app/hpcli/hpcli-0.8.3.exe)
+- [Download HP CLI Windows Installer](https://downloads.hyperproof.app/hpcli/hpcli-0.8.9.exe)
 
 The Hyperproof CLI will be installed under `C:\Program Files\Hyperproof CLI` unless you choose a different installation location. The installation directory should be added to your path.
+
+### Install on Mac
+
+The Hyperproof CLI for Mac depends on the [.Net Runtime 6.0](https://dotnet.microsoft.com/en-us/download/dotnet/6.0). Use the links on that page to install the appropriate .Net 6.0 Runtime for your system.
+
+Once you have installed the .Net Runtime, you can use Homebrew to install, update and uninstall the Hyperproof CLI. If you don't have Homebrew available on your system, install [Homebrew](https://docs.brew.sh/Installation.html) before continuing.
+
+You can install the Hyperproof CLI on macOS by adding the Hyperproof tap, and then running the install command:
+
+```
+brew tap Hyperproof/hyperproof
+brew install hyperproof-cli
+```
 
 ### Installation Verification
 

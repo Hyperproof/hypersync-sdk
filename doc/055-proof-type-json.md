@@ -1,1 +1,1 @@
-# Declarative Proof File Format
+# Proof Type JSON Format

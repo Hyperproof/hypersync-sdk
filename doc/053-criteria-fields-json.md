@@ -1,1 +1,1 @@
-# criteriaFields.json Format
+# Criteria Fields JSON Format
