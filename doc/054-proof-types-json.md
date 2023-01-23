@@ -1,0 +1,1 @@
+# Proof Types JSON Format
