@@ -8,7 +8,7 @@ Data set names are used in other components like proof types to identify the spe
 
 ## REST Data Sources
 
-For services that expose their data through a REST API, developers are recommended to derive a data source from the RestDataSource base class. This base class makes it possible to configure the data sets along with filters, sorts, and transformations in a `dataSources.json` file that is included in your package. This makes it possible to configure most of your data retrieval functionality without writing any code.
+For services that expose their data through a REST API, developers are recommended to derive a data source from the RestDataSource base class. This base class makes it possible to configure the data sets along with filters, sorts, and transformations in a `dataSources.json` file that is included in your package. You can configure most of your data retrieval functionality without writing any code.
 
 If your external service uses OAuth for authorization (see [Connections](./004-connections.md)), your app's data source should look like this:
 

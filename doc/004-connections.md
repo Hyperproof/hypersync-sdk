@@ -61,7 +61,7 @@ Finally, implement the `getUserId` and `getUserAccountName` methods. `getUserId`
   }
 
   /**
-   * Returns a human readable string which identifies the user's Zoho account.
+   * Returns a human readable string which identifies the user's account.
    * This string is displayed in Hyperproof's Connected Accounts page to help the
    * user distinguish between multiple connections that use different accounts.
    *
@@ -105,7 +105,7 @@ Your apps' HypersyncApp class must be modified to support custom authentication.
 
 The instruction header along with each of the fields will be shown to the user when they attempt to create a connection to your service.
 
-Next, implement the `validateCredentials` method. This method will be called by Hyperproof as soon as the user provides the credentials and clicks Save.
+Next, implement the `validateCredentials` method. This method will be called by Hyperproof as soon as the user provides the credentials and clicks Next.
 
 ```
   interface IMyServiceUser {

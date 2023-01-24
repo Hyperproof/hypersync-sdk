@@ -118,7 +118,7 @@ yarn build
 5. Finally, run this command to update your custom app in Hyperproof:
 
 ```
-hp customapps import .
+hp customapps import -d .
 ```
 
 That's it! You've just made your first edit to an installed Hypersync app.

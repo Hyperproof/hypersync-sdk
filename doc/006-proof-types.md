@@ -6,11 +6,11 @@ Hypersync apps expose the data in an external service in the form of proof types
 - List of Groups
 - Group Membership
 
-Each one of these proof types selects the appropriate data from the external service and formats it as appropriate for the type of data. Data can be formatted in tabular, stacked and heirarchical layouts.
+Each one of these proof types selects the appropriate data from the external service and formats it as appropriate for the type of data. Data can be formatted in tabular, stacked and hierarchical layouts.
 
 Once the user selects a proof type, they may be asked for one or more criteria values. The Group Membership proof type, for example, will likely reuqire that the user specify the name of the group that they are interested in. This information is then used to filter the group membership data. The metadata for these criteria values (e.g. whether the group name is shown as a select control or a text field) comes from the [criteria provider](./007-criteria.md).
 
-Proof types retrieve data from app's [data source](./005-data-sources.md) by name. The proof type may also provide parameter values to the data source to ensure that the right data is returned.
+Proof types retrieve data from the app's [data source](./005-data-sources.md) by name. The proof type may also provide parameter values to the data source to ensure that the right data is returned.
 
 ### Layouts
 

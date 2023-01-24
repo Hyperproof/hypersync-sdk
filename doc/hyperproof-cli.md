@@ -63,7 +63,7 @@ brew install hyperproof-cli
 
 ### Installation Verification
 
-Once the installation is complete the installation by running the following command:
+Once the installation is complete, confirm the installation by running the following command:
 
 ```
 hp --version
