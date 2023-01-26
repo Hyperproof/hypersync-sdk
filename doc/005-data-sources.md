@@ -56,7 +56,7 @@ public async createDataSource(credentials: CustomAuthCredentials): Promise<IData
 
 ### dataSource.json File
 
-Once you have created your app's `RestDataSource` component and updated the `createDataSource` method in your `HypersyncApp`, add dataSource.json file under the `/decl` directory. The `RestDataSource` base class will automatically load this configuration file when it is instantiated.
+Once you have created your app's `RestDataSource` component and updated the `createDataSource` method in your `HypersyncApp`, add dataSource.json file under the `/json` directory. The `RestDataSource` base class will automatically load this configuration file when it is instantiated.
 
 For more information on configuring the data sets in your data source using `dataSource.json`, see the [dataSource.json Format page](./052-data-source-json.md).
 

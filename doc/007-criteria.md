@@ -14,7 +14,7 @@ For more advanced scenarios, the SDK's `ICriteriaProvider` interface allows you 
 
 # No-Code Criteria Provider
 
-The `DeclarativeProofProvider` class in the SDK makes it easy to define criteria metadata without writing code. To use this class, begin by creating a `criteriaFields.json` in the `/decl` directory. The file should have the following format:
+The `DeclarativeProofProvider` class in the SDK makes it easy to define criteria metadata without writing code. To use this class, begin by creating a `criteriaFields.json` in the `/json` directory. The file should have the following format:
 
 ```
 {
