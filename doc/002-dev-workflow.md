@@ -85,7 +85,7 @@ Because custom Hypersync apps are just Node.js modules, updating them is a strai
 
 Once you've made changes to your app, you are just a couple of steps away from publishing those updates to your Hyperproof organization.
 
-1. Using the text editor of choice, edit the `decl/proof/booksByAuthor.json` file in your Open Library project.
+1. Using the text editor of choice, edit the `json/proof/booksByAuthor.json` file in your Open Library project.
 
    > This `.json` file describes one proof type in the Open Library application.
 

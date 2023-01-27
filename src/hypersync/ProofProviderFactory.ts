@@ -4,10 +4,11 @@ import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
 import path from 'path';
 import { StringMap } from './common';
-import { DeclarativeProofProvider } from './DeclarativeProofProvider';
+import { ICriteriaProvider } from './ICriteriaProvider';
+import { DataValueMap, IDataSource } from './IDataSource';
+import { JsonProofProvider } from './JsonProofProvider';
 import { HypersyncCriteria } from './models';
 import { ProofProviderBase } from './ProofProviderBase';
-import { DataValueMap, IDataSource } from './IDataSource';
 import { resolveTokens } from './tokens';
 
 interface IDeclarativeProofTypeRef {
@@ -44,7 +45,7 @@ export class ProofProviderFactory {
     this.messages = messages;
 
     // If there are any declarative proof providers, load those now.
-    const proofProvidersPath = path.resolve(appRootDir, 'decl/proofTypes.json');
+    const proofProvidersPath = path.resolve(appRootDir, 'json/proofTypes.json');
     if (fs.existsSync(proofProvidersPath)) {
       this.providers = JSON.parse(fs.readFileSync(proofProvidersPath, 'utf8'));
       // If a JSON schema ref was provided, remove it from map.
@@ -106,7 +107,11 @@ export class ProofProviderFactory {
     return options.sort((a, b) => compareValues(a.label, b.label));
   };
 
-  createProofProvider = (proofType: string, dataSource: IDataSource) => {
+  createProofProvider = (
+    proofType: string,
+    dataSource: IDataSource,
+    criteriaProvider: ICriteriaProvider
+  ) => {
     const provider = this.providers[proofType];
     if (!provider) {
       throw createHttpError(
@@ -116,13 +121,14 @@ export class ProofProviderFactory {
     }
 
     if (typeof provider === 'function') {
-      return new provider(dataSource);
+      return new provider(dataSource, criteriaProvider);
     } else {
-      return new DeclarativeProofProvider(
+      return new JsonProofProvider(
         this.connectorName,
         this.appRootDir,
         proofType,
         dataSource,
+        criteriaProvider,
         this.messages
       );
     }

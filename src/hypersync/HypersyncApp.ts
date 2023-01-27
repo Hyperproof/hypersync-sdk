@@ -2,7 +2,6 @@ import { FusebitContext } from '@fusebit/add-on-sdk';
 import {
   createOAuthConnector,
   OAuthConnector,
-  OAuthTokenResponse,
   UserContext
 } from '@fusebit/oauth-connector';
 import fs from 'fs';
@@ -30,10 +29,15 @@ import {
   createHypersync,
   IValidateCredentialsResponse
 } from './hypersyncConnector';
-import { ICriteriaMetadata, ICriteriaPage } from './ICriteriaProvider';
+import {
+  ICriteriaMetadata,
+  ICriteriaPage,
+  ICriteriaProvider
+} from './ICriteriaProvider';
 import { IDataSource } from './IDataSource';
+import { JsonCriteriaProvider } from './JsonCriteriaProvider';
 import { MESSAGES } from './messages';
-import { HypersyncCriteria, IHypersync } from './models';
+import { HypersyncCriteria, IHypersync, OAuthTokenResponse } from './models';
 import {
   IHypersyncSchema,
   IProofFile,
@@ -162,8 +166,10 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       fusebitContext,
       vendorUserId
     );
+    const criteriaProvider = await this.createCriteriaProvider(dataSource);
     return this.hypersyncApp.generateCriteriaMetadata(
       dataSource,
+      criteriaProvider,
       criteria,
       [{ isValid: false, fields: [] }],
       search
@@ -179,7 +185,12 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       fusebitContext,
       vendorUserId
     );
-    return this.hypersyncApp.generateSchema(dataSource, criteria);
+    const criteriaProvider = await this.createCriteriaProvider(dataSource);
+    return this.hypersyncApp.generateSchema(
+      dataSource,
+      criteriaProvider,
+      criteria
+    );
   }
 
   public async syncNow(
@@ -198,12 +209,14 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       fusebitContext,
       vendorUserId
     );
+    const criteriaProvider = await this.createCriteriaProvider(dataSource);
 
     const userContext = await this.getUser(fusebitContext, vendorUserId);
 
     try {
       const data = await this.hypersyncApp.getProofData(
         dataSource,
+        criteriaProvider,
         hypersync,
         hyperproofUser,
         userContext.vendorUserProfile,
@@ -313,6 +326,10 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       return this.hypersyncApp.createDataSource(newCredentials ?? credentials);
     }
   }
+
+  private async createCriteriaProvider(dataSource: IDataSource) {
+    return this.hypersyncApp.createCriteriaProvider(dataSource);
+  }
 }
 
 /**
@@ -364,6 +381,7 @@ export class HypersyncApp<TUserProfile = object> {
     state: string,
     redirectUri: string
   ) {
+    await Logger.debug('Retrieving OAuth authorization URL.');
     return [
       configuration.oauth_authorization_url,
       `?response_type=code`,
@@ -391,7 +409,8 @@ export class HypersyncApp<TUserProfile = object> {
     configuration: StringMap,
     authorizationCode: string,
     redirectUri: string
-  ) {
+  ): Promise<OAuthTokenResponse> {
+    await Logger.debug('Retrieving OAuth access token.');
     const response = await Superagent.post(configuration.oauth_token_url)
       .type('form')
       .send({
@@ -416,7 +435,8 @@ export class HypersyncApp<TUserProfile = object> {
     configuration: StringMap,
     tokenContext: OAuthTokenResponse,
     redirectUri: string
-  ) {
+  ): Promise<OAuthTokenResponse> {
+    await Logger.debug('Refreshing OAuth access token.');
     const currentRefreshToken = tokenContext.refresh_token;
     const response = await Superagent.post(configuration.oauth_token_url)
       .type('form')
@@ -465,6 +485,7 @@ export class HypersyncApp<TUserProfile = object> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     credentials: CustomAuthCredentials
   ): Promise<CustomAuthCredentials | undefined> {
+    await Logger.debug('Refreshing custom authentication credentials.');
     return undefined;
   }
 
@@ -534,21 +555,33 @@ export class HypersyncApp<TUserProfile = object> {
   }
 
   /**
+   * Creates a critieria provider that can be used to generate criteria metadata.
+   */
+  public async createCriteriaProvider(
+    dataSource: IDataSource
+  ): Promise<ICriteriaProvider> {
+    return new JsonCriteriaProvider(this.appRootDir, dataSource);
+  }
+
+  /**
    * Returns the metadata that is used to generate the user interface
    * that allows the user to specify proof criteria.
    *
    * @param dataSource IDataSource instance used to retrieve data.
+   * @param criteriaProvider ICriteriaProvider instance used to generate criteria metadata.
    * @param criteria Current set of proof criterion specified by the user.
    * @param pages One or more criteria metadata pages for display in the UI.
    * @param search Search criteria used in some criteria fields.  Optional.
    */
   public async generateCriteriaMetadata(
     dataSource: IDataSource,
+    criteriaProvider: ICriteriaProvider,
     criteria: HypersyncCriteria,
     pages: ICriteriaPage[],
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     search?: string
   ): Promise<ICriteriaMetadata> {
+    await Logger.debug('Generating criteria metadata.');
     const factory = await this.getProofProviderFactory();
     const proofTypes = factory.getProofTypeOptions(criteria);
     pages[0].fields.push({
@@ -572,7 +605,8 @@ export class HypersyncApp<TUserProfile = object> {
     } else {
       const provider = factory.createProofProvider(
         criteria.proofType!,
-        dataSource
+        dataSource,
+        criteriaProvider
       );
       return provider.generateCriteriaMetadata(criteria, pages);
     }
@@ -583,16 +617,22 @@ export class HypersyncApp<TUserProfile = object> {
    * used in automated testing.
    *
    * @param dataSource IDataSource instance used to retrieve data.
+   * @param criteriaProvider ICriteriaProvider instance used to generate criteria metadata.
    * @param criteria Set of proof criterion selected by the user.
    */
   public async generateSchema(
     dataSource: IDataSource,
+    criteriaProvider: ICriteriaProvider,
     criteria: HypersyncCriteria
   ): Promise<IHypersyncSchema> {
+    await Logger.debug(
+      `Generating schema for proof type '${criteria.proofType}'.`
+    );
     const factory = await this.getProofProviderFactory();
     const provider = factory.createProofProvider(
       criteria.proofType!,
-      dataSource
+      dataSource,
+      criteriaProvider
     );
     return provider.generateSchema(criteria);
   }
@@ -601,6 +641,7 @@ export class HypersyncApp<TUserProfile = object> {
    * Retrieves data from the external source and formats it for rendering.
    *
    * @param dataSource IDataSource instance used to retrieve data.
+   * @param criteriaProvider ICriteriaProvider instance used to generate criteria metadata.
    * @param hypersync The Hypersync that is synchronizing.
    * @param hyperproofUser The Hyperproof user who initiated the sync.
    * @param userProfile Profile object returned by getUserProfile.
@@ -610,6 +651,7 @@ export class HypersyncApp<TUserProfile = object> {
    */
   public async getProofData(
     dataSource: IDataSource,
+    criteriaProvider: ICriteriaProvider,
     hypersync: IHypersync,
     hyperproofUser: IHyperproofUser,
     userProfile: TUserProfile,
@@ -617,10 +659,14 @@ export class HypersyncApp<TUserProfile = object> {
     page?: string,
     metadata?: SyncMetadata
   ): Promise<IProofFile[] | IGetProofDataResponse> {
+    await Logger.debug(
+      `Retrieving data for proof type '${hypersync.settings.criteria.proofType}'.`
+    );
     const factory = await this.getProofProviderFactory();
     const provider = factory.createProofProvider(
       hypersync.settings.criteria.proofType!,
-      dataSource
+      dataSource,
+      criteriaProvider
     );
     return provider.getProofData(
       hypersync,

@@ -8,12 +8,12 @@ Data set names are used in other components like proof types to identify the spe
 
 ## REST Data Sources
 
-For services that expose their data through a REST API, developers are recommended to derive a data source from the RestDataSource base class. This base class makes it possible to configure the data sets along with filters, sorts, and transformations in a `dataSources.json` file that is included in your package. You can configure most of your data retrieval functionality without writing any code.
+For services that expose their data through a REST API, developers are recommended to derive a data source from the RestDataSourceBase base class. This base class makes it possible to configure the data sets along with filters, sorts, and transformations in a `dataSources.json` file that is included in your package. You can configure most of your data retrieval functionality without writing any code.
 
 If your external service uses OAuth for authorization (see [Connections](./004-connections.md)), your app's data source should look like this:
 
 ```
-export class MyServiceDataSource extends RestDataSource {
+export class MyServiceDataSource extends RestDataSourceBase {
   constructor(accessToken: string) {
     super(config as IRestDataSourceConfig, Messages, {
       Authorization: `Bearer ${accessToken}`,
@@ -35,7 +35,7 @@ public async createDataSource(accessToken: string): Promise<IDataSource> {
 For services that use some other form of authorization, use the following pattern:
 
 ```
-export class MyServiceDataSource extends RestDataSource {
+export class MyServiceDataSource extends RestDataSourceBase {
   constructor(credentials: CustomAuthCredentials) {
     // TODO: Update the headers below for your REST service.
     super(config as IRestDataSourceConfig, Messages, {
@@ -56,7 +56,7 @@ public async createDataSource(credentials: CustomAuthCredentials): Promise<IData
 
 ### dataSource.json File
 
-Once you have created your app's `RestDataSource` component and updated the `createDataSource` method in your `HypersyncApp`, add dataSource.json file under the `/decl` directory. The `RestDataSource` base class will automatically load this configuration file when it is instantiated.
+Once you have created your app's `RestDataSourceBase` component and updated the `createDataSource` method in your `HypersyncApp`, add dataSource.json file under the `/json` directory. The `RestDataSourceBase` base class will automatically load this configuration file when it is instantiated.
 
 For more information on configuring the data sets in your data source using `dataSource.json`, see the [dataSource.json Format page](./052-data-source-json.md).
 
@@ -66,7 +66,7 @@ Many REST APIs use a paging mechanism to allow data to be retrieved in chunks. F
 
 While it is possible to configure many aspects of your data sets using the `dataSource.json` file, there is currently no mechanism to handle paging. To handle paging properly, you will have to write a bit of code.
 
-To implement paging in a data source that derives from RestDataSource, override the `getDataFromUrl` method:
+To implement paging in a data source that derives from RestDataSourceBase, override the `getDataFromUrl` method:
 
 ```
   protected async getDataFromUrl(
@@ -94,7 +94,7 @@ To implement paging in a data source that derives from RestDataSource, override 
 
 ## Custom Data Sources
 
-For services that do not expose data as REST, or for services that use certain REST patterns that are incompatible with RestDataSource (e.g. using POST to retrieve data), the Hypersync SDK makes it possible to create a custom data source.
+For services that do not expose data as REST, or for services that use certain REST patterns that are incompatible with RestDataSourceBase (e.g. using POST to retrieve data), the Hypersync SDK makes it possible to create a custom data source.
 
 To begin, define your data source class using one of the patterns below.
 

@@ -6,15 +6,15 @@ Criteria metadata may be built up incrementally. A Hypersync app will generally 
 
 Criteria fields may be spread across multiple pages in the Hypersync wizard. For example, if seven criteria fields are required for a given proof type, four can be shown to the user on the first page, and when the user has provided all four of those values, they can be taken to the second page where to fill in the last three fields.
 
-The Hypersync SDK uses criteria provider components to surface criteria metadata and criteria values to Hyperproof. The SDK also includes a `DeclarativeCriteriaProvider` component that can be used to easily surface criteria metadata using a declarative `criteriaFields.json` as the source. This makes it possible to define and configure criteria fields with no code.
+The Hypersync SDK uses criteria provider components to surface criteria metadata and criteria values to Hyperproof. The SDK also includes a `JsonCriteriaProvider` component that can be used to easily surface criteria metadata using a declarative `criteriaFields.json` as the source. This makes it possible to define and configure criteria fields with no code.
 
 For more advanced scenarios, the SDK's `ICriteriaProvider` interface allows you to build your own criteria provider.
 
-> NOTE: If you are defining your proof types with JSON, there is no need for you to create your own criteria provider. For these proof types the SDK has built-in support for `DeclarativeProofProvider` and the `criteriaFields.json` file described below.
+> NOTE: If you are defining your proof types with JSON, there is no need for you to create your own criteria provider. For these proof types the SDK has built-in support for `JsonProofProvider` and the `criteriaFields.json` file described below.
 
 # No-Code Criteria Provider
 
-The `DeclarativeProofProvider` class in the SDK makes it easy to define criteria metadata without writing code. To use this class, begin by creating a `criteriaFields.json` in the `/decl` directory. The file should have the following format:
+The `JsonProofProvider` class in the SDK makes it easy to define criteria metadata without writing code. To use this class, begin by creating a `criteriaFields.json` in the `/json` directory. The file should have the following format:
 
 ```
 {
@@ -44,16 +44,16 @@ For more information on the `criteriaFields.json` format, see [Criteria Fields J
 
 # Custom Criteria Provider
 
-For some advanced scenarios it may be necessary to write your own criteria provider. The SDK provides the ICriteriaProvider interface which you can implement in your custom criteria provider.
+For some advanced scenarios it may be necessary to write your own criteria provider. The SDK provides the ICriteriaProvider interface which you can use to build a custom criteria provider.
 
 The `ICriteriaProvider` interface has two methods: `generateCriteriaFields` and `generateProofCriteria`.
 
 `generateCriteriaFields` is invoked as the user is creating or editing a Hypersync. This method returns criteria metadata to Hyperproof in the form of an `ICriteraMetadata` object. This object contains the fields that the user needs to configure for the proof type, as well as some default values for the Hypersync name, frequency of execution, and versioning benavior. As mentioned above this method is called iteratively as the user configures the Hypersync.
 
-`generateProofCriteria` is called at sync time. This method is responsible for formatting the configured criteria so that they can be included in a the generated proof. This method will generally apply transforms and perform lookups in order to properly format the criteria.
+`generateProofCriteria` is called at sync time. This method is responsible for formatting the configured criteria so that they can be included in a the generated proof. `generateProofCriteria` will generally apply transforms and perform lookups in order to properly format the criteria.
 
 ```
-class CriteriaProvider implements ICriteriaProvider{
+class MyCriteriaProvider implements ICriteriaProvider{
   async generateCriteriaFields(
     proofCriteria: IProofCriterionRef[],
     criteriaValues: HypersyncCriteria,
@@ -73,6 +73,16 @@ class CriteriaProvider implements ICriteriaProvider{
     // TODO: Return a set of criterion values that can be rendered in a proof document
   }
 }
+```
+
+Once you have implemented your custom `ICriteriaProvider`, override the `createCriteriaProvider` method on `HypersyncApp` to return your new class:
+
+```
+  public async createCriteriaProvider(
+    dataSource: IDataSource
+  ): Promise<ICriteriaProvider> {
+    return new MyCriteriaProvider(dataSource);
+  }
 ```
 
 <br></br>

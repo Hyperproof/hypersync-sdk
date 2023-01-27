@@ -1,35 +1,37 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { FusebitContext, StorageItem } from '@fusebit/add-on-sdk';
-import { OAuthConnector, UserContext } from '@fusebit/oauth-connector';
 import * as express from 'express';
-import fs from 'fs';
-import createHttpError from 'http-errors';
-import { StatusCodes } from 'http-status-codes';
+
 import {
   AuthorizationType,
-  createConnector,
   CustomAuthCredentials,
-  formatKey,
-  formatUserKey,
-  getHpUserFromUserKey,
-  HttpHeader,
   HYPERPROOF_VENDOR_KEY,
+  HttpHeader,
   IHyperproofUser,
   IHyperproofUserContext,
   IRetryResponse,
   IUserConnection,
   LogContextKey,
   Logger,
-  mapObjectTypesParamToType,
-  ObjectType
+  ObjectType,
+  createConnector,
+  formatKey,
+  formatUserKey,
+  getHpUserFromUserKey,
+  mapObjectTypesParamToType
 } from '../common';
-import { formatHypersyncError } from './common';
-import { HypersyncStage } from './enums';
-import { createHypersyncStorageClient } from './HypersyncStorageClient';
-import { ICriteriaMetadata } from './ICriteriaProvider';
+import { FusebitContext, StorageItem } from '@fusebit/add-on-sdk';
 import { HypersyncCriteria, IHypersync } from './models';
-import { IHypersyncSchema } from './ProofProviderBase';
 import { IGetProofDataResponse, SyncMetadata } from './Sync';
+import { OAuthConnector, UserContext } from '@fusebit/oauth-connector';
+
+import { HypersyncStage } from './enums';
+import { ICriteriaMetadata } from './ICriteriaProvider';
+import { IHypersyncSchema } from './ProofProviderBase';
+import { StatusCodes } from 'http-status-codes';
+import createHttpError from 'http-errors';
+import { createHypersyncStorageClient } from './HypersyncStorageClient';
+import { formatHypersyncError } from './common';
+import fs from 'fs';
 
 /**
  * Object returned from the validateCredentials method.
@@ -169,7 +171,8 @@ export function createHypersync(superclass: typeof OAuthConnector) {
               extendedError: {
                 ...err,
                 [LogContextKey.HypersyncCriteria]: req.body.criteria,
-                [LogContextKey.HypersyncStage]: HypersyncStage.AUTHORING
+                [LogContextKey.HypersyncStage]: HypersyncStage.AUTHORING,
+                [LogContextKey.StackTrace]: err.stack
               }
             });
           }

@@ -8,6 +8,10 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ## Release Notes
 
+### 0.9.1
+
+- General clean up and preparation ahead of general availability.
+
 ### 0.9.0
 
 - Updated with various improvements.

@@ -30,9 +30,9 @@ Tabular and stacked layouts can also be described declaratively using JSON files
 
 The Hypersync SDK makes it possible to define most common proof types using declarative JSON files. Because these JSON files are easy to read and to edit, this no-code solution is recommended over writing TypeScript / JavaScript code for a proof type.
 
-The proof type JSON files live in the `/decl/proof` directory. This directory contains one JSON file per proof type. To learn more about the format of these JSON files, see [Proof Type JSON](./055-proof-type-json.md) or check out the examples in the [Hypersync SDK Samples repository](https://github.com/Hyperproof/hypersync-sdk-samples).
+The proof type JSON files live in the `/json/proof` directory. This directory contains one JSON file per proof type. To learn more about the format of these JSON files, see [Proof Type JSON](./055-proof-type-json.md) or check out the examples in the [Hypersync SDK Samples repository](https://github.com/Hyperproof/hypersync-sdk-samples).
 
-The `/decl/proofTypes.json` file lists the set of proof types that are currently exposed by an application. Any proof type JSON files that are in your project but not listed in `proofTypes.json` will not be shown to the user. This makes it possible to develop new proof types without exposing them to users until you are ready.
+The `/json/proofTypes.json` file lists the set of proof types that are currently exposed by an application. Any proof type JSON files that are in your project but not listed in `proofTypes.json` will not be shown to the user. This makes it possible to develop new proof types without exposing them to users until you are ready.
 
 For more information on `proofTypes.json`, see [Proof Types JSON Format](./054-proof-types-json.md).
 

@@ -10,6 +10,7 @@ import {
 import {
   ICriteriaMetadata,
   ICriteriaPage,
+  ICriteriaProvider,
   IProofCriterionValue
 } from './ICriteriaProvider';
 import { DataObject, HypersyncCriteria, IHypersync } from './models';
@@ -105,9 +106,11 @@ export interface IProofFile<TContents = IHypersyncContents> {
  */
 export class ProofProviderBase<T = any> {
   protected client: T;
+  protected criteriaProvider: ICriteriaProvider;
 
-  constructor(client: T) {
+  constructor(client: T, criteriaProvider: ICriteriaProvider) {
     this.client = client;
+    this.criteriaProvider = criteriaProvider;
   }
 
   public static proofType: string;

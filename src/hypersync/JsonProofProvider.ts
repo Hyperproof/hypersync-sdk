@@ -2,7 +2,6 @@ import fs from 'fs';
 import path from 'path';
 import { IHyperproofUser, Logger } from '../common';
 import { ID_ALL, ID_ANY, ID_NONE, StringMap } from './common';
-import { DeclarativeCriteriaProvider } from './DeclarativeCriteriaProvider';
 import {
   DataSetResultStatus,
   HypersyncDataFormat,
@@ -12,7 +11,11 @@ import {
   HypersyncPeriod,
   HypersyncTemplate
 } from './enums';
-import { ICriteriaPage, IProofCriterionRef } from './ICriteriaProvider';
+import {
+  ICriteriaPage,
+  ICriteriaProvider,
+  IProofCriterionRef
+} from './ICriteriaProvider';
 import { DataValueMap, IDataSource } from './IDataSource';
 import { DataObject, HypersyncCriteria, IHypersync } from './models';
 import { IProofFile, ProofProviderBase } from './ProofProviderBase';
@@ -70,9 +73,10 @@ interface IHypersyncDefinition {
 }
 
 /**
- * Provides methods for working with declarative proof type definitions.
+ * Provides methods for working with proof type definitions stored
+ * in a JSON file.
  */
-export class DeclarativeProofProvider extends ProofProviderBase {
+export class JsonProofProvider extends ProofProviderBase {
   private connectorName: string;
   private appRootDir: string;
   private proofType: string;
@@ -84,16 +88,18 @@ export class DeclarativeProofProvider extends ProofProviderBase {
     appRootDir: string,
     proofType: string,
     dataSource: IDataSource,
+    criteriaProvider: ICriteriaProvider,
     messages: StringMap
   ) {
-    super(dataSource);
+    super(dataSource, criteriaProvider);
     this.connectorName = connectorName;
     this.appRootDir = appRootDir;
     this.proofType = proofType;
+    this.criteriaProvider = criteriaProvider;
     this.messages = messages;
     this.definition = JSON.parse(
       fs.readFileSync(
-        path.resolve(appRootDir, `decl/proof/${this.proofType}.json`),
+        path.resolve(appRootDir, `json/proof/${this.proofType}.json`),
         'utf8'
       )
     );
@@ -105,11 +111,7 @@ export class DeclarativeProofProvider extends ProofProviderBase {
   ) {
     const tokenContext = this.initTokenContext(criteriaValues);
 
-    const fieldProvider = new DeclarativeCriteriaProvider(
-      this.appRootDir,
-      this.dataSource
-    );
-    await fieldProvider.generateCriteriaFields(
+    await this.criteriaProvider.generateCriteriaFields(
       this.definition.criteria.map(c => ({ name: c.name, page: c.page })),
       criteriaValues,
       tokenContext,
@@ -220,11 +222,7 @@ export class DeclarativeProofProvider extends ProofProviderBase {
       }
     }
 
-    const fieldProvider = new DeclarativeCriteriaProvider(
-      this.appRootDir,
-      this.dataSource
-    );
-    const criteria = await fieldProvider.generateProofCriteria(
+    const criteria = await this.criteriaProvider.generateProofCriteria(
       this.definition.criteria,
       criteriaValues,
       tokenContext
