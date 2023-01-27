@@ -13,14 +13,14 @@ The SDK provides a `Logger` class that you can use to write out logging informat
 ```
 Logger.debug(message, detail)
 Logger.info(message, detail)
-Logger.debug(message, detail)
-Logger.debug(message, detail)
+Logger.warn(message, detail)
+Logger.error(message, detail)
 ```
 
 Each of these methods are async (i.e. they return a `Promise`) so to use them you will generally want to use the `await` keyword. e.g.:
 
 ```
-await Logger.debug('Creating my data source.');
+await Logger.info('Creating my data source.');
 ```
 
 The SDK itself also uses the `Logger` class internally so even if you have little to no logging in your code, the `Logger` statements in the SDK will provide some diagnostic information.
