@@ -118,9 +118,10 @@ export function createConnector(superclass: typeof OAuthConnector) {
       }
       this.integrationType = process.env.integration_type;
       this.connectorName = connectorName;
-      this.authorizationType = process.env.oauth_client_id
-        ? AuthorizationType.OAUTH
-        : AuthorizationType.CUSTOM;
+      this.authorizationType =
+        process.env.oauth_client_id || process.env.vendor_oauth_client_id
+          ? AuthorizationType.OAUTH
+          : AuthorizationType.CUSTOM;
       this.checkAuthorized = this.checkAuthorized.bind(this);
     }
 

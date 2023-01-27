@@ -1,8 +1,8 @@
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
-import { IHypersyncField } from './DeclarativeProofProvider';
 import { HypersyncFieldType } from './enums';
 import { ICriteriaField } from './ICriteriaProvider';
+import { IHypersyncField } from './JsonProofProvider';
 import {
   IHypersyncProofField,
   IHypersyncSchemaField

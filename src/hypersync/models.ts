@@ -1,3 +1,4 @@
+import { OAuthTokenResponse as FBOAuthTokenResponse } from '@fusebit/oauth-connector';
 import { IIntegrationSettingsBase, ObjectStatus, ObjectType } from '../common';
 import {
   HypersyncPeriod,
@@ -9,7 +10,10 @@ import { IHypersyncSchema } from './ProofProviderBase';
 /**
  * Export this model from Fusebit for use in OAuth Hypersyncs.
  */
-export { OAuthTokenResponse } from '@fusebit/oauth-connector';
+export interface OAuthTokenResponse
+  extends Omit<FBOAuthTokenResponse, 'expires_in'> {
+  expires_in: number;
+}
 
 /**
  * Primitive values supported by Hypersyncs in criteria and data binding.

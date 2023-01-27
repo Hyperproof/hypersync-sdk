@@ -55,7 +55,7 @@ export interface IDataSet {
 
 /**
  * Configuration information stored in a JSON file that is used as
- * the input to a RestDataSource instance.
+ * the input to a RestDataSourceBase instance.
  */
 export interface IRestDataSourceConfig {
   baseUrl?: string;
@@ -96,7 +96,7 @@ interface IPredicateClause {
  * Connectors should override this class and add support for service-specific
  * functionality like paging.
  */
-export class RestDataSource extends DataSourceBase {
+export class RestDataSourceBase extends DataSourceBase {
   protected config: IRestDataSourceConfig;
   protected apiClient: ApiClient;
   private messages: StringMap;
@@ -127,7 +127,7 @@ export class RestDataSource extends DataSourceBase {
     metadata?: SyncMetadata
   ): Promise<RestDataSetResult<TData>> {
     await Logger.debug(
-      `RestDataSource: Retrieving Hypersync service data for data set '${dataSetName}'`
+      `RestDataSourceBase: Retrieving Hypersync service data for data set '${dataSetName}'`
     );
     const dataSet = this.config.dataSets[dataSetName];
     if (!dataSet) {
@@ -163,7 +163,7 @@ export class RestDataSource extends DataSourceBase {
     // The `property` attribute can be used to select data out of the response.
     if (dataSet.property) {
       await Logger.info(
-        `RestDataSource: Extracting data from '${dataSet.property}' property.`
+        `RestDataSourceBase: Extracting data from '${dataSet.property}' property.`
       );
       const expression = jsonata(dataSet.property);
       data = expression.evaluate(data);
@@ -171,10 +171,10 @@ export class RestDataSource extends DataSourceBase {
 
     if (Array.isArray(data)) {
       await Logger.info(
-        `RestDataSource: Received array of length ${data.length} from REST API.`
+        `RestDataSourceBase: Received array of length ${data.length} from REST API.`
       );
     } else {
-      await Logger.info(`RestDataSource: Received object from REST API.`);
+      await Logger.info(`RestDataSourceBase: Received object from REST API.`);
     }
 
     // Join in any other data sets.
@@ -227,7 +227,7 @@ export class RestDataSource extends DataSourceBase {
     }
 
     await Logger.debug(
-      `RestDataSource: Data retrieval and processing for '${dataSetName}' complete`
+      `RestDataSourceBase: Data retrieval and processing for '${dataSetName}' complete`
     );
 
     return {
@@ -300,7 +300,7 @@ export class RestDataSource extends DataSourceBase {
     metadata?: SyncMetadata
   ): Promise<RestDataSetResult<any>> {
     await Logger.info(
-      `RestDataSource: Retrieving data from URL '${relativeUrl}'`
+      `RestDataSourceBase: Retrieving data from URL '${relativeUrl}'`
     );
     const {
       json: data,
@@ -332,7 +332,7 @@ export class RestDataSource extends DataSourceBase {
       };
     }
 
-    await Logger.info(`RestDataSource: Applying ${joins.length} join(s).`);
+    await Logger.info(`RestDataSourceBase: Applying ${joins.length} join(s).`);
 
     let joinData = Array.isArray(data) ? data : [data];
     for (const join of joins) {
@@ -399,7 +399,9 @@ export class RestDataSource extends DataSourceBase {
       return data;
     }
 
-    await Logger.info(`RestDataSource: Applying ${lookups.length} lookup(s).`);
+    await Logger.info(
+      `RestDataSourceBase: Applying ${lookups.length} lookup(s).`
+    );
 
     const result = Array.isArray(data) ? data : [data];
     for (const lookup of lookups) {
@@ -451,7 +453,7 @@ export class RestDataSource extends DataSourceBase {
     params?: DataValueMap
   ): Promise<any> {
     if (dataSet.filter !== undefined) {
-      await Logger.info(`RestDataSource: Filtering data set.`);
+      await Logger.info(`RestDataSourceBase: Filtering data set.`);
 
       if (!Array.isArray(data)) {
         throw new Error(
@@ -507,7 +509,7 @@ export class RestDataSource extends DataSourceBase {
       return data;
     }
 
-    await Logger.info(`RestDataSource: Transforming data set.`);
+    await Logger.info(`RestDataSourceBase: Transforming data set.`);
 
     if (Array.isArray(data)) {
       return data.map(item => this.transformObject(transform, item, params));
@@ -537,7 +539,7 @@ export class RestDataSource extends DataSourceBase {
       return data;
     }
 
-    await Logger.info(`RestDataSource: Sorting data set.`);
+    await Logger.info(`RestDataSourceBase: Sorting data set.`);
 
     data.sort((a, b) => {
       for (const s of sort) {

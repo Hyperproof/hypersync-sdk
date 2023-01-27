@@ -32,7 +32,7 @@ interface ICriteriaFieldConfig {
 
 /**
  * Configuration information stored in a JSON file that is used as
- * the input to a DeclarativeCriteriaProvider instance.
+ * the input to a JsonCriteriaProvider instance.
  */
 interface ICriteriaConfig {
   [name: string]: ICriteriaFieldConfig;
@@ -42,18 +42,16 @@ interface ICriteriaConfig {
  * Provides criteria fields and values to a proof provider using fields declared
  * in a JSON file loaded from the file system.
  */
-export class DeclarativeCriteriaProvider implements ICriteriaProvider {
+export class JsonCriteriaProvider implements ICriteriaProvider {
   private dataSource: IDataSource;
   private criteriaFields: ICriteriaConfig;
 
   constructor(appRootDir: string, dataSource: IDataSource) {
     this.dataSource = dataSource;
-    this.criteriaFields = JSON.parse(
-      fs.readFileSync(
-        path.resolve(appRootDir, 'decl/criteriaFields.json'),
-        'utf8'
-      )
-    );
+    const configFile = path.resolve(appRootDir, 'json/criteriaFields.json');
+    this.criteriaFields = fs.existsSync(configFile)
+      ? JSON.parse(fs.readFileSync(configFile, 'utf8'))
+      : ({} as ICriteriaConfig);
   }
 
   public async generateCriteriaFields(
