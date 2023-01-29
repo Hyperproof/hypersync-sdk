@@ -1,4 +1,5 @@
 export * from './common';
+export * from './DataSourceBase';
 export * from './enums';
 export * from './HypersyncApp';
 export * from './HypersyncStorageClient';
