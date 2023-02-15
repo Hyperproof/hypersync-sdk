@@ -6,7 +6,7 @@ A Hypersync app is a [Node.js](https://nodejs.org/en/) [module](https://nodejs.o
 
 Because Hypersync apps are Node.JS modules, they can be built up entirely by writing code. If you are comfortable with TypeScript or JavaScript, and you have knowledge of web technologies like HTTP, REST APIs, etc., building a custom Hypersync app should be relatively straightforward. We have made every attempt to provide you with a modern framework that follows the best practices for Node.JS.
 
-If you are less comfortable with coding, many parts of a custom Hypersync app can be built without writing code. The Hypersync SDK makes it possible to declare how your Hypersync app shoud behave using structured JSON files. You can use these JSON files in your app to:
+If you are less comfortable with coding, many parts of a custom Hypersync app can be built without writing code. The Hypersync SDK makes it possible to declare how your Hypersync app should behave using structured JSON files. You can use these JSON files in your app to:
 
 - Access new REST APIs
 - Provide additional criteria options to your users
