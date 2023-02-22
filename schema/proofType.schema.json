@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema#",
+  "$id": "proofType.schema.json",
+  "title": "Hypersync Proof Type Schema",
+  "description": "Describes the information stored in a Hypersync proof type JSON file.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "criteria": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "page": {
+            "type": "number"
+          }
+        }
+      }
+    },
+    "proofSpec": {
+      "$ref": "#/$defs/proofSpec"
+    },
+    "overrides": {
+      "type": "array",
+      "items": {
+        "condition": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": "string"
+            },
+            "criteria": {
+              "type": "string"
+            }
+          }
+        },
+        "proofSpec": {
+          "$refs": "#/$defs/proofSpec"
+        }
+      }
+    }
+  },
+  "required": ["description", "criteria", "proofSpec"],
+
+  "$defs": {
+    "proofSpec": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema#",
+      "$id": "/schemas/proofSpec",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "period": {
+          "type": "string",
+          "enum": ["daily", "weekly", "monthly", "quarterly", "yearly"]
+        },
+        "useVersioning": {
+          "type": "boolean"
+        },
+        "suggestedName": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["stacked", "tabular", "custom"]
+        },
+        "orientation": {
+          "type": "string",
+          "enum": ["portait", "landscape"]
+        },
+        "title": {
+          "type": "string"
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "dataSet": {
+          "type": "string"
+        },
+        "dataSetParams": {
+          "$ref": "dataSetParams.schema.json"
+        },
+        "noResultsMessage": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "property": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "width": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["text", "number", "date", "boolean"]
+              }
+            },
+            "required": ["property", "label"]
+          }
+        },
+        "lookups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "dataSet": {
+                "type": "string"
+              },
+              "dataSetParams": {
+                "$ref": "dataSetParams.schema.json"
+              }
+            },
+            "required": ["name", "dataSet", "dataSetParams"]
+          }
+        },
+        "webPageUrl": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "period",
+        "useVersioning",
+        "suggestedName",
+        "format",
+        "orientation",
+        "title",
+        "subtitle",
+        "dataSet",
+        "fields",
+        "webPageUrl"
+      ]
+    }
+  }
+}

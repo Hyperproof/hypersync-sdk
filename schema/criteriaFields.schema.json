@@ -44,16 +44,7 @@
           "type": "string"
         },
         "dataSetParams": {
-          "type": "object",
-          "patternProperties": {
-            "^.*$": {
-              "anyOf": [
-                { "type": "string" },
-                { "type": "number" },
-                { "type": "boolean" }
-              ]
-            }
-          }
+          "$ref": "dataSetParams.schema.json"
         },
         "valueProperty": {
           "type": "string"

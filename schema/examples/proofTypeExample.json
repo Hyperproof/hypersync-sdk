@@ -1,0 +1,46 @@
+{
+  "$schema": "../proofType.schema.json",
+  "description": "User List Proof Type",
+  "criteria": [{ "name": "group", "page": 0 }],
+  "proofSpec": {
+    "period": "monthly",
+    "useVersioning": true,
+    "suggestedName": "User List",
+    "format": "tabular",
+    "orientation": "landscape",
+    "title": "My Service",
+    "subtitle": "User List",
+    "dataSet": "users",
+    "dataSetParams": {
+      "group": "{{criteria.group}}"
+    },
+    "noResultsMessage": "No users.",
+    "fields": [
+      {
+        "property": "firstName",
+        "label": "First Name",
+        "width": "400px",
+        "type": "text"
+      },
+      {
+        "property": "lastName",
+        "label": "Last Name",
+        "width": "400px",
+        "type": "text"
+      },
+      {
+        "property": "email",
+        "label": "Email Address",
+        "width": "200px",
+        "type": "text"
+      },
+      {
+        "property": "status",
+        "label": "Status",
+        "width": "200px",
+        "type": "text"
+      }
+    ],
+    "webPageUrl": "https://myservice.com/users"
+  }
+}

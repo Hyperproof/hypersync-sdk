@@ -1,5 +1,5 @@
 {
-  "$schema": "https://cdn.jsdelivr.net/gh/Hyperproof/hypersync-sdk/schema/proofProviders.schema.json",
+  "$schema": "https://cdn.jsdelivr.net/gh/Hyperproof/hypersync-sdk/schema/proofTypes.schema.json",
   "customerList": {
     "label": "Customer List"
   },
