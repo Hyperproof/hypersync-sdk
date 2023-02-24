@@ -26,7 +26,7 @@ import { resolveTokens, TokenContext } from './tokens';
 interface ILookup {
   name: string;
   dataSet: string;
-  dataSetParams: DataValueMap;
+  dataSetParams?: DataValueMap;
 }
 
 /**
@@ -46,13 +46,13 @@ interface IProofSpec {
   useVersioning: boolean;
   suggestedName: string;
   format: HypersyncDataFormat;
-  orientation: HypersyncPageOrientation;
+  orientation?: HypersyncPageOrientation;
   title: string;
   subtitle: string;
   dataSet: string;
   dataSetParams?: DataValueMap;
   noResultsMessage?: string;
-  lookups: ILookup[];
+  lookups?: ILookup[];
   fields: IHypersyncField[];
   webPageUrl: string;
 }
