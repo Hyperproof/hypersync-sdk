@@ -76,7 +76,7 @@
         },
         "orientation": {
           "type": "string",
-          "enum": ["portait", "landscape"]
+          "enum": ["portrait", "landscape"]
         },
         "title": {
           "type": "string"
@@ -132,7 +132,7 @@
                 "$ref": "dataSetParams.schema.json"
               }
             },
-            "required": ["name", "dataSet", "dataSetParams"]
+            "required": ["name", "dataSet"]
           }
         },
         "webPageUrl": {
@@ -144,7 +144,6 @@
         "useVersioning",
         "suggestedName",
         "format",
-        "orientation",
         "title",
         "subtitle",
         "dataSet",
