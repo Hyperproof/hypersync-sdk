@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema#",
-  "$id": "proofProviders.schema.json",
-  "title": "Hypersync Proof Providers Schema",
-  "description": "Describes the information stored in a Hypersync proof providers JSON file.",
+  "$id": "proofTypes.schema.json",
+  "title": "Hypersync Proof Types Schema",
+  "description": "Describes the information stored in a Hypersync proof types JSON file.",
   "type": "object",
   "properties": {
     "$schema": {

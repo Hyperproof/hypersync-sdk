@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema#",
+  "$id": "dataSetParams.schema.json",
+  "title": "Dataset Parameters Schema",
+  "description": "Schema for a parameters object that should be applied to a dataset.",
+  "type": "object",
+  "patternProperties": {
+    "^.*$": {
+      "anyOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" }
+      ]
+    }
+  }
+}
