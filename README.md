@@ -8,7 +8,7 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ## Release Notes
 
-### 0.10.3
+### 0.10.0
 
 - Added support for connection health monitoring.
 - Data sources can not return detailed error information.
