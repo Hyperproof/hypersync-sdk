@@ -1,4 +1,4 @@
-import { AppId, Priority } from './enums';
+import { AppId, HealthStatus, Priority } from './enums';
 
 export interface IHyperproofUser {
   id: string;
@@ -44,4 +44,11 @@ export interface ITaskPatch {
   externalAssignee?: IExternalUser;
   externalFields?: any;
   taskTemplateId?: string;
+}
+
+export interface IConnectionHealth {
+  healthStatus: HealthStatus;
+  statusCode: number;
+  message?: string;
+  details?: string;
 }

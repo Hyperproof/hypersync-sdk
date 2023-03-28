@@ -11,16 +11,24 @@ import { HypersyncCriteria } from './models';
 import { ProofProviderBase } from './ProofProviderBase';
 import { resolveTokens } from './tokens';
 
-interface IDeclarativeProofTypeRef {
+/**
+ * Interface for an object that represents a proof type that can be
+ * selected by the user.
+ */
+export interface IProofTypeConfig {
   proofType: string;
   label: string;
   criteria: DataValueMap;
 }
 
-interface IProviderMap {
-  [integrationType: string]:
-    | IDeclarativeProofTypeRef
-    | typeof ProofProviderBase;
+/**
+ * Interface for an object that maps a proofType value to either an
+ * IProofTypeConfig instance or a class that derives from ProofProviderBase.
+ * The former is used for no-code, JSON-based proof types, and the latter
+ * is used for proof providers that are built up in code.
+ */
+export interface IProofTypeMap {
+  [proofType: string]: IProofTypeConfig | typeof ProofProviderBase;
 }
 
 /**
@@ -32,7 +40,7 @@ export class ProofProviderFactory {
   private connectorName: string;
   private appRootDir: string;
   private messages: StringMap;
-  private providers: IProviderMap;
+  private providers: IProofTypeMap;
 
   constructor(
     connectorName: string,

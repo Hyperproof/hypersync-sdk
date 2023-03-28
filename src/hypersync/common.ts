@@ -99,7 +99,11 @@ export const getSelectedOptionLabel = (
  * @param {number} pageSize The number of items to process per page
  * @returns
  */
-export const paginate = (entities: any[], page = 0, pageSize: number) => {
+export const paginate = (
+  entities: any[],
+  page: number | string = 0,
+  pageSize: number
+) => {
   page = Number(page);
   pageSize = Number(pageSize);
   const startIndex = page * pageSize;

@@ -1,5 +1,9 @@
 import { FusebitContext } from '@fusebit/add-on-sdk';
-import { UserContext, OAuthConnector } from '@fusebit/oauth-connector';
+import {
+  OAuthConnector,
+  OAuthTokenResponse,
+  UserContext
+} from '@fusebit/oauth-connector';
 import * as express from 'express';
 import fs from 'fs';
 import createHttpError from 'http-errors';
@@ -18,7 +22,8 @@ import {
   FOREIGN_VENDOR_USER,
   HttpHeader,
   HYPERPROOF_VENDOR_KEY,
-  InstanceType
+  InstanceType,
+  LogContextKey
 } from './enums';
 import { HyperproofApiClient } from './HyperproofApiClient';
 import {
@@ -32,6 +37,7 @@ import {
   setHyperproofClientSecret
 } from './hyperproofTokens';
 import { Logger, LoggerContextKey } from './Logger';
+import { IConnectionHealth } from './models';
 
 /**
  * Representation of a user's connection to an external service.
@@ -293,6 +299,41 @@ export function createConnector(superclass: typeof OAuthConnector) {
             }
           } catch (err: any) {
             await Logger.error('Failed to retrieve connections', err);
+            res
+              .status(err.status || StatusCodes.INTERNAL_SERVER_ERROR)
+              .json({ message: err.message });
+          }
+        }
+      );
+
+      /**
+       * Check a connection's health by vendorUserId
+       */
+      app.post(
+        [
+          '/organizations/:orgId/users/:userId/connections/:vendorUserId/connectionhealth'
+        ],
+        this.checkAuthorized(),
+        async (req: express.Request, res: express.Response) => {
+          try {
+            const fusebitContext = req.fusebit;
+            const { orgId, userId, vendorUserId } = req.params;
+            const { hostUrl } = req.body;
+
+            const result = await this.checkConnectionHealth(
+              fusebitContext,
+              orgId,
+              userId,
+              vendorUserId,
+              hostUrl
+            );
+
+            return res.json(result);
+          } catch (err: any) {
+            await Logger.error(
+              `Connection health check returned with error ${err.message}`,
+              err
+            );
             res
               .status(err.status || StatusCodes.INTERNAL_SERVER_ERROR)
               .json({ message: err.message });
@@ -1045,6 +1086,56 @@ export function createConnector(superclass: typeof OAuthConnector) {
         await Logger.error(err);
         return [];
       }
+    }
+
+    /* eslint-disable @typescript-eslint/no-unused-vars */
+    async checkConnectionHealth(
+      fusebitContext: FusebitContext,
+      orgId: string,
+      userId: string,
+      vendorUserId: string,
+      hostUrl?: string
+    ): Promise<IConnectionHealth> {
+      throw new Error('Must be implemented by the derived class.');
+    }
+    /* eslint-enable @typescript-eslint/no-unused-vars */
+
+    /**
+     * We wrap the original implementation of this function because it throws 500 errors on
+     * refresh token issues, and we want to propagate those as 401 instead
+     */
+    override async ensureAccessToken(
+      fusebitContext: FusebitContext,
+      userContext: UserContext,
+      foreignVendorId?: string
+    ): Promise<OAuthTokenResponse> {
+      return super
+        .ensureAccessToken(fusebitContext, userContext, foreignVendorId)
+        .catch(async (err: any) => {
+          // If two API requests refresh a token simultaneously, one of them may return a 409
+          // We want to retry in that case, since there should be a fresh token available now
+          // In the future, we may want to selectively catch only CONFLICT responses for retry
+          await Logger.warn(
+            `Encountered an error refreshing access token. Retrying...`,
+            JSON.stringify({
+              [LogContextKey.Message]: err.message,
+              [LogContextKey.StatusCode]: err.statusCode,
+              [LogContextKey.StackTrace]: err.stack
+            })
+          );
+          return super.ensureAccessToken(
+            fusebitContext,
+            userContext,
+            foreignVendorId
+          );
+        })
+        .catch((err: any) => {
+          throw createHttpError(StatusCodes.UNAUTHORIZED, err.message, {
+            [LogContextKey.ApiUrl]:
+              fusebitContext?.configuration?.vendor_oauth_token_url ??
+              fusebitContext?.configuration?.oauth_token_url
+          });
+        });
     }
 
     decodeState(fusebitContext: FusebitContext) {

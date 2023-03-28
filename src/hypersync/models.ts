@@ -75,3 +75,16 @@ export interface IHypersync {
   updatedOn: string;
   status: ObjectStatus;
 }
+
+/**
+ * Information about errors encountered during proof generation.
+ */
+export interface IErrorInfo {
+  fields: {
+    property: string;
+    label: string;
+  }[];
+  errors: {
+    [key: string]: string;
+  }[];
+}

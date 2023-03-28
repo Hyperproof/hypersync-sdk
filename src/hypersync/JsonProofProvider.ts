@@ -199,7 +199,13 @@ export class JsonProofProvider extends ProofProviderBase {
       };
     }
 
-    const { data, source, context: dataSourceContext, nextPage } = response;
+    const {
+      data,
+      source,
+      context: dataSourceContext,
+      nextPage,
+      errorInfo
+    } = response;
 
     if (dataSourceContext) {
       tokenContext.dataSource = dataSourceContext;
@@ -272,7 +278,8 @@ export class JsonProofProvider extends ProofProviderBase {
               hyperproofUser.timeZone,
               hyperproofUser.language,
               hyperproofUser.locale
-            )!
+            )!,
+            errorInfo
           }
         }
       ],

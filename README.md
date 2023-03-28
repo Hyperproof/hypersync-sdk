@@ -8,6 +8,12 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ## Release Notes
 
+### 0.10.3
+
+- Added support for connection health monitoring.
+- Data sources can not return detailed error information.
+- Miscellaneous quality fixes.
+
 ### 0.9.3
 
 - Updates to schema.json files and related types to help with JSON editing.

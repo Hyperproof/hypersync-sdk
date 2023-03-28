@@ -17,13 +17,15 @@ import {
   formatKey,
   formatUserKey,
   getHpUserFromUserKey,
-  mapObjectTypesParamToType
+  mapObjectTypesParamToType,
+  IConnectionHealth
 } from '../common';
 import { FusebitContext, StorageItem } from '@fusebit/add-on-sdk';
 import { HypersyncCriteria, IHypersync } from './models';
 import { IGetProofDataResponse, SyncMetadata } from './Sync';
 import { OAuthConnector, UserContext } from '@fusebit/oauth-connector';
 
+import { HealthStatus, InstanceType } from '../common/enums';
 import { HypersyncStage } from './enums';
 import { ICriteriaMetadata } from './ICriteriaProvider';
 import { IHypersyncSchema } from './ProofProviderBase';
@@ -379,12 +381,107 @@ export function createHypersync(superclass: typeof OAuthConnector) {
     }
 
     /**
+     * Override the same method in sharedConnector.ts
+     * It does nothing since Hypersyncs don't create hyperproof-user due to being outbound only.
+     *
+     * @param {FusebitContext} fusebitContext The Fusebit context of the request
+     * @param {*} orgId ID of the Hyperproof organization.
+     * @param {*} userId ID of the Hyperproof user.
+     * @param {*} instanceType Optional instance type to use when determining which user to delete.
+     */
+    async deleteHyperproofUserIfUnused(
+      fusebitContext: FusebitContext,
+      orgId: string,
+      userId: string,
+      vendorUserId: string,
+      instanceType?: InstanceType
+    ) {
+      return undefined;
+    }
+
+    /**
      * Returns a full path to one of the required custom Hypersync app images.
      *
      * @param imageName The name of the image.
      */
     resolveImagePath(imageName: string): string {
       throw new Error('Not implemented');
+    }
+
+    override async checkConnectionHealth(
+      fusebitContext: FusebitContext,
+      orgId: string,
+      userId: string,
+      vendorUserId: string,
+      hostUrl?: string
+    ): Promise<IConnectionHealth> {
+      const userContext = await this.getHyperproofUserContext(
+        fusebitContext,
+        vendorUserId
+      );
+
+      // we'll need to allow JiraHS to find its userContext using hostUrl
+      if (!userContext) {
+        throw createHttpError(
+          StatusCodes.UNAUTHORIZED,
+          this.getUserNotFoundMessage(vendorUserId)
+        );
+      }
+
+      try {
+        if (this.authorizationType === AuthorizationType.CUSTOM) {
+          // NOTE: calling this will not save any token retrieved from the corresponding service to the vendor-user.
+          // In the case of AWS, the temporary token for cross-account role auth is saved in vendor-user for each sync, but not saved by validateCredentials itself.
+          await this.validateCredentials(
+            userContext.keys!,
+            fusebitContext,
+            userId
+          );
+        } else {
+          const tokenResponse = await this.ensureAccessToken(
+            fusebitContext,
+            userContext
+          );
+
+          await this.validateAccessToken(
+            fusebitContext,
+            userContext,
+            tokenResponse.access_token,
+            hostUrl
+          );
+        }
+      } catch (e: any) {
+        // The connector can customize the health result status and message here.
+        // However custom connectors' validateCredentials may have already handled the
+        // error and threw a different error/status code.
+        const healthResult = this.handleHealthError(e);
+
+        if (healthResult.healthStatus === HealthStatus.NotImplemented) {
+          Logger.info(
+            `Connection health check found the connector did not implement validate credentials function ${healthResult}`,
+            healthResult.message
+          );
+        } else if (healthResult.healthStatus === HealthStatus.Unhealthy) {
+          Logger.info(
+            `Connection health check returned an unhealthy response ${healthResult}`,
+            healthResult.message
+          );
+        } else if (healthResult.healthStatus === HealthStatus.Unknown) {
+          Logger.error(
+            `Connection health check returned an unknown error ${healthResult.message}`,
+            e
+          );
+        }
+
+        return healthResult;
+      }
+
+      return {
+        healthStatus: HealthStatus.Healthy,
+        message: undefined,
+        details: undefined,
+        statusCode: StatusCodes.OK
+      };
     }
 
     /**
@@ -398,7 +495,59 @@ export function createHypersync(superclass: typeof OAuthConnector) {
       fusebitContext: FusebitContext,
       hyperproofUserId: string
     ): Promise<IValidateCredentialsResponse> {
-      throw new Error('Not implemented.');
+      throw createHttpError(StatusCodes.NOT_IMPLEMENTED, 'Not Implemented');
+    }
+
+    /**
+     * Validate access token of the OAuth connector. This must be implemented by the connector.
+     *
+     * The connector's implementation should not handle any error so that it can be handled in checkConnectionHealth
+     */
+    async validateAccessToken(
+      fusebitContext: FusebitContext,
+      userContext: UserContext,
+      accessToken?: string,
+      hostUrl?: string
+    ): Promise<boolean> {
+      throw createHttpError(StatusCodes.NOT_IMPLEMENTED, 'Not Implemented');
+    }
+
+    /**
+     * This can be overriden by the connector in order to provide better health check result with more information or to process/filter errors.
+     */
+    handleHealthError(error: any): IConnectionHealth {
+      const extendedErrorMessage = error[LogContextKey.ExtendedMessage];
+      const healthResult: Readonly<IConnectionHealth> = {
+        healthStatus: HealthStatus.Unknown,
+        message: `The health check returned an unknown result. The connector has encountered an unexpected error. Status code ${
+          error.statusCode
+        }. Error message: ${
+          extendedErrorMessage ? extendedErrorMessage : error.message
+        }`,
+        details: undefined,
+        statusCode: StatusCodes.INTERNAL_SERVER_ERROR
+      };
+
+      switch (error.statusCode) {
+        case StatusCodes.UNAUTHORIZED:
+        case StatusCodes.FORBIDDEN:
+          return {
+            ...healthResult,
+            healthStatus: HealthStatus.Unhealthy,
+            message: extendedErrorMessage
+              ? extendedErrorMessage
+              : error.messageUnhealthy
+          };
+        case StatusCodes.NOT_IMPLEMENTED:
+          return {
+            ...healthResult,
+            healthStatus: HealthStatus.NotImplemented,
+            message: 'The function for validating token is not implemented.',
+            statusCode: error.statusCode
+          };
+      }
+
+      return healthResult;
     }
 
     /**
@@ -485,22 +634,6 @@ export function createHypersync(superclass: typeof OAuthConnector) {
         this.integrationType,
         user.vendorUserId.toString()
       );
-    }
-
-    async deleteUser(
-      fusebitContext: FusebitContext,
-      vendorUserId: string,
-      vendorId?: string
-    ) {
-      if (
-        this.authorizationType &&
-        this.authorizationType === AuthorizationType.CUSTOM
-      ) {
-        throw Error(
-          'The deleteUser method must be overriden for custom auth Hypersyncs'
-        );
-      }
-      return super.deleteUser(fusebitContext, vendorUserId, vendorId);
     }
 
     /**
