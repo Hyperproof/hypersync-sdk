@@ -469,7 +469,7 @@ export class HypersyncApp<TUserProfile = object> {
     configuration: StringMap,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     hyperproofUserId: string
-  ): Promise<IValidatedUser> {
+  ): Promise<IValidatedUser<TUserProfile>> {
     throw new Error(
       'Custom auth Hypersync apps must implement validateCredentials.'
     );

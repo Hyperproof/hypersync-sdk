@@ -1,5 +1,5 @@
 import { DataSetResultStatus } from './enums';
-import { DataObject, DataValue } from './models';
+import { DataObject, DataValue, IErrorInfo } from './models';
 import { SyncMetadata } from './Sync';
 import { TokenContext } from './tokens';
 
@@ -13,6 +13,7 @@ export interface IDataSetResultComplete<TData> {
   source?: string;
   nextPage?: string;
   context?: TokenContext;
+  errorInfo?: IErrorInfo;
 }
 
 export interface IDataSetResultPending {

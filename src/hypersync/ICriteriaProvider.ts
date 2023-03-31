@@ -16,6 +16,7 @@ export interface ICriteriaField {
   placeholder?: string;
   isRequired?: boolean;
   isDisabled?: boolean;
+  noOptionsMessage?: string;
 }
 
 /**

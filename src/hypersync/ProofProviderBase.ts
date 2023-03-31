@@ -13,7 +13,12 @@ import {
   ICriteriaProvider,
   IProofCriterionValue
 } from './ICriteriaProvider';
-import { DataObject, HypersyncCriteria, IHypersync } from './models';
+import {
+  DataObject,
+  HypersyncCriteria,
+  IErrorInfo,
+  IHypersync
+} from './models';
 import { IGetProofDataResponse, SyncMetadata } from './Sync';
 
 /**
@@ -89,6 +94,7 @@ export interface IHypersyncContents {
   authorizedUser: string;
   collector: string;
   collectedOn: string;
+  errorInfo?: IErrorInfo;
 }
 
 /**

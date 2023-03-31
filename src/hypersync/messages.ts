@@ -23,9 +23,9 @@ export const formatMessage = (
   let message = messageKey;
 
   Object.entries(
-    messageKeysOverride
+    (messageKeysOverride
       ? messageKeysOverride[messageKey]
-      : MESSAGE_KEYS[messageKey]
+      : MESSAGE_KEYS[messageKey]) ?? {}
   ).forEach(([key, messageVal]) => {
     message = message.replace(`{${messageVal}}`, messageVals[key]);
   });

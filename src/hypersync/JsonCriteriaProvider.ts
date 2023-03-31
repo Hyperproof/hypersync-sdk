@@ -15,7 +15,7 @@ import { resolveTokens, TokenContext } from './tokens';
 /**
  * Data used to create an configure an ICriteriaField.
  */
-interface ICriteriaFieldConfig {
+export interface ICriteriaFieldConfig {
   type: FieldType;
   property: string;
   label: string;
@@ -34,7 +34,7 @@ interface ICriteriaFieldConfig {
  * Configuration information stored in a JSON file that is used as
  * the input to a JsonCriteriaProvider instance.
  */
-interface ICriteriaConfig {
+export interface ICriteriaConfig {
   [name: string]: ICriteriaFieldConfig;
 }
 

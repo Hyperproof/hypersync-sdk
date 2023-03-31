@@ -137,6 +137,13 @@ export enum HttpHeader {
   SubscriptionKey = 'hyperproof-subscription-key'
 }
 
+export enum HealthStatus {
+  Healthy = 'healthy',
+  Unhealthy = 'unhealthy',
+  Unknown = 'unknown',
+  NotImplemented = 'notImplemented'
+}
+
 export const HYPERPROOF_VENDOR_KEY = 'hyperproof';
 
 export const FOREIGN_VENDOR_USER = 'foreign-vendor-user';

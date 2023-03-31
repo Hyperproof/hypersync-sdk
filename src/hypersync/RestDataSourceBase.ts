@@ -10,7 +10,7 @@ import {
   IDataSetResultPending
 } from './IDataSource';
 import { DataSourceBase } from './DataSourceBase';
-import { DataObject, DataValue } from './models';
+import { DataObject, DataValue, IErrorInfo } from './models';
 import { SyncMetadata } from './Sync';
 import { resolveTokens, TokenContext } from './tokens';
 
@@ -70,6 +70,7 @@ export interface IRestDataSourceConfig {
 export interface IRestDataSetComplete<TData = DataObject>
   extends IDataSetResultComplete<TData> {
   headers: { [name: string]: string[] };
+  errorInfo?: IErrorInfo;
 }
 
 export type RestDataSetResult<TData = DataObject> =
@@ -235,7 +236,8 @@ export class RestDataSourceBase extends DataSourceBase {
       data,
       source: response.source,
       headers: response.headers,
-      nextPage: response.nextPage
+      nextPage: response.nextPage,
+      errorInfo: response.errorInfo
     };
   }
 
@@ -406,7 +408,7 @@ export class RestDataSourceBase extends DataSourceBase {
     const result = Array.isArray(data) ? data : [data];
     for (const lookup of lookups) {
       for (const dataObject of result) {
-        const params = lookup.dataSetParams;
+        const params = { ...lookup.dataSetParams };
         if (params) {
           tokenContext['source'] = dataObject;
           for (const key of Object.keys(params)) {
