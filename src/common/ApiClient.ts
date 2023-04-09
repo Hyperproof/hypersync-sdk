@@ -1,8 +1,9 @@
 import AbortController from 'abort-controller';
 import createHttpError from 'http-errors';
+import { StatusCodes } from 'http-status-codes';
 import fetch, { HeadersInit, Response } from 'node-fetch';
-import { HttpMethod, LogContextKey } from './enums';
 import { Logger } from './Logger';
+import { HttpMethod, LogContextKey } from './enums';
 import { IThrottleModel, ThrottleManager } from './throttle';
 
 /**
@@ -34,6 +35,7 @@ export interface IApiClientResponse<T = any> {
   source: string;
   json: T;
   headers: ResponseHeaders;
+  status: number;
 }
 type ApiClientReturnType = Promise<IApiClientResponse>;
 
@@ -139,8 +141,32 @@ export class ApiClient {
 
     await Logger.debug(`${url} returned ${response.status}`);
 
-    const json = await response.json();
-    return { source: apiUrl, json, headers: response.headers.raw() };
+    let json: any = undefined;
+    const text = await response.text();
+    if (text.length > 0) {
+      try {
+        json = JSON.parse(text);
+      } catch (e: any) {
+        throw createHttpError(
+          StatusCodes.INTERNAL_SERVER_ERROR,
+          'Failed to convert response body to JSON',
+          {
+            [LogContextKey.StatusCode]: response.status,
+            [LogContextKey.ApiUrl]: url,
+            [LogContextKey.ExtendedMessage]:
+              `Response Headers: ${response.headers.raw()}\n` +
+              `Response Body: ${text}`
+          }
+        );
+      }
+    }
+
+    return {
+      source: apiUrl,
+      json,
+      headers: response.headers.raw(),
+      status: response.status
+    };
   }
 
   private buildUrl(url: string): string {

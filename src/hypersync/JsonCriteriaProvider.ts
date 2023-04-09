@@ -54,6 +54,13 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
       : ({} as ICriteriaConfig);
   }
 
+  /**
+   * Returns the configuration for the criteria provider.
+   */
+  public getConfig() {
+    return this.criteriaFields;
+  }
+
   public async generateCriteriaFields(
     proofCriteria: IProofCriterionRef[],
     criteriaValues: HypersyncCriteria,

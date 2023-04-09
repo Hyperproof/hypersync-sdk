@@ -51,6 +51,7 @@ export interface IDataSet {
   transform?: Transform;
   sort?: SortClause[];
   result: 'array' | 'object';
+  isCustom?: boolean;
 }
 
 /**
@@ -108,9 +109,31 @@ export class RestDataSourceBase extends DataSourceBase {
     headers: HeadersInit
   ) {
     super();
-    this.config = config;
+    // Make a deep copy of the config to support later modification.
+    this.config = {
+      baseUrl: config.baseUrl,
+      dataSets: { ...config.dataSets },
+      messages: { ...config.messages }
+    };
     this.messages = messages;
     this.apiClient = new ApiClient(headers, config.baseUrl);
+  }
+
+  /**
+   * Returns the configuration for the data source.
+   */
+  public getConfig() {
+    return this.config;
+  }
+
+  /**
+   * Adds a new data set to the collection of configured data sets.
+   */
+  public addDataSet(name: string, dataSet: IDataSet) {
+    if (Object.prototype.hasOwnProperty.call(this.config.dataSets, name)) {
+      throw new Error('A data set with that name already exists.');
+    }
+    this.config.dataSets[name] = dataSet;
   }
 
   /**
