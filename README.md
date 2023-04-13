@@ -8,6 +8,11 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ## Release Notes
 
+### 1.0.0
+
+- Added initial support for design.
+- Miscellaneous quality fixes.
+
 ### 0.10.0
 
 - Added support for connection health monitoring.

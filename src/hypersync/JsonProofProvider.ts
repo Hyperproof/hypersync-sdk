@@ -23,7 +23,7 @@ import { IGetProofDataResponse, SyncMetadata } from './Sync';
 import { dateToLocalizedString } from './time';
 import { resolveTokens, TokenContext } from './tokens';
 
-interface ILookup {
+export interface ILookup {
   name: string;
   dataSet: string;
   dataSetParams?: DataValueMap;
@@ -41,7 +41,7 @@ export interface IHypersyncField {
   format?: HypersyncFieldFormat;
 }
 
-interface IProofSpec {
+export interface IProofSpec {
   period: HypersyncPeriod;
   useVersioning: boolean;
   suggestedName: string;
@@ -57,7 +57,7 @@ interface IProofSpec {
   webPageUrl: string;
 }
 
-interface IProofSpecOverride {
+export interface IProofSpecOverride {
   condition: {
     value: string;
     criteria: string;
@@ -65,7 +65,7 @@ interface IProofSpecOverride {
   proofSpec: IProofSpec;
 }
 
-interface IHypersyncDefinition {
+export interface IHypersyncDefinition {
   description: string;
   criteria: IProofCriterionRef[];
   proofSpec: IProofSpec;

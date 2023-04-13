@@ -161,6 +161,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
           try {
             const result = await this.generateCriteriaMetadata(
               req.fusebit,
+              req.params.orgId,
               req.body.vendorUserId,
               req.body.criteria,
               req.body.search
@@ -190,6 +191,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
           try {
             const result = await this.generateSchema(
               req.fusebit,
+              req.params.orgId,
               req.body.vendorUserId,
               req.body.criteria
             );
@@ -658,6 +660,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      */
     async generateCriteriaMetadata(
       fusebitContext: FusebitContext,
+      orgId: string,
       vendorUserId: string,
       criteria: HypersyncCriteria,
       search?: string
@@ -670,6 +673,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      */
     async generateSchema(
       fusebitContext: FusebitContext,
+      orgId: string,
       vendorUserId: string,
       criteria: HypersyncCriteria
     ): Promise<IHypersyncSchema> {

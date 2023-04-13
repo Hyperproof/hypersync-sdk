@@ -76,11 +76,18 @@ export class ProofProviderFactory {
   }
 
   /**
+   * Returns the configuration info for declarative proof providers.
+   */
+  public getConfig() {
+    return this.providers;
+  }
+
+  /**
    * Returns a collection of option values for known proof types.
    *
    * @param criteria Criteria chosen by the user ahead of choosing the proof type.
    */
-  getProofTypeOptions = (criteria: HypersyncCriteria) => {
+  public getProofTypeOptions(criteria: HypersyncCriteria) {
     let providers = Object.entries(this.providers);
     if (criteria) {
       providers = providers.filter(([, provider]) => {
@@ -113,13 +120,13 @@ export class ProofProviderFactory {
       });
     }
     return options.sort((a, b) => compareValues(a.label, b.label));
-  };
+  }
 
-  createProofProvider = (
+  public createProofProvider(
     proofType: string,
     dataSource: IDataSource,
     criteriaProvider: ICriteriaProvider
-  ) => {
+  ) {
     const provider = this.providers[proofType];
     if (!provider) {
       throw createHttpError(
@@ -140,7 +147,7 @@ export class ProofProviderFactory {
         this.messages
       );
     }
-  };
+  }
 }
 
 module.exports = { ProofProviderFactory };
