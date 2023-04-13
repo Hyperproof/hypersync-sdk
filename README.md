@@ -10,7 +10,7 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ### 1.0.0
 
-- Added initial design support
+- Added initial support for design.
 - Miscellaneous quality fixes.
 
 ### 0.10.0
