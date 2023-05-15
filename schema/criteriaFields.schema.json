@@ -68,6 +68,9 @@
           }
         }
       },
+      "defaultCriteriaOrder": {
+        "type": "number"
+      },
       "required": ["type", "property", "label", "isRequired"]
     }
   }
