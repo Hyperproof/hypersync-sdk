@@ -1,5 +1,5 @@
 {
-  "$schema": "../proofType.schema.json",
+  "$schema": "https://cdn.jsdelivr.net/gh/Hyperproof/hypersync-sdk/schema/proofType.schema.json",
   "description": "User List Proof Type",
   "criteria": [{ "name": "group", "page": 0 }],
   "proofSpec": {
