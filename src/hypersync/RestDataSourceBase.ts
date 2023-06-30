@@ -63,6 +63,13 @@ export interface IRestDataSourceConfig {
   dataSets: {
     [name: string]: IDataSet;
   };
+  valueLookups?: {
+    [name: string]: { [key: string]: string };
+  };
+
+  /**
+   * @deprecated This property has been deprecated in favor of `valueLookups`
+   */
   messages?: {
     [name: string]: { [key: string]: string };
   };
@@ -113,7 +120,7 @@ export class RestDataSourceBase extends DataSourceBase {
     this.config = {
       baseUrl: config.baseUrl,
       dataSets: { ...config.dataSets },
-      messages: { ...config.messages }
+      valueLookups: { ...(config.valueLookups ?? config.messages) }
     };
     this.messages = messages;
     this.apiClient = new ApiClient(headers, config.baseUrl);
@@ -611,7 +618,7 @@ export class RestDataSourceBase extends DataSourceBase {
     const result: DataObject = {};
 
     const tokenContext = this.initTokenContext(params);
-    const messages = this.config.messages;
+    const valueLookups = this.config.valueLookups;
 
     for (const key of Object.keys(transform)) {
       let jsonataExpression = transform[key];
@@ -622,13 +629,13 @@ export class RestDataSourceBase extends DataSourceBase {
       }
       const expression = jsonata(jsonataExpression);
 
-      expression.registerFunction('mlookup', (lookupName, value) => {
-        if (!messages) {
+      const lookupValueFunction = (lookupName: string, value: string) => {
+        if (!valueLookups) {
           throw new Error(
-            `Invalid message lookup: ${lookupName}.  No messages defined.`
+            `Invalid value lookup: ${lookupName}.  No value defined.`
           );
         }
-        const lookup = messages[lookupName];
+        const lookup = valueLookups[lookupName];
         if (!lookup) {
           throw new Error(`Unable to find data set lookup: ${lookupName}`);
         }
@@ -657,6 +664,12 @@ export class RestDataSourceBase extends DataSourceBase {
             return value;
           }
         }
+      };
+
+      expression.registerFunction('vlookup', lookupValueFunction);
+      expression.registerFunction('mlookup', (lookupName, value) => {
+        console.warn('$mlookup is deprecated.  Please use $vlookup.');
+        return lookupValueFunction(lookupName, value);
       });
 
       result[key] = expression.evaluate(o);
