@@ -90,8 +90,8 @@
                       "type": "object",
                       "additionalProperties": false,
                       "properties": {
-                        "leftProperty": "string",
-                        "rightProperty": "string"
+                        "leftProperty": { "type": "string" },
+                        "rightProperty": { "type": "string" }
                       },
                       "required": ["leftProperty", "rightProperty"]
                     }
@@ -115,9 +115,9 @@
                       { "type": "number" },
                       { "type": "boolean" }
                     ]
-                  },
-                  "required": ["property", "value"]
-                }
+                  }
+                },
+                "required": ["property", "value"]
               }
             },
             "transform": {
