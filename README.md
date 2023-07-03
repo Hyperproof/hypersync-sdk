@@ -8,6 +8,13 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ## Release Notes
 
+### 1.1.0
+
+#### Rename data source messages to "value lookups".
+
+- Deprecate `messages` property in `dataSource.json` in favor of `valueLookups`.
+- Deprecate `$mlookups` in data source expressions in favor of `$vlookup`
+
 ### 1.0.0
 
 - Added initial support for design.
