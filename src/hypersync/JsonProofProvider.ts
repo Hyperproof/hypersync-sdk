@@ -62,7 +62,7 @@ export interface IProofSpecOverride {
     value: string;
     criteria: string;
   };
-  proofSpec: IProofSpec;
+  proofSpec: Partial<IProofSpec>;
 }
 
 export interface IHypersyncDefinition {

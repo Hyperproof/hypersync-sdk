@@ -42,5 +42,16 @@
       }
     ],
     "webPageUrl": "https://myservice.com/users"
-  }
+  },
+  "overrides": [
+    {
+      "condition": {
+        "value": "{{criteria.name}}",
+        "criteria": "all_employees"
+      },
+      "proofSpec": {
+        "suggestedName": "All Employees"
+      }
+    }
+  ]
 }

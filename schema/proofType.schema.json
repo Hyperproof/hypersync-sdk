@@ -33,30 +33,34 @@
     "overrides": {
       "type": "array",
       "items": {
-        "condition": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "value": {
-              "type": "string"
-            },
-            "criteria": {
-              "type": "string"
+        "type": "object",
+        "properties": {
+          "condition": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "value": {
+                "type": "string"
+              },
+              "criteria": {
+                "type": "string"
+              }
             }
+          },
+          "proofSpec": {
+            "$ref": "#/$defs/overrideSpec"
           }
         },
-        "proofSpec": {
-          "$refs": "#/$defs/proofSpec"
-        }
+        "additionalProperties": false
       }
     }
   },
   "required": ["description", "criteria", "proofSpec"],
 
   "$defs": {
-    "proofSpec": {
+    "overrideSpec": {
       "$schema": "https://json-schema.org/draft/2020-12/schema#",
-      "$id": "/schemas/proofSpec",
+      "$id": "/schemas/overrideSpec",
       "type": "object",
       "additionalProperties": false,
       "properties": {
@@ -138,7 +142,10 @@
         "webPageUrl": {
           "type": "string"
         }
-      },
+      }
+    },
+    "proofSpec": {
+      "$ref": "#/$defs/overrideSpec",
       "required": [
         "period",
         "useVersioning",
