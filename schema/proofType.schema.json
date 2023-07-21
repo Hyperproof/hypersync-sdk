@@ -155,8 +155,7 @@
         "title",
         "subtitle",
         "dataSet",
-        "fields",
-        "webPageUrl"
+        "fields"
       ]
     }
   }

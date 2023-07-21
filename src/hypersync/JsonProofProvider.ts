@@ -54,7 +54,7 @@ export interface IProofSpec {
   noResultsMessage?: string;
   lookups?: ILookup[];
   fields: IHypersyncField[];
-  webPageUrl: string;
+  webPageUrl?: string;
 }
 
 export interface IProofSpecOverride {
@@ -251,7 +251,9 @@ export class JsonProofProvider extends ProofProviderBase {
             title: resolveTokens(proofSpec.title, tokenContext),
             subtitle: resolveTokens(proofSpec.subtitle, tokenContext),
             source: source,
-            webPageUrl: resolveTokens(proofSpec.webPageUrl, tokenContext),
+            webPageUrl: proofSpec.webPageUrl
+              ? resolveTokens(proofSpec.webPageUrl, tokenContext)
+              : '',
             orientation: proofSpec.orientation,
             userTimeZone: hyperproofUser.timeZone,
             criteria,
