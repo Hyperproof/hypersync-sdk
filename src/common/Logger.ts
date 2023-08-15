@@ -1,6 +1,8 @@
-import Sdk from '@fusebit/add-on-sdk';
-import fetch from 'node-fetch';
 import { HttpHeader, MimeType } from './enums';
+import { TraceParent } from './TraceParent';
+
+import { debug } from '@hyperproof/integration-sdk';
+import fetch from 'node-fetch';
 
 export enum LoggerContextKey {
   IntegrationType = 'integrationType',
@@ -51,7 +53,7 @@ export class Logger {
    * @param {string} detail Additional detail to add to the log entry.
    */
   public static async debug(message: any, detail?: string) {
-    Sdk.debug(detail ? `${message}: ${detail}` : message);
+    debug(detail ? `${message}: ${detail}` : message);
     if (process.env.debug === '1') {
       return Logger.postLogEvent(EventType.Debug, message, detail);
     }
@@ -157,6 +159,7 @@ export class Logger {
         method: 'POST',
         body: JSON.stringify(logEvent),
         headers: {
+          ...TraceParent.getHeaders(),
           [HttpHeader.SubscriptionKey]: Logger.subscriptionKey,
           [HttpHeader.ContentType]: MimeType.APPLICATION_JSON
         }

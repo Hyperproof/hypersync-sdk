@@ -1,42 +1,24 @@
-import { compareValues, FieldType, ISelectOption } from '../common';
-import fs from 'fs';
-import path from 'path';
-import { DataSetResultStatus } from './enums';
 import {
-  IProofCriterionRef,
-  IProofCriterionValue,
+  ICriteriaField,
   ICriteriaPage,
-  ICriteriaProvider
+  ICriteriaProvider,
+  IProofCriterionValue
 } from './ICriteriaProvider';
-import { DataValueMap, IDataSource } from './IDataSource';
-import { HypersyncCriteria } from './models';
+import { DataSetResultStatus, IDataSource } from './IDataSource';
 import { resolveTokens, TokenContext } from './tokens';
 
-/**
- * Data used to create an configure an ICriteriaField.
- */
-export interface ICriteriaFieldConfig {
-  type: FieldType;
-  property: string;
-  label: string;
-  isRequired: boolean;
-  placeholder?: string;
-  defaultDisplayValue?: string;
+import {
+  HypersyncCriteria,
+  HypersyncCriteriaFieldType,
+  ICriteriaConfig,
+  ICriteriaFieldConfig,
+  IProofCriterionRef,
+  ISelectOption
+} from '@hyperproof/hypersync-models';
+import fs from 'fs';
+import path from 'path';
 
-  dataSet?: string;
-  dataSetParams?: DataValueMap;
-  valueProperty?: string;
-  labelProperty?: string;
-  fixedValues?: ISelectOption[];
-}
-
-/**
- * Configuration information stored in a JSON file that is used as
- * the input to a JsonCriteriaProvider instance.
- */
-export interface ICriteriaConfig {
-  [name: string]: ICriteriaFieldConfig;
-}
+import { compareValues } from '../common';
 
 /**
  * Provides criteria fields and values to a proof provider using fields declared
@@ -61,13 +43,45 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
     return this.criteriaFields;
   }
 
+  /**
+   * Adds a new criteria field to the collection of configured criteria fields.
+   */
+  public addCriteriaField(name: string, criteriaField: ICriteriaFieldConfig) {
+    if (this.criteriaFields[name]) {
+      throw new Error('A criteria field with that name already exists.');
+    }
+    this.criteriaFields[name] = criteriaField;
+  }
+
+  public async generateProofCategoryField(
+    criteriaValues: HypersyncCriteria,
+    tokenContext: TokenContext
+  ): Promise<ICriteriaField | null> {
+    // Look for the proofCategory item in the config.  This is optional so
+    // if the config is not found, return null to let the caller know.
+    // Supported for built-in as well as custom Hypersync apps.
+    const categoryConfig =
+      this.criteriaFields['hp_proofCategory'] ||
+      this.criteriaFields['proofCategory'];
+    if (!categoryConfig) {
+      return null;
+    }
+
+    return this.buildCriteriaField(
+      categoryConfig,
+      criteriaValues,
+      tokenContext,
+      false
+    );
+  }
+
   public async generateCriteriaFields(
     proofCriteria: IProofCriterionRef[],
     criteriaValues: HypersyncCriteria,
     tokenContext: TokenContext,
     pages: ICriteriaPage[]
   ) {
-    let lastCriteriaField;
+    let lastConfig;
     let pageNumber: number;
 
     if (proofCriteria.length === 0) {
@@ -77,56 +91,48 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
 
     for (const criterion of proofCriteria) {
       // Look up the criterion in the set of all criteria for the connector..
-      const criteriaField = this.criteriaFields[criterion.name];
-      if (!criteriaField) {
+      const config = this.criteriaFields[criterion.name];
+      if (!config) {
         throw new Error(`Unable to find criterion named ${criterion.name}`);
       }
 
       if (
-        criteriaField.type !== FieldType.SELECT &&
-        criteriaField.type !== FieldType.TEXT
+        config.type !== HypersyncCriteriaFieldType.Select &&
+        config.type !== HypersyncCriteriaFieldType.Text
       ) {
         throw new Error(
-          `Unrecognized or unsupported criteria field type: ${criteriaField.type}`
+          `Unrecognized or unsupported criteria field type: ${config.type}`
         );
       }
 
-      // If the previous criteria field doesn't have a value, then this criteria
-      // field cannot be edited.
+      // If the previous criteria field config doesn't have a value, then
+      // this criteria field cannot be edited.
       const isDisabled =
-        lastCriteriaField &&
-        criteriaValues[lastCriteriaField.property] === undefined;
+        lastConfig && criteriaValues[lastConfig.property] === undefined;
 
       // Add the criterion field to the metadata.
       pageNumber = criterion.page;
-      pages[pageNumber].fields.push({
-        name: criteriaField.property,
-        type: criteriaField.type,
-        label: resolveTokens(criteriaField.label, tokenContext),
-        isRequired: criteriaField.isRequired,
-        options:
-          isDisabled || criteriaField.type !== FieldType.SELECT
-            ? []
-            : await this.getCriteriaFieldOptions(
-                criteriaField,
-                criteriaValues,
-                tokenContext
-              ),
-        value: criteriaValues[criteriaField.property] as string | number,
-        placeholder: criteriaField.placeholder
-          ? resolveTokens(criteriaField.placeholder, tokenContext)
-          : undefined,
-        isDisabled
-      });
+
+      while (pageNumber >= pages.length) {
+        pages.push({ isValid: false, fields: [] });
+      }
+
+      pages[pageNumber].fields.push(
+        await this.buildCriteriaField(
+          config,
+          criteriaValues,
+          tokenContext,
+          isDisabled
+        )
+      );
 
       pages[pageNumber!].isValid =
         !isDisabled &&
-        (!criteriaField.isRequired ||
-          criteriaValues[criteriaField.property] !== undefined);
+        (!config.isRequired || criteriaValues[config.property] !== undefined);
 
       // Remember the last criterion so we can determine if we should keep
       // adding more criterion fields or if we should stop.
-      lastCriteriaField = criteriaField;
+      lastConfig = config;
     }
   }
 
@@ -156,7 +162,7 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
 
       // Otherwise behavior differs based on the type of field
       switch (field.type) {
-        case FieldType.SELECT:
+        case HypersyncCriteriaFieldType.Select:
           {
             const options = await this.getCriteriaFieldOptions(
               field,
@@ -174,7 +180,7 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
           }
           break;
 
-        case FieldType.TEXT:
+        case HypersyncCriteriaFieldType.Text:
           {
             criteria.push({
               name: field.property,
@@ -194,22 +200,49 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
   }
 
   /**
+   * Helper method that builds a criteria field from a criteria field configuration
+   * object along with some other data.
+   */
+  private async buildCriteriaField(
+    config: ICriteriaFieldConfig,
+    criteriaValues: HypersyncCriteria,
+    tokenContext: TokenContext,
+    isDisabled?: boolean
+  ): Promise<ICriteriaField> {
+    return {
+      name: config.property,
+      type: config.type,
+      label: resolveTokens(config.label, tokenContext),
+      isRequired: config.isRequired,
+      options:
+        isDisabled || config.type !== HypersyncCriteriaFieldType.Select
+          ? []
+          : await this.getCriteriaFieldOptions(
+              config,
+              criteriaValues,
+              tokenContext
+            ),
+      value: criteriaValues[config.property] as string | number,
+      placeholder: config.placeholder
+        ? resolveTokens(config.placeholder, tokenContext)
+        : undefined,
+      isDisabled
+    };
+  }
+
+  /**
    * Helper method that adds the select control options to a criteria metadata field.
    */
   private async getCriteriaFieldOptions(
-    criteriaField: ICriteriaFieldConfig,
+    config: ICriteriaFieldConfig,
     criteria: HypersyncCriteria,
     tokenContext: TokenContext
   ) {
     let data: ISelectOption[] = [];
 
-    if (
-      criteriaField.dataSet &&
-      criteriaField.valueProperty &&
-      criteriaField.labelProperty
-    ) {
+    if (config.dataSet && config.valueProperty && config.labelProperty) {
       // If there are parameters, resolve any embedded tokens.
-      const params = criteriaField.dataSetParams;
+      const params = config.dataSetParams;
       if (params) {
         for (const key of Object.keys(params)) {
           const value = params[key];
@@ -222,26 +255,21 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
       }
 
       // Fetch the data from the service.
-      const result = await this.dataSource.getData(
-        criteriaField.dataSet,
-        params
-      );
+      const result = await this.dataSource.getData(config.dataSet, params);
 
       if (result.status !== DataSetResultStatus.Complete) {
         throw new Error(
-          `Pending response received for critiera field data set: ${criteriaField.dataSet}`
+          `Pending response received for critiera field data set: ${config.dataSet}`
         );
       }
 
       if (!Array.isArray(result.data)) {
-        throw new Error(
-          `Invalid criteria field data set: ${criteriaField.dataSet}`
-        );
+        throw new Error(`Invalid criteria field data set: ${config.dataSet}`);
       }
 
       // Extract the columns we need.
-      const valueProperty = criteriaField.valueProperty;
-      const labelProperty = criteriaField.labelProperty;
+      const valueProperty = config.valueProperty;
+      const labelProperty = config.labelProperty;
       data = result.data.map(
         item =>
           ({
@@ -255,12 +283,15 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
     }
 
     // If there are fixed values let's add those to the top.
-    if (criteriaField.fixedValues) {
-      data = criteriaField.fixedValues
+    if (config.fixedValues) {
+      data = config.fixedValues
         .map(
           fv =>
             ({
-              value: resolveTokens(fv.value as string, tokenContext),
+              value:
+                typeof fv.value === 'string'
+                  ? resolveTokens(fv.value, tokenContext)
+                  : fv.value,
               label: resolveTokens(fv.label, tokenContext)
             } as ISelectOption)
         )

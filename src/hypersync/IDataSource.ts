@@ -1,10 +1,12 @@
-import { DataSetResultStatus } from './enums';
-import { DataObject, DataValue, IErrorInfo } from './models';
-import { SyncMetadata } from './Sync';
+import { IErrorInfo } from './models';
 import { TokenContext } from './tokens';
 
-// Used to map a string value to a supported primitive value.
-export type DataValueMap = { [name: string]: DataValue };
+import { DataObject, DataValueMap } from '@hyperproof/hypersync-models';
+
+export enum DataSetResultStatus {
+  Complete = 'complete',
+  Pending = 'pending'
+}
 
 // Result returned from IDataSource's getData method.
 export interface IDataSetResultComplete<TData> {
@@ -15,6 +17,11 @@ export interface IDataSetResultComplete<TData> {
   context?: TokenContext;
   errorInfo?: IErrorInfo;
 }
+
+/**
+ * Used to store abitrary synchronization state across multiple sync iterations.
+ */
+export type SyncMetadata = { [key: string]: any };
 
 export interface IDataSetResultPending {
   status: DataSetResultStatus.Pending;

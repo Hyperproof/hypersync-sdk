@@ -1,5 +1,6 @@
-import { HypersyncPageOrientation } from './enums';
 import { IHypersyncProofField } from './ProofProviderBase';
+
+import { HypersyncPageOrientation } from '@hyperproof/hypersync-models';
 
 const DEFAULT_A4_WIDTH_PIXELS = 794;
 const DEFAULT_A4_LENGTH_PIXELS = 1123;
@@ -59,8 +60,8 @@ export const calcLayoutInfo = (
   const proofWidth = getProofWidth(columnLengths);
   const orientation =
     proofWidth <= maxPortrait
-      ? HypersyncPageOrientation.PORTRAIT
-      : HypersyncPageOrientation.LANDSCAPE;
+      ? HypersyncPageOrientation.Portrait
+      : HypersyncPageOrientation.Landscape;
   let zoom = proofWidth < maxLandscape ? 1 : maxLandscape / proofWidth;
   zoom = zoom < maxZoom ? maxZoom : zoom;
 

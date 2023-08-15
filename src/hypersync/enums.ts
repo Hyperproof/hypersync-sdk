@@ -3,18 +3,14 @@ export enum HypersyncTemplate {
   JIRA_ISSUE_DETAILS = 'jira_issue_details'
 }
 
-export enum HypersyncDataFormat {
-  STACKED = 'stacked',
-  TABULAR = 'tabular',
-  CUSTOM = 'custom'
+export enum HypersyncStage {
+  AUTHORING = 'authoring',
+  SYNCING = 'syncing'
 }
 
-export enum HypersyncPeriod {
-  DAILY = 'daily',
-  WEEKLY = 'weekly',
-  MONTHLY = 'monthly',
-  QUARTERLY = 'quarterly',
-  YEARLY = 'yearly'
+export enum HypersyncProofFormat {
+  PDF = 'pdf',
+  Excel = 'excel'
 }
 
 export enum HypersyncResult {
@@ -28,35 +24,4 @@ export enum HypersyncResult {
   FailureUnauthorized = 'failureUnauthorized',
   FailureUnexpected = 'failureUnexpected',
   FailureUnknown = 'failureUnknown'
-}
-
-export enum HypersyncPageOrientation {
-  PORTRAIT = 'Portrait',
-  LANDSCAPE = 'Landscape'
-}
-
-export enum HypersyncFieldType {
-  TEXT = 'text',
-  NUMBER = 'number',
-  BOOLEAN = 'boolean',
-  DATE = 'date'
-}
-
-export enum HypersyncFieldFormat {
-  Percent = 'percent'
-}
-
-export enum HypersyncStage {
-  AUTHORING = 'authoring',
-  SYNCING = 'syncing'
-}
-
-export enum HypersyncProofFormat {
-  PDF = 'pdf',
-  Excel = 'excel'
-}
-
-export enum DataSetResultStatus {
-  Complete = 'complete',
-  Pending = 'pending'
 }

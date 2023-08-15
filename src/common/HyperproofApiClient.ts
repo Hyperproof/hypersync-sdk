@@ -1,10 +1,3 @@
-import Sdk, { FusebitContext } from '@fusebit/add-on-sdk';
-import FormData from 'form-data';
-import createHttpError from 'http-errors';
-import mime from 'mime';
-import fetch, { HeadersInit } from 'node-fetch';
-import path from 'path';
-import queryString from 'query-string';
 import {
   HttpHeader,
   HttpMethod,
@@ -20,6 +13,15 @@ import {
   IIntegrationSettingsBase,
   ITaskPatch
 } from './models';
+import { TraceParent } from './TraceParent';
+
+import { debug, FusebitContext } from '@hyperproof/integration-sdk';
+import FormData from 'form-data';
+import createHttpError from 'http-errors';
+import mime from 'mime';
+import fetch from 'node-fetch';
+import path from 'path';
+import queryString from 'query-string';
 
 const BYTES_IN_KILOBYTE = 1024;
 const BYTES_IN_MEGABYTE = BYTES_IN_KILOBYTE * BYTES_IN_KILOBYTE;
@@ -30,7 +32,7 @@ const TXT_EXTENSION = 'txt';
  * Client interface to the Hyperproof API.
  */
 export class HyperproofApiClient {
-  private static subscriptionKey?: string =
+  private static _subscriptionKey?: string =
     process.env.hyperproof_api_subscription_key;
   private accessToken: string;
 
@@ -39,7 +41,14 @@ export class HyperproofApiClient {
   }
 
   public static setSubscriptionKey(subscriptionKey: string) {
-    this.subscriptionKey = subscriptionKey;
+    this._subscriptionKey = subscriptionKey;
+  }
+
+  private static get subscriptionKey(): string {
+    if (!HyperproofApiClient._subscriptionKey) {
+      throw new Error('Hyperproof API subscription key not set');
+    }
+    return HyperproofApiClient._subscriptionKey;
   }
 
   /**
@@ -51,9 +60,8 @@ export class HyperproofApiClient {
     userId: string,
     instanceType?: InstanceType
   ) {
-    if (!HyperproofApiClient.subscriptionKey) {
-      throw new Error('Hyperproof API subscription key not set');
-    }
+    // this is done to trigger the non null check in the getter method
+    HyperproofApiClient.subscriptionKey;
 
     await Logger.debug(
       `Creating Hyperproof API client using URL ${process.env.hyperproof_api_url}`
@@ -91,12 +99,13 @@ export class HyperproofApiClient {
 
     const response = await fetch(url, {
       headers: {
+        ...TraceParent.getHeaders(),
         [HttpHeader.Authorization]: `Bearer ${this.accessToken}`,
         [HttpHeader.SubscriptionKey]: HyperproofApiClient.subscriptionKey
-      } as HeadersInit
+      }
     });
 
-    Sdk.debug(`GET ${url} - ${response.status}`);
+    debug(`GET ${url} - ${response.status}`);
 
     if (!response.ok) {
       throw createHttpError(response.status, await response.text());
@@ -127,13 +136,14 @@ export class HyperproofApiClient {
       method: 'PATCH',
       body: JSON.stringify(settings),
       headers: {
+        ...TraceParent.getHeaders(),
         [HttpHeader.Authorization]: `Bearer ${this.accessToken}`,
         [HttpHeader.SubscriptionKey]: HyperproofApiClient.subscriptionKey,
         [HttpHeader.ContentType]: MimeType.APPLICATION_JSON
-      } as HeadersInit
+      }
     });
 
-    Sdk.debug(`PATCH ${url} - ${response.status}`);
+    debug(`PATCH ${url} - ${response.status}`);
 
     if (!response.ok) {
       throw createHttpError(response.status, await response.text());
@@ -162,13 +172,14 @@ export class HyperproofApiClient {
       method: 'POST',
       body: JSON.stringify(settings),
       headers: {
+        ...TraceParent.getHeaders(),
         [HttpHeader.Authorization]: `Bearer ${this.accessToken}`,
         [HttpHeader.SubscriptionKey]: HyperproofApiClient.subscriptionKey,
         [HttpHeader.ContentType]: MimeType.APPLICATION_JSON
-      } as HeadersInit
+      }
     });
 
-    Sdk.debug(`POST ${url} - ${response.status}`);
+    debug(`POST ${url} - ${response.status}`);
 
     if (!response.ok) {
       throw createHttpError(response.status, await response.text());
@@ -244,12 +255,12 @@ export class HyperproofApiClient {
       method: 'POST',
       body: formData,
       headers: {
+        ...TraceParent.getHeaders(),
         [HttpHeader.Authorization]: `Bearer ${this.accessToken}`,
-        [HttpHeader.SubscriptionKey]:
-          process.env.hyperproof_api_subscription_key!
+        [HttpHeader.SubscriptionKey]: HyperproofApiClient.subscriptionKey
       }
     });
-    Sdk.debug(`POST ${url} - ${response.status}`);
+    debug(`POST ${url} - ${response.status}`);
     if (!response.ok) {
       throw createHttpError(response.status, await response.text());
     }
@@ -265,12 +276,13 @@ export class HyperproofApiClient {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
+        ...TraceParent.getHeaders(),
         [HttpHeader.Authorization]: `Bearer ${this.accessToken}`,
         [HttpHeader.SubscriptionKey]: HyperproofApiClient.subscriptionKey,
         [HttpHeader.ContentType]: MimeType.APPLICATION_JSON
-      } as HeadersInit
+      }
     });
-    Sdk.debug(`GET ${url} - ${response.status}`);
+    debug(`GET ${url} - ${response.status}`);
     if (!response.ok) {
       throw createHttpError(response.status, await response.text());
     }
@@ -293,12 +305,13 @@ export class HyperproofApiClient {
       method: 'PATCH',
       body: JSON.stringify(patch),
       headers: {
+        ...TraceParent.getHeaders(),
         [HttpHeader.Authorization]: `Bearer ${this.accessToken}`,
         [HttpHeader.SubscriptionKey]: HyperproofApiClient.subscriptionKey,
         [HttpHeader.ContentType]: MimeType.APPLICATION_JSON
-      } as HeadersInit
+      }
     });
-    Sdk.debug(`POST ${url} - ${response.status}`);
+    debug(`POST ${url} - ${response.status}`);
     if (!response.ok) {
       throw createHttpError(response.status, await response.text());
     }
@@ -317,12 +330,13 @@ export class HyperproofApiClient {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
+        ...TraceParent.getHeaders(),
         [HttpHeader.Authorization]: `Bearer ${this.accessToken}`,
         [HttpHeader.SubscriptionKey]: HyperproofApiClient.subscriptionKey,
         [HttpHeader.ContentType]: MimeType.APPLICATION_JSON
-      } as HeadersInit
+      }
     });
-    Sdk.debug(`GET ${url} - ${response.status}`);
+    debug(`GET ${url} - ${response.status}`);
     if (!response.ok) {
       throw createHttpError(response.status, await response.text());
     }
@@ -343,12 +357,13 @@ export class HyperproofApiClient {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
+        ...TraceParent.getHeaders(),
         [HttpHeader.Authorization]: `Bearer ${this.accessToken}`,
         [HttpHeader.SubscriptionKey]: HyperproofApiClient.subscriptionKey,
         [HttpHeader.ContentType]: MimeType.APPLICATION_JSON
-      } as HeadersInit
+      }
     });
-    Sdk.debug(`POST ${url} - ${response.status}`);
+    debug(`POST ${url} - ${response.status}`);
     if (!response.ok) {
       throw createHttpError(response.status, await response.text());
     }
@@ -376,10 +391,11 @@ export class HyperproofApiClient {
         method: 'POST',
         body: JSON.stringify(user),
         headers: {
+          ...TraceParent.getHeaders(),
           [HttpHeader.Authorization]: `Bearer ${this.accessToken}`,
           [HttpHeader.SubscriptionKey]: HyperproofApiClient.subscriptionKey,
           [HttpHeader.ContentType]: MimeType.APPLICATION_JSON
-        } as HeadersInit
+        }
       });
 
       if (!response.ok && response.status !== 404) {
@@ -400,12 +416,13 @@ export class HyperproofApiClient {
     const url = `${process.env.hyperproof_api_url}/beta/${objectType}s/${objectId}/comments`;
     const response = await fetch(url, {
       headers: {
+        ...TraceParent.getHeaders(),
         [HttpHeader.Authorization]: `Bearer ${this.accessToken}`,
         [HttpHeader.SubscriptionKey]: HyperproofApiClient.subscriptionKey
-      } as HeadersInit
+      }
     });
 
-    Sdk.debug(`GET ${url} - ${response.status}`);
+    debug(`GET ${url} - ${response.status}`);
     if (!response.ok) {
       throw createHttpError(response.status, await response.text());
     }
@@ -474,12 +491,13 @@ export class HyperproofApiClient {
     const response = await fetch(url, {
       method: 'GET',
       headers: {
+        ...TraceParent.getHeaders(),
         [HttpHeader.Authorization]: `Bearer ${this.accessToken}`,
         [HttpHeader.SubscriptionKey]: HyperproofApiClient.subscriptionKey,
         [HttpHeader.ContentType]: MimeType.APPLICATION_JSON
-      } as HeadersInit
+      }
     });
-    Sdk.debug(`GET ${url} - ${response.status}`);
+    debug(`GET ${url} - ${response.status}`);
     if (!response.ok) {
       throw createHttpError(response.status, await response.text());
     }
@@ -508,11 +526,12 @@ export class HyperproofApiClient {
       method: 'POST',
       body: formData,
       headers: {
+        ...TraceParent.getHeaders(),
         [HttpHeader.Authorization]: `Bearer ${this.accessToken}`,
         [HttpHeader.SubscriptionKey]: HyperproofApiClient.subscriptionKey
-      } as HeadersInit
+      }
     });
-    Sdk.debug(`POST ${url} - ${response.status}`);
+    debug(`POST ${url} - ${response.status}`);
     if (!response.ok) {
       throw createHttpError(response.status, await response.text());
     }
@@ -556,12 +575,13 @@ export class HyperproofApiClient {
         objectId
       }),
       headers: {
+        ...TraceParent.getHeaders(),
         [HttpHeader.Authorization]: `Bearer ${this.accessToken}`,
         [HttpHeader.SubscriptionKey]: HyperproofApiClient.subscriptionKey,
         [HttpHeader.ContentType]: MimeType.APPLICATION_JSON
-      } as HeadersInit
+      }
     });
-    Sdk.debug(`${method} ${url} - ${response.status}`);
+    debug(`${method} ${url} - ${response.status}`);
     if (!response.ok) {
       throw createHttpError(response.status, await response.text());
     }
@@ -611,7 +631,7 @@ export class HyperproofApiClient {
       const err = new Error(
         `Proof from source ${sourceId} is larger than max file size.`
       );
-      Sdk.debug(err.message);
+      debug(err.message);
       throw err;
     }
 
@@ -631,9 +651,15 @@ export class HyperproofApiClient {
       formData.append('hp-proof-source-modified-on', sourceModifiedOn);
     }
     if (user) {
-      formData.append('hp-proof-ext-user-id', user.id);
-      formData.append('hp-proof-ext-user-given-name', user.givenName);
-      formData.append('hp-proof-ext-user-surname', user.surname);
+      if (user.id) {
+        formData.append('hp-proof-ext-user-id', user.id);
+      }
+      if (user.givenName) {
+        formData.append('hp-proof-ext-user-given-name', user.givenName);
+      }
+      if (user.surname) {
+        formData.append('hp-proof-ext-user-surname', user.surname);
+      }
       if (user.email) {
         formData.append('hp-proof-ext-user-email', user.email);
       }

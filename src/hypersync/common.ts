@@ -1,12 +1,15 @@
-import createHttpError from 'http-errors';
-import { StatusCodes } from 'http-status-codes';
-import { HypersyncFieldType } from './enums';
 import { ICriteriaField } from './ICriteriaProvider';
-import { IHypersyncField } from './JsonProofProvider';
 import {
   IHypersyncProofField,
   IHypersyncSchemaField
 } from './ProofProviderBase';
+
+import {
+  HypersyncFieldType,
+  IHypersyncField
+} from '@hyperproof/hypersync-models';
+import createHttpError from 'http-errors';
+import { StatusCodes } from 'http-status-codes';
 
 // Magic constants that are used to allow the user to choose All, Any or None from a set.
 export const ID_ALL = 'fbd4bc94-23b7-40fa-b3bc-b3a0e7faf173';
@@ -20,13 +23,13 @@ export type StringMap = { [key: string]: string };
 
 export const formatHypersyncError = (
   err: any,
-  objectKey: string,
+  hypersyncId: string,
   text: string
 ) => {
   const status = err.status || err.statusCode;
   const statusMessage = status ? ` - ${status}` : '';
   text = text ? `${text}\n` : '';
-  return `${text}${err.message}${statusMessage}\n\tat ${objectKey}\n${err.stack}`;
+  return `${text}${err.message}${statusMessage}\n\tintegrationId: ${hypersyncId}\n${err.stack}`;
 };
 
 /**
@@ -63,7 +66,7 @@ export const convertFieldToLayoutField = (
   property: f.property,
   label: f.label,
   width: f.width,
-  type: f.type === HypersyncFieldType.TEXT ? undefined : f.type,
+  type: f.type === HypersyncFieldType.Text ? undefined : f.type,
   format: f.format
 });
 
@@ -76,7 +79,7 @@ export const convertFieldToSchemaField = (
 ): IHypersyncSchemaField => ({
   property: f.property,
   label: f.label,
-  type: f.type || HypersyncFieldType.TEXT
+  type: f.type || HypersyncFieldType.Text
 });
 
 /**

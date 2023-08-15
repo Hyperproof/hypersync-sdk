@@ -1,42 +1,12 @@
-import { OAuthTokenResponse as FBOAuthTokenResponse } from '@fusebit/oauth-connector';
-import { IIntegrationSettingsBase, ObjectStatus, ObjectType } from '../common';
-import {
-  HypersyncPeriod,
-  HypersyncProofFormat,
-  HypersyncResult
-} from './enums';
+import { HypersyncProofFormat, HypersyncResult } from './enums';
 import { IHypersyncSchema } from './ProofProviderBase';
 
-/**
- * Export this model from Fusebit for use in OAuth Hypersyncs.
- */
-export interface OAuthTokenResponse
-  extends Omit<FBOAuthTokenResponse, 'expires_in'> {
-  expires_in: number;
-}
+import {
+  HypersyncCriteria,
+  HypersyncPeriod
+} from '@hyperproof/hypersync-models';
 
-/**
- * Primitive values supported by Hypersyncs in criteria and data binding.
- * These types may be returned as data from an IDataSource, and they can
- * also be used to filter, sort, and otherwise parameterize the data in a
- * generated Hypersync proof.
- */
-export type DataValue = string | number | boolean | BigInt | Date | undefined;
-
-/**
- * Type of data that is returned from an external service.
- */
-export type DataObject = {
-  [prop: string]: DataValue | DataObject | DataObject[];
-};
-
-/**
- * Criteria values used by a Hypersync to retrieve data from an external service.
- */
-export type HypersyncCriteria = {
-  proofType?: string;
-  [name: string]: DataValue;
-};
+import { IIntegrationSettingsBase, ObjectStatus, ObjectType } from '../common';
 
 /**
  * Settings that are saved with a Hypersync integration.

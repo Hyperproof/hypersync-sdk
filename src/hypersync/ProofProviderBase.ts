@@ -1,25 +1,25 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { IHyperproofUser } from '../common';
-import {
-  HypersyncDataFormat,
-  HypersyncFieldFormat,
-  HypersyncFieldType,
-  HypersyncPageOrientation,
-  HypersyncTemplate
-} from './enums';
+import { HypersyncTemplate } from './enums';
 import {
   ICriteriaMetadata,
   ICriteriaPage,
   ICriteriaProvider,
   IProofCriterionValue
 } from './ICriteriaProvider';
+import { SyncMetadata } from './IDataSource';
+import { IErrorInfo, IHypersync } from './models';
+import { IGetProofDataResponse } from './Sync';
+
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   DataObject,
   HypersyncCriteria,
-  IErrorInfo,
-  IHypersync
-} from './models';
-import { IGetProofDataResponse, SyncMetadata } from './Sync';
+  HypersyncDataFormat,
+  HypersyncFieldFormat,
+  HypersyncFieldType,
+  HypersyncPageOrientation
+} from '@hyperproof/hypersync-models';
+
+import { IHyperproofUser } from '../common';
 
 /**
  * Field information that is used in the layout of a generated proof document.
@@ -123,11 +123,11 @@ export class ProofProviderBase<T = any> {
   public static proofTypeLabel: string;
 
   /**
-   * Returns TRUE if this proof type should be shown for the given criteria.
+   * Returns TRUE if this proof type should be shown for the given proof category.
    *
-   * @param {*} criteriaValues Criteria values chosen by the user ahead of choosing proof type.
+   * @param {*} category The proof type category selected by the user.
    */
-  static matchesCriteria(criteriaValues: HypersyncCriteria) {
+  static matchesCategory(category?: string) {
     return true;
   }
 
@@ -168,6 +168,7 @@ export class ProofProviderBase<T = any> {
    * @param {*} syncStartDate Date and time at which the sync started.
    * @param {*} page The current page in the sync.  Optional.
    * @param {*} metadata Additional metadata associated with the sync.  Optional.
+   * @param {number} retryCount Current retry count of sync. Optional.
    *
    * @returns An array of objects which can be used to generate the actual proof
    * files.  Each element in the array corresponds to one proof file that should
@@ -181,7 +182,8 @@ export class ProofProviderBase<T = any> {
     authorizedUser: string,
     syncStartDate: Date,
     page?: string,
-    metadata?: SyncMetadata
+    metadata?: SyncMetadata,
+    retryCount?: number
   ): Promise<IGetProofDataResponse | IProofFile[]> {
     throw new Error('getProofData must be implemented by derived class.');
   }

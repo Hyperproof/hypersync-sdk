@@ -1,14 +1,10 @@
-import { ExternalAPIError, IHyperproofUser, Logger } from '../common';
 import { formatHypersyncError } from './common';
 import { HypersyncResult } from './enums';
-import { HypersyncStorageClient } from './HypersyncStorageClient';
+import { SyncMetadata } from './IDataSource';
 import { IHypersync } from './models';
 import { IHypersyncContents, IProofFile } from './ProofProviderBase';
 
-/**
- * Used to store abitrary synchronization state across multiple sync iterations.
- */
-export type SyncMetadata = { [key: string]: any };
+import { ExternalAPIError, IHyperproofUser, Logger } from '../common';
 
 /**
  * Detailed response object that may be returned from getProofData.
@@ -28,8 +24,6 @@ export interface IGetProofDataResponse {
 
 export class Sync {
   public userContext: object;
-  public storage: HypersyncStorageClient;
-  public objectKey: string;
   public hypersync: IHypersync;
   public syncStartDate: Date;
   public hyperproofUser: IHyperproofUser;
@@ -39,8 +33,6 @@ export class Sync {
   /**
    * @param {HyperproofApiClient} hyperproofClient The client to talk to Hyperproof
    * @param {UserContext} userContext Information about the user in the external system.
-   * @param {HypersyncStorageClient} storage The storage client for Hypersyncs
-   * @param {string} objectKey The key for the object the hypersync is targetting
    * @param {Hypersync} hypersync The Hypersync to run the sync for
    * @param {string} syncStartDate The ISO-8601 string for moment the sync started
    * @param {number} page The page of data to retrieve.  Optional.
@@ -48,8 +40,6 @@ export class Sync {
    */
   constructor(
     userContext: object,
-    storage: HypersyncStorageClient,
-    objectKey: string,
     hypersync: IHypersync,
     syncStartDate: string,
     hyperproofUser: IHyperproofUser,
@@ -57,8 +47,6 @@ export class Sync {
     metadata?: SyncMetadata
   ) {
     this.userContext = userContext;
-    this.storage = storage;
-    this.objectKey = objectKey;
     this.hypersync = hypersync;
     this.syncStartDate = syncStartDate ? new Date(syncStartDate) : new Date();
     this.hyperproofUser = hyperproofUser;
@@ -89,7 +77,7 @@ export class Sync {
       }
       await Logger.error(
         `Hypersync Sync Error: ${process.env.vendor_name}`,
-        formatHypersyncError(err, this.objectKey, 'Sync failure')
+        formatHypersyncError(err, this.hypersync?.id, 'Sync failure')
       );
       throw err;
     }

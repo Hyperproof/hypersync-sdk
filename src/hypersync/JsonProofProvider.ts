@@ -1,76 +1,25 @@
-import fs from 'fs';
-import path from 'path';
-import { IHyperproofUser, Logger } from '../common';
 import { ID_ALL, ID_ANY, ID_NONE, StringMap } from './common';
-import {
-  DataSetResultStatus,
-  HypersyncDataFormat,
-  HypersyncFieldFormat,
-  HypersyncFieldType,
-  HypersyncPageOrientation,
-  HypersyncPeriod,
-  HypersyncTemplate
-} from './enums';
-import {
-  ICriteriaPage,
-  ICriteriaProvider,
-  IProofCriterionRef
-} from './ICriteriaProvider';
-import { DataValueMap, IDataSource } from './IDataSource';
-import { DataObject, HypersyncCriteria, IHypersync } from './models';
+import { HypersyncTemplate } from './enums';
+import { ICriteriaPage, ICriteriaProvider } from './ICriteriaProvider';
+import { DataSetResultStatus, IDataSource, SyncMetadata } from './IDataSource';
+import { IHypersync } from './models';
 import { IProofFile, ProofProviderBase } from './ProofProviderBase';
-import { IGetProofDataResponse, SyncMetadata } from './Sync';
+import { IGetProofDataResponse } from './Sync';
 import { dateToLocalizedString } from './time';
 import { resolveTokens, TokenContext } from './tokens';
 
-export interface ILookup {
-  name: string;
-  dataSet: string;
-  dataSetParams?: DataValueMap;
-}
+import {
+  DataObject,
+  HypersyncCriteria,
+  HypersyncFieldFormat,
+  HypersyncFieldType,
+  HypersyncPeriod,
+  IHypersyncDefinition,
+  IHypersyncField,
+  IProofSpec
+} from '@hyperproof/hypersync-models';
 
-/**
- * Base model for a field that is used in a Hypersync.  Information in the model
- * is used to generate both layout information and schema information (used for testing).
- */
-export interface IHypersyncField {
-  property: string;
-  label: string;
-  width?: string;
-  type?: HypersyncFieldType;
-  format?: HypersyncFieldFormat;
-}
-
-export interface IProofSpec {
-  period: HypersyncPeriod;
-  useVersioning: boolean;
-  suggestedName: string;
-  format: HypersyncDataFormat;
-  orientation?: HypersyncPageOrientation;
-  title: string;
-  subtitle: string;
-  dataSet: string;
-  dataSetParams?: DataValueMap;
-  noResultsMessage?: string;
-  lookups?: ILookup[];
-  fields: IHypersyncField[];
-  webPageUrl?: string;
-}
-
-export interface IProofSpecOverride {
-  condition: {
-    value: string;
-    criteria: string;
-  };
-  proofSpec: Partial<IProofSpec>;
-}
-
-export interface IHypersyncDefinition {
-  description: string;
-  criteria: IProofCriterionRef[];
-  proofSpec: IProofSpec;
-  overrides: IProofSpecOverride[];
-}
+import { IHyperproofUser, Logger } from '../common';
 
 /**
  * Provides methods for working with proof type definitions stored
@@ -78,41 +27,35 @@ export interface IHypersyncDefinition {
  */
 export class JsonProofProvider extends ProofProviderBase {
   private connectorName: string;
-  private appRootDir: string;
   private proofType: string;
   private messages: StringMap;
-  private definition: IHypersyncDefinition;
+  private getDefinition: () => Promise<IHypersyncDefinition>;
 
   constructor(
     connectorName: string,
-    appRootDir: string,
     proofType: string,
     dataSource: IDataSource,
     criteriaProvider: ICriteriaProvider,
-    messages: StringMap
+    messages: StringMap,
+    getDefinitionCallback: () => Promise<IHypersyncDefinition>
   ) {
     super(dataSource, criteriaProvider);
     this.connectorName = connectorName;
-    this.appRootDir = appRootDir;
     this.proofType = proofType;
     this.criteriaProvider = criteriaProvider;
     this.messages = messages;
-    this.definition = JSON.parse(
-      fs.readFileSync(
-        path.resolve(appRootDir, `json/proof/${this.proofType}.json`),
-        'utf8'
-      )
-    );
+    this.getDefinition = getDefinitionCallback;
   }
 
   public async generateCriteriaMetadata(
     criteriaValues: HypersyncCriteria,
     pages: ICriteriaPage[]
   ) {
+    const definition = await this.getDefinition();
     const tokenContext = this.initTokenContext(criteriaValues);
 
     await this.criteriaProvider.generateCriteriaFields(
-      this.definition.criteria.map(c => ({ name: c.name, page: c.page })),
+      definition.criteria.map(c => ({ name: c.name, page: c.page })),
       criteriaValues,
       tokenContext,
       pages
@@ -123,17 +66,17 @@ export class JsonProofProvider extends ProofProviderBase {
     let proofSpec;
     let suggestedName = '';
     if (pages[pages.length - 1].isValid) {
-      proofSpec = this.buildProofSpec(tokenContext);
+      proofSpec = this.buildProofSpec(definition, tokenContext);
       await this.fetchLookups(proofSpec, tokenContext);
       suggestedName = resolveTokens(proofSpec.suggestedName, tokenContext);
     }
 
     return {
       pages,
-      period: proofSpec?.period || HypersyncPeriod.MONTHLY,
+      period: proofSpec?.period || HypersyncPeriod.Monthly,
       useVersioning: proofSpec?.useVersioning || false,
       suggestedName,
-      description: resolveTokens(this.definition.description, tokenContext),
+      description: resolveTokens(definition.description, tokenContext),
       enableExcelOutput: true
     };
   }
@@ -143,15 +86,16 @@ export class JsonProofProvider extends ProofProviderBase {
   }
 
   public async generateSchema(criteriaValues: HypersyncCriteria) {
+    const definition = await this.getDefinition();
     const tokenContext = this.initTokenContext(criteriaValues);
-    const proofSpec = this.buildProofSpec(tokenContext);
+    const proofSpec = this.buildProofSpec(definition, tokenContext);
     return {
       format: proofSpec.format,
       isHierarchical: false,
       fields: proofSpec.fields.map(f => ({
         property: f.property,
         label: resolveTokens(f.label, tokenContext),
-        type: f.type || HypersyncFieldType.TEXT
+        type: f.type || HypersyncFieldType.Text
       }))
     };
   }
@@ -169,10 +113,12 @@ export class JsonProofProvider extends ProofProviderBase {
     metadata?: SyncMetadata
   ): Promise<IProofFile[] | IGetProofDataResponse> {
     await Logger.info(`Generating declarative proof type ${this.proofType}`);
+    const combine = true;
     const settings = hypersync.settings;
     const criteriaValues = settings.criteria;
+    const definition = await this.getDefinition();
     const tokenContext = this.initTokenContext(criteriaValues);
-    const proofSpec = this.buildProofSpec(tokenContext);
+    const proofSpec = this.buildProofSpec(definition, tokenContext);
     await this.fetchLookups(proofSpec, tokenContext);
 
     const params = proofSpec.dataSetParams;
@@ -228,11 +174,19 @@ export class JsonProofProvider extends ProofProviderBase {
       }
     }
 
-    const criteria = await this.criteriaProvider.generateProofCriteria(
-      this.definition.criteria,
-      criteriaValues,
-      tokenContext
-    );
+    // Since Job Engine seeks the first job-level page, assign
+    // empty list for subsequent pages to optimize performance.
+    let displayProofCriteria = true;
+    if (combine === true && page !== undefined) {
+      displayProofCriteria = false;
+    }
+    const criteria = displayProofCriteria
+      ? await this.criteriaProvider.generateProofCriteria(
+          definition.criteria,
+          criteriaValues,
+          tokenContext
+        )
+      : [];
 
     // Push the raw data into the token context so that properties like
     // webPageUrl can pull in values from the retrieved data.  This is
@@ -251,9 +205,9 @@ export class JsonProofProvider extends ProofProviderBase {
             title: resolveTokens(proofSpec.title, tokenContext),
             subtitle: resolveTokens(proofSpec.subtitle, tokenContext),
             source: source,
-            webPageUrl: proofSpec.webPageUrl
-              ? resolveTokens(proofSpec.webPageUrl, tokenContext)
-              : '',
+            ...(proofSpec.webPageUrl && {
+              webPageUrl: resolveTokens(proofSpec.webPageUrl, tokenContext)
+            }),
             orientation: proofSpec.orientation,
             userTimeZone: hyperproofUser.timeZone,
             criteria,
@@ -269,7 +223,7 @@ export class JsonProofProvider extends ProofProviderBase {
                 property: f.property,
                 label: resolveTokens(f.label, tokenContext),
                 width: f.width,
-                type: f.type === HypersyncFieldType.TEXT ? undefined : f.type
+                type: f.type === HypersyncFieldType.Text ? undefined : f.type
               }))
             },
             proof,
@@ -286,7 +240,7 @@ export class JsonProofProvider extends ProofProviderBase {
         }
       ],
       nextPage,
-      combine: true
+      combine
     };
   }
 
@@ -313,10 +267,13 @@ export class JsonProofProvider extends ProofProviderBase {
    * Creates a proof specification object by combining the base proof spec in
    * the proof type definion with any overrides that have matching conditions.
    */
-  private buildProofSpec(tokenContext: TokenContext) {
-    let proofSpec = this.definition.proofSpec;
-    if (this.definition.overrides) {
-      for (const override of this.definition.overrides) {
+  private buildProofSpec(
+    definition: IHypersyncDefinition,
+    tokenContext: TokenContext
+  ) {
+    let proofSpec = definition.proofSpec;
+    if (definition.overrides) {
+      for (const override of definition.overrides) {
         const conditionValue = resolveTokens(
           override.condition.value,
           tokenContext

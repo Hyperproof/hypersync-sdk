@@ -1,12 +1,12 @@
-import { DataSetResultStatus } from './enums';
 import {
-  DataValueMap,
+  DataSetResult,
+  DataSetResultStatus,
   IDataSetResultComplete,
   IDataSource,
-  DataSetResult
+  SyncMetadata
 } from './IDataSource';
-import { DataObject } from './models';
-import { SyncMetadata } from './Sync';
+
+import { DataObject, DataValueMap } from '@hyperproof/hypersync-models';
 
 /**
  * Abstract base class for a data source object.  Provides convenient
