@@ -48,7 +48,7 @@ in this update.
 - For REST data sources, the optional `filter` property on `dataSet`
   now supports JSONata expressions.
 
-- Various enhancements and fixes to improve overall quality and reliability.
+- Various enhancements and fixes have been made to improve overall quality and reliability.
 
 ### 1.1.0
 

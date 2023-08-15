@@ -46,7 +46,9 @@ For more information on the `criteriaFields.json` format, see [Criteria Fields J
 
 For some advanced scenarios it may be necessary to write your own criteria provider. The SDK provides the ICriteriaProvider interface which you can use to build a custom criteria provider.
 
-The `ICriteriaProvider` interface has two methods: `generateCriteriaFields` and `generateProofCriteria`.
+The `ICriteriaProvider` interface has three methods: `generateProofCategoryField`, `generateCriteriaFields` and `generateProofCriteria`.
+
+`generateProofCategoryField` returns a proof category criteria field that can be used to filter proof types by category. For apps with a small number of proof types where a category is not required, this method should return `null`.
 
 `generateCriteriaFields` is invoked as the user is creating or editing a Hypersync. This method returns criteria metadata to Hyperproof in the form of an `ICriteraMetadata` object. This object contains the fields that the user needs to configure for the proof type, as well as some default values for the Hypersync name, frequency of execution, and versioning benavior. As mentioned above this method is called iteratively as the user configures the Hypersync.
 
@@ -54,6 +56,14 @@ The `ICriteriaProvider` interface has two methods: `generateCriteriaFields` and 
 
 ```
 class MyCriteriaProvider implements ICriteriaProvider{
+  generateProofCategoryField(
+    criteriaValues: HypersyncCriteria,
+    tokenContext: TokenContext
+  ): Promise<ICriteriaField | null> {
+    // TODO: Return an initialized ICriteriaField to be used as the proof
+    // category if categorization is desired.  Otherwise return null.
+  }
+
   async generateCriteriaFields(
     proofCriteria: IProofCriterionRef[],
     criteriaValues: HypersyncCriteria,

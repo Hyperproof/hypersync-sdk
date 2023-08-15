@@ -39,7 +39,7 @@ The `proofSpec` property in a proof type file is a JSON object that specifies ho
 | dataSetParams    | No       | Parameters provided to the data source when retrieving the data set                                                  |
 | noResultsMessage | No       | Text to render if no items are found in the data set                                                                 |
 | fields           | Yes      | Array of fields to include in the generated proof                                                                    |
-| webPageUrl       | Yes      | URL shown at the bottom of generated proof                                                                           |
+| webPageUrl       | No       | URL shown at the bottom of generated proof                                                                           |
 
 ## overrides
 

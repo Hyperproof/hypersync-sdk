@@ -32,11 +32,11 @@ Each data set object contains the following properties:
 
 ## messages
 
-It is often the case that objects returned from a REST API contain property values that need to be formatted before they are presented to the user. For example, an API that returns user information may return a `status` property with values `active` and `deactivated`. In this case it may be desirable to map these values to the strings "Active" and "Inactive" respectively. The `messages` object in `dataSource.json` makes this sort of mapping possible without writing code.
+It is often the case that objects returned from a REST API contain property values that need to be formatted before they are presented to the user. For example, an API that returns user information may return a `status` property with values `active` and `deactivated`. In this case it may be desirable to map these values to the strings "Active" and "Inactive" respectively. The `valueLookups` object in `dataSource.json` makes this sort of mapping possible without writing code.
 
-Each property in `messages` can be thought of as a map. The keys of the map are the values that are to be mapped, and the values are the strings that should be used instead of the value that was returned from the REST API.
+Each property in `valueLookups` can be thought of as a map. The keys of the map are the values that are to be mapped, and the values are the strings that should be used instead of the value that was returned from the REST API.
 
-Once a mapping has been defined under `messages`, it can be referenced in the data sets in your `dataSource.json` file using the `$mlookup` function.
+Once a mapping has been defined under `valueLookups`, it can be referenced in the data sets in your `dataSource.json` file using the `$vlookup` function.
 
 ## Example
 
@@ -76,12 +76,12 @@ Once a mapping has been defined under `messages`, it can be referenced in the da
         "firstName": "givenName",
         "lastName": "surname",
         "email": "emailAddress",
-        "status": "$mlookup('statuses', status)"
+        "status": "$vlookup('statuses', status)"
       },
       "result": "array"
     }
   },
-  "messages": {
+  "valueLookups": {
     "statuses": {
       "active": "Active",
       "deactivated": "Inactive"
