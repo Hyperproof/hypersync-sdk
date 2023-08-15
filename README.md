@@ -20,7 +20,8 @@ in this update.
 
 - Some types, interfaces and enums have been extracted from `@hyperproof/hypersync-sdk`
   and are now a part of `@hyperproof/hypersync-models`. The complete list of the models
-  exposed by `@hyperproof/hypersync-models` can be found in the [public repository](https://github.com/Hyperproof/hypersync-models). Hypersync apps that
+  exposed by `@hyperproof/hypersync-models` can be found in the
+  [public repository](https://github.com/Hyperproof/hypersync-models). Hypersync apps that
   depend on these models will need to add a dependency on the package.
 
 - The `OAuthTokenResponse` interface has been moved from the `@hyperproof/hypersync sdk`
@@ -39,7 +40,8 @@ in this update.
   which they can choose a proof type. This categorization is helpful in apps with many proof types.
   If your app uses a `criteriaFields.json` file to provide criteria, you can enable proof
   categories by defining field called `proofCategory`. This field will generally be a select
-  control where the options in the select are the proof categories. If you are using a custom `ICriteriaProvider` instance, you will need to implement the `generateProofCategoryField` method.
+  control where the options in the select are the proof categories. If you are using a custom
+  `ICriteriaProvider` instance, you will need to implement the `generateProofCategoryField` method.
 
 - The `webPageUrl` property of a proof specification is now optional.
 
