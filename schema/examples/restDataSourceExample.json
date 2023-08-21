@@ -56,7 +56,7 @@
         "city": "address",
         "state": "address",
         "zipCode": "postalCode",
-        "region": "$mlookup('regions', region)",
+        "region": "$vlookup('regions', region)",
         "representative": "representative.fullName"
       },
       "result": "array"

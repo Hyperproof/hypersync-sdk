@@ -1,79 +1,30 @@
+import { StringMap } from './common';
+import { DataSourceBase } from './DataSourceBase';
+import {
+  DataSetResultStatus,
+  IDataSetResultComplete,
+  IDataSetResultPending,
+  SyncMetadata
+} from './IDataSource';
+import { IErrorInfo } from './models';
+import { resolveTokens, TokenContext } from './tokens';
+
+import {
+  DataObject,
+  DataValue,
+  DataValueMap,
+  IDataSet,
+  IRestDataSourceConfig,
+  Transform,
+  ValueLookup
+} from '@hyperproof/hypersync-models';
 import jsonata from 'jsonata';
 import { HeadersInit } from 'node-fetch';
 import queryString from 'query-string';
+
 import { ApiClient, compareValues, Logger } from '../common';
-import { StringMap } from './common';
-import { DataSetResultStatus } from './enums';
-import {
-  DataValueMap,
-  IDataSetResultComplete,
-  IDataSetResultPending
-} from './IDataSource';
-import { DataSourceBase } from './DataSourceBase';
-import { DataObject, DataValue, IErrorInfo } from './models';
-import { SyncMetadata } from './Sync';
-import { resolveTokens, TokenContext } from './tokens';
 
 const LOOKUP_DEFAULT_VALUE = '__default__';
-
-export type Predicate = { leftProperty: string; rightProperty: string }[];
-
-type Query = { [param: string]: string };
-type Transform = { [key: string]: string | string[] };
-type FilterClause = { property: string; value: string };
-type SortClause = { property: string; direction: 'ascending' | 'descending' };
-
-interface IJoin {
-  alias: string;
-  dataSet: string;
-  dataSetParams?: DataValueMap;
-  on: Predicate;
-}
-
-interface ILookup {
-  alias: string;
-  dataSet: string;
-  dataSetParams?: DataValueMap;
-}
-
-/**
- * Data set information stored in the client configuration file.
- */
-export interface IDataSet {
-  description: string;
-  documentation?: string;
-  url: string;
-  property?: string;
-  query?: Query;
-  joins?: IJoin[];
-  lookups?: ILookup[];
-  filter?: FilterClause[];
-  transform?: Transform;
-  sort?: SortClause[];
-  result: 'array' | 'object';
-  isCustom?: boolean;
-}
-
-/**
- * Configuration information stored in a JSON file that is used as
- * the input to a RestDataSourceBase instance.
- */
-export interface IRestDataSourceConfig {
-  baseUrl?: string;
-  dataSets: {
-    [name: string]: IDataSet;
-  };
-  valueLookups?: {
-    [name: string]: { [key: string]: string };
-  };
-
-  /**
-   * @deprecated This property has been deprecated in favor of `valueLookups`
-   */
-  messages?: {
-    [name: string]: { [key: string]: string };
-  };
-}
 
 export interface IRestDataSetComplete<TData = DataObject>
   extends IDataSetResultComplete<TData> {
@@ -141,6 +92,19 @@ export class RestDataSourceBase extends DataSourceBase {
       throw new Error('A data set with that name already exists.');
     }
     this.config.dataSets[name] = dataSet;
+  }
+
+  /**
+   * Adds a new value lookup to the collection of configured value lookups.
+   */
+  public addValueLookup(name: string, valueLookup: ValueLookup) {
+    if (!this.config.valueLookups) {
+      this.config.valueLookups = {};
+    }
+    if (Object.prototype.hasOwnProperty.call(this.config.valueLookups, name)) {
+      throw new Error('A value lookup with that name already exists.');
+    }
+    this.config.valueLookups[name] = valueLookup;
   }
 
   /**
@@ -493,14 +457,16 @@ export class RestDataSourceBase extends DataSourceBase {
         );
       }
 
+      // TODO: HYP-35127: "property" is not the best name for the LHS in
+      // a filter criterion now that we support expressions.
       const filterCriteria = dataSet.filter.map(criterion => ({
-        property: criterion.property,
+        expression: jsonata(criterion.property),
         value: resolveTokens(criterion.value, tokenContext)
       }));
 
       data = data.filter(item => {
         for (const criterion of filterCriteria) {
-          if (item[criterion.property] !== criterion.value) {
+          if (criterion.expression.evaluate(item) !== criterion.value) {
             return false;
           }
         }
@@ -629,10 +595,10 @@ export class RestDataSourceBase extends DataSourceBase {
       }
       const expression = jsonata(jsonataExpression);
 
-      const lookupValueFunction = (lookupName: string, value: string) => {
+      const valueLookupFunction = (lookupName: string, value: string) => {
         if (!valueLookups) {
           throw new Error(
-            `Invalid value lookup: ${lookupName}.  No value defined.`
+            `Invalid value lookup: ${lookupName}.  No value lookups defined.`
           );
         }
         const lookup = valueLookups[lookupName];
@@ -646,7 +612,7 @@ export class RestDataSourceBase extends DataSourceBase {
               `Invalid lookup: ${lookupName}.  Default value not defined.`
             );
           }
-          return resolveTokens(lookup[LOOKUP_DEFAULT_VALUE], tokenContext);
+          return lookup[LOOKUP_DEFAULT_VALUE];
         } else {
           if (
             typeof value !== 'string' &&
@@ -657,22 +623,32 @@ export class RestDataSourceBase extends DataSourceBase {
           }
           const lookupValue = value.toString();
           if (lookupValue in lookup) {
-            return resolveTokens(lookup[lookupValue], tokenContext);
+            return lookup[lookupValue];
           } else if (LOOKUP_DEFAULT_VALUE in lookup) {
-            return resolveTokens(lookup[LOOKUP_DEFAULT_VALUE], tokenContext);
+            return lookup[LOOKUP_DEFAULT_VALUE];
           } else {
             return value;
           }
         }
       };
 
-      expression.registerFunction('vlookup', lookupValueFunction);
+      expression.registerFunction('vlookup', valueLookupFunction);
       expression.registerFunction('mlookup', (lookupName, value) => {
         console.warn('$mlookup is deprecated.  Please use $vlookup.');
-        return lookupValueFunction(lookupName, value);
+        return valueLookupFunction(lookupName, value);
       });
 
-      result[key] = expression.evaluate(o);
+      // Evaluate the expression and resolve any remaining tokens.
+      let expressionResult = expression.evaluate(o);
+      if (typeof expressionResult === 'string') {
+        // Since we may be operating on data returned from the service, we
+        // can't rule out the possibility of the service returning data that
+        // contains token-like references.  We suppress errors in this case
+        // because we want to just ignore these tokens.
+        expressionResult = resolveTokens(expressionResult, tokenContext, true);
+      }
+
+      result[key] = expressionResult;
     }
 
     return result;

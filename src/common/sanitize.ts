@@ -1,5 +1,5 @@
-import xss, { FilterXSS } from 'xss';
 import { decode } from 'html-entities';
+import xss, { FilterXSS } from 'xss';
 
 const filterRegex = (value: string, regex: RegExp) => {
   let result = '';

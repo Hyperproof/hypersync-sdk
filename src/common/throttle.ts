@@ -1,4 +1,5 @@
-import Sdk from '@fusebit/add-on-sdk';
+import { Logger } from './Logger';
+
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
 
@@ -14,9 +15,11 @@ export interface IRetryResponse {
 /**
  * An error similar to those raised by calls to fetch().
  */
-export interface IFetchLikeError {
+export class FetchLikeError extends Error {
+  code?: string;
   response?: string;
-  message?: string;
+  responseCode?: string;
+  status?: number;
 }
 
 /**
@@ -68,7 +71,7 @@ export class ThrottleManager<RequestType, ResponseType> {
     this._totalTries = totalTries + 1;
     if (this._totalTries > this._maxTries)
       throw createHttpError(
-        StatusCodes.BAD_REQUEST,
+        StatusCodes.TOO_MANY_REQUESTS,
         `Still unable to complete sync after ${this._maxTries} attempts. ` +
           'This is likely due to rate limiting by the vendor API. Please try again later.'
       );
@@ -101,12 +104,14 @@ export class ThrottleManager<RequestType, ResponseType> {
   async retrieve(request: RequestType): Promise<ResponseType> {
     try {
       return await this._sendRequest(request);
-    } catch (e) {
+    } catch (e: any) {
       throw this._makeError(e);
     }
   }
 
-  _makeError<ErrorType>(error: ErrorType): ExternalAPIError<ErrorType> {
+  _makeError<ErrorType extends FetchLikeError>(
+    error: ErrorType
+  ): ExternalAPIError<ErrorType> {
     return new ExternalAPIError(this, error);
   }
 }
@@ -117,7 +122,7 @@ export class ThrottleManager<RequestType, ResponseType> {
  * It includes a reference to the underlying error and a reference to the `ThrottleManager`
  * which originally sent the request.
  */
-export class ExternalAPIError<RequestError extends IFetchLikeError> {
+export class ExternalAPIError<RequestError extends FetchLikeError> {
   throttleManager: ThrottleManager<any, any>;
   error: RequestError;
 
@@ -160,24 +165,28 @@ export class ExternalAPIError<RequestError extends IFetchLikeError> {
    * @throws {RequestError} If the error could not be determined to be due to throttling/rate
    *         limiting.
    */
-  computeRetry(): IRetryResponse {
+  async computeRetry(): Promise<IRetryResponse> {
     let delay;
     const headers = this._findHeadersInError();
     if (headers) {
-      const suggestedDelay = extractDelayFromResponseHeaders(headers);
+      const suggestedDelay = await extractDelayFromResponseHeaders(headers);
       if (suggestedDelay) {
         delay = suggestedDelay + jitteredBackoff(1);
       }
     }
     if (!delay) {
       if (
-        this.responseCode == 429 ||
-        (this.responseCode == 403 && /rate limit/i.test(this.message))
+        this.responseCode === StatusCodes.TOO_MANY_REQUESTS ||
+        (this.responseCode === StatusCodes.FORBIDDEN &&
+          /rate limit/i.test(this.message)) ||
+        (this.error.code &&
+          ['ECONNRESET', 'ECONNREFUSED'].includes(this.error.code))
       ) {
         delay = jitteredBackoff(this.throttleManager.totalTries);
       } else {
-        Sdk.debug(
-          'ExternalAPIError does not appear to have been caused by a rate limit. Propagating the original error.'
+        await Logger.error(
+          'ExternalAPIError does not appear to have been caused by a rate limit. Propagating the original error.',
+          this.error
         );
         throw this.error;
       }
@@ -190,9 +199,10 @@ export class ExternalAPIError<RequestError extends IFetchLikeError> {
       maxRetry: this.throttleManager.maxTries,
       delay
     };
-    Sdk.debug(
-      'A rate limit appears to have been triggered. Suggesting retry response:',
-      retryInfo
+    await Logger.info(
+      `A rate limit appears to have been triggered. Suggesting retry response: ${JSON.stringify(
+        retryInfo
+      )}`
     );
     return retryInfo;
   }
@@ -240,6 +250,13 @@ const findAttr = (possibleNames: (string | undefined)[], ...targets: any[]) => {
   const lowercaseNames = possibleNames.map(name => name?.toLowerCase());
   for (const target of targets) {
     if (target) {
+      for (const possibleName of possibleNames) {
+        // check for possibleNames as-is first to cover non-enumerable
+        // properties
+        if (possibleName && target[possibleName]) {
+          return target[possibleName];
+        }
+      }
       for (const name of Object.keys(target)) {
         if (lowercaseNames.includes(name.toLowerCase()) && target[name]) {
           return target[name];
@@ -268,20 +285,25 @@ const findAttr = (possibleNames: (string | undefined)[], ...targets: any[]) => {
  * @returns The number of seconds the server suggests we wait before trying again, or `undefined` if
  *          a suggestion could not be determined from the headers.
  */
-const extractDelayFromResponseHeaders = (
+const extractDelayFromResponseHeaders = async (
   headers: object
-): number | undefined => {
+): Promise<number | undefined> => {
   try {
     const retryAfter = findAttr(['retry-after'], headers);
     if (retryAfter) {
-      Sdk.debug('Got value from Retry-After header.');
+      await Logger.info(`Got value from Retry-After header. ${retryAfter}`);
       return Number(retryAfter);
     }
     const rateLimitRemaining = findAttr(['x-ratelimit-remaining'], headers);
-    if (rateLimitRemaining !== '' && Number(rateLimitRemaining) === 0) {
-      const rateLimitReset = findAttr(['x-ratelimit-reset'], headers);
+    if (rateLimitRemaining !== '' && Number(rateLimitRemaining) <= 0) {
+      const rateLimitReset = findAttr(
+        ['x-ratelimit-reset', 'x-ratelimit-retryafter'],
+        headers
+      );
       if (rateLimitReset) {
-        Sdk.debug('Got value from X-RateLimit headers.');
+        await Logger.info(
+          `Got value from X-RateLimit headers. ${rateLimitReset}`
+        );
         return Math.max(
           0,
           (new Date(Number(rateLimitReset) * 1000).getTime() - Date.now()) /
@@ -294,4 +316,4 @@ const extractDelayFromResponseHeaders = (
   }
 };
 
-const COMMON_MAX_RETRIES = 4;
+const COMMON_MAX_RETRIES = 5;

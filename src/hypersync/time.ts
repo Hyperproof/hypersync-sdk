@@ -1,16 +1,16 @@
+import { HypersyncPeriod } from '@hyperproof/hypersync-models';
 import {
-  DayOfWeek,
-  LocalDateTime,
   ChronoUnit,
-  TemporalAdjusters,
-  ZoneOffset,
-  ZoneId,
+  convert,
+  DayOfWeek,
   Instant,
+  LocalDateTime,
+  TemporalAdjusters,
   ZonedDateTime,
-  convert
+  ZoneId,
+  ZoneOffset
 } from '@js-joda/core';
 require('@js-joda/timezone');
-import { HypersyncPeriod } from './enums';
 
 const fallbackLocale = 'en-US';
 const fallbackTimeZone = 'UTC';
@@ -40,7 +40,7 @@ export const getLastPeriod = (
     : ZonedDateTime.now(timeZone ? ZoneId.of(timeZone) : ZoneId.UTC);
 
   switch (period) {
-    case HypersyncPeriod.DAILY: {
+    case HypersyncPeriod.Daily: {
       const today = now.truncatedTo(ChronoUnit.DAYS);
       const yesterday = today.minusDays(1);
       return {
@@ -48,7 +48,7 @@ export const getLastPeriod = (
         to: today.minusSeconds(1)
       };
     }
-    case HypersyncPeriod.WEEKLY: {
+    case HypersyncPeriod.Weekly: {
       const startOfWeek = TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY);
       const currentWeek = now.truncatedTo(ChronoUnit.DAYS);
       const lastWeek = currentWeek.minusWeeks(1);
@@ -57,7 +57,7 @@ export const getLastPeriod = (
         to: currentWeek.with(startOfWeek).minusSeconds(1)
       };
     }
-    case HypersyncPeriod.MONTHLY: {
+    case HypersyncPeriod.Monthly: {
       const currentMonth = now.truncatedTo(ChronoUnit.DAYS);
       const lastMonth = currentMonth.minusMonths(1);
       return {
@@ -65,7 +65,7 @@ export const getLastPeriod = (
         to: currentMonth.withDayOfMonth(1).minusSeconds(1)
       };
     }
-    case HypersyncPeriod.QUARTERLY: {
+    case HypersyncPeriod.Quarterly: {
       // Month is 1 - 12
       // Quarter is 1 - 4
       const thisMonth = now.truncatedTo(ChronoUnit.DAYS).withDayOfMonth(1);
@@ -78,7 +78,7 @@ export const getLastPeriod = (
         to: lastQuarterEndDate
       };
     }
-    case HypersyncPeriod.YEARLY: {
+    case HypersyncPeriod.Yearly: {
       const startOfThisYear = now
         .truncatedTo(ChronoUnit.DAYS)
         .withMonth(1)
@@ -188,12 +188,12 @@ export const formatJsJodaDateRange = (
   const day = Intl.DateTimeFormat(locales, { day: '2-digit' }).format(date);
 
   switch (period) {
-    case HypersyncPeriod.DAILY:
+    case HypersyncPeriod.Daily:
       return `${month} ${day}, ${year}`;
-    case HypersyncPeriod.WEEKLY:
+    case HypersyncPeriod.Weekly:
       // TODO: HYP-11821 Localize text
       return `Week of ${month} ${day}, ${year}`;
-    case HypersyncPeriod.MONTHLY:
+    case HypersyncPeriod.Monthly:
       return `${month}-${year}`;
     default:
       throw new Error(`HypersyncPeriod "${period}" is not supported`);

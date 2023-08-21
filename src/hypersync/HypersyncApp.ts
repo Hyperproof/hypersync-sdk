@@ -1,31 +1,4 @@
-import * as express from 'express';
-import { FusebitContext } from '@fusebit/add-on-sdk';
-import {
-  createOAuthConnector,
-  OAuthConnector,
-  UserContext
-} from '@fusebit/oauth-connector';
-import fs from 'fs';
-import createHttpError from 'http-errors';
-import { StatusCodes } from 'http-status-codes';
-import path from 'path';
-import { ParsedQs } from 'qs';
-import Superagent from 'superagent';
-import {
-  AuthorizationType,
-  CustomAuthCredentials,
-  ExternalAPIError,
-  FieldType,
-  formatKey,
-  IAuthorizationConfigBase,
-  ICredentialsMetadata,
-  IHyperproofUser,
-  IHyperproofUserContext,
-  Logger,
-  ObjectType
-} from '../common';
 import { formatHypersyncError, StringMap } from './common';
-import { DataSetResultStatus, HypersyncPeriod } from './enums';
 import {
   createHypersync,
   IValidateCredentialsResponse
@@ -35,18 +8,57 @@ import {
   ICriteriaPage,
   ICriteriaProvider
 } from './ICriteriaProvider';
-import { IDataSource, DataValueMap } from './IDataSource';
+import { DataSetResultStatus, IDataSource, SyncMetadata } from './IDataSource';
 import { JsonCriteriaProvider } from './JsonCriteriaProvider';
 import { MESSAGES } from './messages';
-import { HypersyncCriteria, IHypersync, OAuthTokenResponse } from './models';
+import { IHypersync } from './models';
 import {
   IHypersyncSchema,
   IProofFile,
   ProofProviderBase
 } from './ProofProviderBase';
-import { ProofProviderFactory } from './ProofProviderFactory';
-import { RestDataSourceBase, IDataSet } from './RestDataSourceBase';
-import { IGetProofDataResponse, SyncMetadata } from './Sync';
+import { IProofTypeConfig, ProofProviderFactory } from './ProofProviderFactory';
+import { RestDataSourceBase } from './RestDataSourceBase';
+import { IGetProofDataResponse } from './Sync';
+
+import {
+  DataValueMap,
+  HypersyncCriteria,
+  HypersyncCriteriaFieldType,
+  HypersyncPeriod,
+  ICriteriaFieldConfig,
+  IDataSet,
+  IHypersyncDefinition,
+  ValueLookup
+} from '@hyperproof/hypersync-models';
+import {
+  createOAuthConnector,
+  FusebitContext,
+  ListStorageResult,
+  OAuthConnector,
+  OAuthTokenResponse,
+  UserContext
+} from '@hyperproof/integration-sdk';
+import express from 'express';
+import fs from 'fs';
+import createHttpError from 'http-errors';
+import { StatusCodes } from 'http-status-codes';
+import path from 'path';
+import { ParsedQs } from 'qs';
+import Superagent from 'superagent';
+
+import {
+  AuthorizationType,
+  CustomAuthCredentials,
+  ExternalAPIError,
+  IAuthorizationConfigBase,
+  ICheckConnectionHealthInvocationPayload,
+  ICredentialsMetadata,
+  IHyperproofUser,
+  IHyperproofUserContext,
+  Logger,
+  ObjectType
+} from '../common';
 
 /**
  * Configuration information for a Hypersync app.
@@ -65,6 +77,19 @@ export interface IValidatedUser<TUserProfile = object> {
   userId: string;
   profile: TUserProfile;
 }
+
+/**
+ * Interface for a custom proof type saved in Fusebit storage.
+ */
+interface ICustomProofType extends IProofTypeConfig {
+  definition: IHypersyncDefinition;
+}
+
+/**
+ * Type that maps a proofType string to an ICustomProofType.  Used in
+ * loading custom proof types out of Fusebit storage.
+ */
+type CustomProofTypeMap = { [proofType: string]: ICustomProofType };
 
 class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   private credentialsMetadata?: ICredentialsMetadata;
@@ -108,27 +133,46 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       }
     );
 
+    app.head(
+      '/design/organizations/:orgId/datasource/datasets/:dataSetName',
+      this.checkAuthorized(),
+      async (req: express.Request, res: express.Response) => {
+        try {
+          if (
+            !(await this.doesOrgStorageItemExist(
+              req.fusebit,
+              req.params.orgId,
+              'datasource/datasets',
+              req.params.dataSetName
+            ))
+          ) {
+            res.status(StatusCodes.NOT_FOUND);
+          }
+          res.send();
+        } catch (err: any) {
+          errorHandler(res, err);
+        }
+      }
+    );
+
     app.put(
-      '/design/organizations/:orgId/datasource/datasets',
+      '/design/organizations/:orgId/datasource/datasets/:dataSetName',
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
           const {
-            dataSetName,
             dataSet,
             oldDataSetName
           }: {
-            dataSetName: string;
             dataSet: IDataSet;
             oldDataSetName?: string;
           } = req.body;
 
           res.json(
-            await this.createorUpdateDataSet(
+            await this.createOrUpdateDataSet(
               req.fusebit,
               req.params.orgId,
-              req.query.vendorUserId as string,
-              dataSetName,
+              req.params.dataSetName,
               dataSet,
               oldDataSetName
             )
@@ -151,31 +195,6 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
               req.params.dataSetName
             )
           );
-        } catch (err: any) {
-          errorHandler(res, err);
-        }
-      }
-    );
-
-    app.head(
-      '/design/organizations/:orgId/datasource/datasets/:dataSetName',
-      this.checkAuthorized(),
-      async (req: express.Request, res: express.Response) => {
-        try {
-          const config = await this.getDataSourceConfig(
-            req.fusebit,
-            req.params.orgId,
-            req.query.vendorUserId as string
-          );
-          if (
-            !Object.prototype.hasOwnProperty.call(
-              config.dataSets,
-              req.params.dataSetName
-            )
-          ) {
-            res.status(StatusCodes.NOT_FOUND);
-          }
-          res.send();
         } catch (err: any) {
           errorHandler(res, err);
         }
@@ -206,28 +225,155 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       }
     );
 
+    app.head(
+      '/design/organizations/:orgId/datasource/valuelookups/:valueLookupName',
+      this.checkAuthorized(),
+      async (req: express.Request, res: express.Response) => {
+        try {
+          if (
+            !(await this.doesOrgStorageItemExist(
+              req.fusebit,
+              req.params.orgId,
+              'datasource/valuelookups',
+              req.params.valueLookupName
+            ))
+          ) {
+            res.status(StatusCodes.NOT_FOUND);
+          }
+          res.send();
+        } catch (err: any) {
+          errorHandler(res, err);
+        }
+      }
+    );
+
+    app.put(
+      '/design/organizations/:orgId/datasource/valuelookups/:valueLookupName',
+      this.checkAuthorized(),
+      async (req: express.Request, res: express.Response) => {
+        try {
+          const {
+            valueLookup,
+            oldValueLookupName
+          }: {
+            valueLookup: ValueLookup;
+            oldValueLookupName?: string;
+          } = req.body;
+
+          res.json(
+            await this.createOrUpdateValueLookup(
+              req.fusebit,
+              req.params.orgId,
+              req.params.valueLookupName,
+              valueLookup,
+              oldValueLookupName
+            )
+          );
+        } catch (err: any) {
+          errorHandler(res, err);
+        }
+      }
+    );
+
+    app.delete(
+      '/design/organizations/:orgId/datasource/valuelookups/:valueLookupName',
+      this.checkAuthorized(),
+      async (req: express.Request, res: express.Response) => {
+        try {
+          res.json(
+            await this.deleteValueLookup(
+              req.fusebit,
+              req.params.orgId,
+              req.params.valueLookupName
+            )
+          );
+        } catch (err: any) {
+          errorHandler(res, err);
+        }
+      }
+    );
+
     app.get(
       '/design/organizations/:orgId/criteriafields',
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
-          const dataSource = await this.createDataSource(
-            req.fusebit,
-            req.params.orgId,
-            req.query.vendorUserId as string
+          res.json(
+            await this.getCriteriaConfig(
+              req.fusebit,
+              req.params.orgId,
+              req.query.vendorUserId as string
+            )
           );
-          const criteriaProvider = await this.createCriteriaProvider(
-            req.fusebit,
-            req.params.orgId,
-            dataSource
-          );
-          if (!(criteriaProvider instanceof JsonCriteriaProvider)) {
-            throw createHttpError(
-              StatusCodes.BAD_REQUEST,
-              'Hypersync does not support customization.'
-            );
+        } catch (err: any) {
+          errorHandler(res, err);
+        }
+      }
+    );
+
+    app.head(
+      '/design/organizations/:orgId/criteriafields/:criteriaFieldName',
+      this.checkAuthorized(),
+      async (req: express.Request, res: express.Response) => {
+        try {
+          if (
+            !(await this.doesOrgStorageItemExist(
+              req.fusebit,
+              req.params.orgId,
+              'criteriafields',
+              req.params.criteriaFieldName
+            ))
+          ) {
+            res.status(StatusCodes.NOT_FOUND);
           }
-          res.json(criteriaProvider.getConfig());
+          res.send();
+        } catch (err: any) {
+          errorHandler(res, err);
+        }
+      }
+    );
+
+    app.put(
+      '/design/organizations/:orgId/criteriafields/:criteriaFieldName',
+      this.checkAuthorized(),
+      async (req: express.Request, res: express.Response) => {
+        try {
+          const {
+            criteriaField,
+            oldCriteriaFieldName
+          }: {
+            criteriaField: ICriteriaFieldConfig;
+            oldCriteriaFieldName?: string;
+          } = req.body;
+
+          res.json(
+            await this.createOrUpdateCriteriaField(
+              req.fusebit,
+              req.params.orgId,
+              req.query.vendorUserId as string,
+              req.params.criteriaFieldName,
+              criteriaField,
+              oldCriteriaFieldName
+            )
+          );
+        } catch (err: any) {
+          errorHandler(res, err);
+        }
+      }
+    );
+
+    app.delete(
+      '/design/organizations/:orgId/criteriafields/:criteriaFieldName',
+      this.checkAuthorized(),
+      async (req: express.Request, res: express.Response) => {
+        try {
+          res.json(
+            await this.deleteCriteriaField(
+              req.fusebit,
+              req.params.orgId,
+              req.params.criteriaFieldName
+            )
+          );
         } catch (err: any) {
           errorHandler(res, err);
         }
@@ -239,12 +385,120 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
-          const { proofProviderFactory } = await this.createResources(
-            req.fusebit,
-            req.params.orgId,
-            req.query.vendorUserId as string
+          res.json(
+            await this.getProofTypesConfig(req.fusebit, req.params.orgId)
           );
-          res.json(proofProviderFactory.getConfig());
+        } catch (err: any) {
+          errorHandler(res, err);
+        }
+      }
+    );
+
+    app.head(
+      '/design/organizations/:orgId/proof/:proofType',
+      this.checkAuthorized(),
+      async (req: express.Request, res: express.Response) => {
+        try {
+          if (
+            !(await this.doesOrgStorageItemExist(
+              req.fusebit,
+              req.params.orgId,
+              'proof',
+              req.params.proofType
+            ))
+          ) {
+            res.status(StatusCodes.NOT_FOUND);
+          }
+          res.send();
+        } catch (err: any) {
+          errorHandler(res, err);
+        }
+      }
+    );
+
+    app.get(
+      '/design/organizations/:orgId/proof/:proofType',
+      this.checkAuthorized(),
+      async (req: express.Request, res: express.Response) => {
+        try {
+          res.json(
+            await this.getProofTypeDefinition(
+              req.fusebit,
+              req.params.orgId,
+              req.params.proofType
+            )
+          );
+        } catch (err: any) {
+          errorHandler(res, err);
+        }
+      }
+    );
+
+    app.put(
+      '/design/organizations/:orgId/proof/:proofType',
+      this.checkAuthorized(),
+      async (req: express.Request, res: express.Response) => {
+        try {
+          const {
+            label,
+            category,
+            definition,
+            oldProofType
+          }: {
+            label: string;
+            category: string | undefined;
+            definition: IHypersyncDefinition;
+            oldProofType?: string;
+          } = req.body;
+
+          res.json(
+            await this.createOrUpdateProofType(
+              req.fusebit,
+              req.params.orgId,
+              req.params.proofType,
+              label,
+              category,
+              definition,
+              oldProofType
+            )
+          );
+        } catch (err: any) {
+          errorHandler(res, err);
+        }
+      }
+    );
+
+    app.delete(
+      '/design/organizations/:orgId/proof/:proofType',
+      this.checkAuthorized(),
+      async (req: express.Request, res: express.Response) => {
+        try {
+          res.json(
+            await this.deleteProofType(
+              req.fusebit,
+              req.params.orgId,
+              req.params.proofType
+            )
+          );
+        } catch (err: any) {
+          errorHandler(res, err);
+        }
+      }
+    );
+
+    app.head(
+      '/design/organizations/:orgId/messages/:messageName',
+      this.checkAuthorized(),
+      async (req: express.Request, res: express.Response) => {
+        try {
+          const messages = await this.createMessageMap(
+            req.fusebit,
+            req.params.orgId
+          );
+          if (!messages[req.params.messageName]) {
+            res.status(StatusCodes.NOT_FOUND);
+          }
+          res.send();
         } catch (err: any) {
           errorHandler(res, err);
         }
@@ -256,11 +510,53 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
-          const fileContents = await this.hypersyncApp.getJsonFile(
-            'messages.json'
+          res.json(await this.createMessageMap(req.fusebit, req.params.orgId));
+        } catch (err: any) {
+          errorHandler(res, err);
+        }
+      }
+    );
+
+    app.put(
+      '/design/organizations/:orgId/messages/:messageName',
+      this.checkAuthorized(),
+      async (req: express.Request, res: express.Response) => {
+        try {
+          const {
+            message,
+            oldMessageName
+          }: {
+            message: string;
+            oldMessageName?: string;
+          } = req.body;
+
+          res.json(
+            await this.createOrUpdateMessage(
+              req.fusebit,
+              req.params.orgId,
+              req.params.messageName,
+              message,
+              oldMessageName
+            )
           );
-          res.contentType('application/json');
-          res.send(fileContents);
+        } catch (err: any) {
+          errorHandler(res, err);
+        }
+      }
+    );
+
+    app.delete(
+      '/design/organizations/:orgId/messages/:messageName',
+      this.checkAuthorized(),
+      async (req: express.Request, res: express.Response) => {
+        try {
+          res.json(
+            await this.deleteMessage(
+              req.fusebit,
+              req.params.orgId,
+              req.params.messageName
+            )
+          );
         } catch (err: any) {
           errorHandler(res, err);
         }
@@ -317,6 +613,20 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     return config;
   }
 
+  async validateAccessToken(
+    fusebitContext: FusebitContext,
+    userContext: UserContext,
+    accessToken: string,
+    body?: ICheckConnectionHealthInvocationPayload
+  ): Promise<void> {
+    await this.hypersyncApp.validateAccessToken(
+      fusebitContext,
+      userContext,
+      accessToken,
+      body
+    );
+  }
+
   public async validateCredentials(
     credentials: CustomAuthCredentials,
     fusebitContext: FusebitContext,
@@ -353,9 +663,10 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     criteria: HypersyncCriteria,
     search?: string
   ) {
-    const { dataSource, criteriaProvider, proofProviderFactory } =
+    const { messages, dataSource, criteriaProvider, proofProviderFactory } =
       await this.createResources(fusebitContext, orgId, vendorUserId);
     return this.hypersyncApp.generateCriteriaMetadata(
+      messages,
       dataSource,
       criteriaProvider,
       proofProviderFactory,
@@ -390,12 +701,20 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     syncStartDate: string,
     hyperproofUser: IHyperproofUser,
     page?: string,
-    metadata?: SyncMetadata
+    metadata?: SyncMetadata,
+    retryCount?: number
   ) {
     const vendorUserId = hypersync.settings.vendorUserId;
     const userContext = await this.getUser(fusebitContext, vendorUserId);
     const { dataSource, criteriaProvider, proofProviderFactory } =
       await this.createResources(fusebitContext, orgId, vendorUserId);
+
+    if (!userContext) {
+      throw createHttpError(
+        StatusCodes.UNAUTHORIZED,
+        this.getUserNotFoundMessage(vendorUserId)
+      );
+    }
 
     try {
       const data = await this.hypersyncApp.getProofData(
@@ -407,7 +726,8 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
         userContext.vendorUserProfile,
         syncStartDate,
         page,
-        metadata
+        metadata,
+        retryCount
       );
       return Array.isArray(data)
         ? {
@@ -422,10 +742,9 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       ) {
         return err.computeRetry();
       }
-      const objectKey = formatKey(orgId, objectType, objectId);
       await Logger.error(
         `Hypersync Sync Error: ${process.env.vendor_name}`,
-        formatHypersyncError(err, objectKey, 'Sync failure')
+        formatHypersyncError(err, hypersync?.id, 'Sync failure')
       );
       throw err;
     }
@@ -484,6 +803,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     orgId: string,
     vendorUserId: string
   ) {
+    const messages = await this.createMessageMap(fusebitContext, orgId);
     const dataSource = await this.createDataSource(
       fusebitContext,
       orgId,
@@ -496,10 +816,34 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     );
     const proofProviderFactory = await this.createProofProviderFactory(
       fusebitContext,
-      orgId
+      orgId,
+      messages
     );
 
-    return { dataSource, criteriaProvider, proofProviderFactory };
+    return { messages, dataSource, criteriaProvider, proofProviderFactory };
+  }
+
+  private async createMessageMap(
+    fusebitContext: FusebitContext,
+    orgId: string
+  ): Promise<StringMap> {
+    let messages = this.hypersyncApp.getMessages();
+
+    // Add organization customizations if there are any.
+    const { items } = await fusebitContext.storage.list(
+      this.createOrgStorageKey(orgId, 'messages')
+    );
+    if (items && items.length > 0) {
+      messages = { ...messages };
+      for (const item of items) {
+        const messageKey = item.storageId.split('/root/')[1];
+        const messageName = messageKey.split('/')[3];
+        const { data } = await fusebitContext.storage.get(messageKey);
+        messages[messageName] = data;
+      }
+    }
+
+    return messages;
   }
 
   private async createDataSource(
@@ -540,15 +884,25 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
 
     // Add organization customizations if there are any.
     if (dataSource instanceof RestDataSourceBase) {
-      const { items } = await fusebitContext.storage.list(
+      let result: ListStorageResult;
+      result = await fusebitContext.storage.list(
         this.createOrgStorageKey(orgId, 'datasource/datasets')
       );
-      for (const item of items) {
-        const dataSetKey = item.storageId.split('/root/')[1];
-        const dataSetName = dataSetKey.split('/')[4];
+      for (const item of result.items) {
+        const { orgStorageKey: dataSetKey, itemName: dataSetName } =
+          this.parseOrgStorageKey(item.storageId);
         const { data } = await fusebitContext.storage.get(dataSetKey);
-        data.isCustom = true;
         dataSource.addDataSet(dataSetName, data);
+      }
+
+      result = await fusebitContext.storage.list(
+        this.createOrgStorageKey(orgId, 'datasource/valuelookups')
+      );
+      for (const item of result.items) {
+        const { orgStorageKey: valueLookupKey, itemName: valueLookupName } =
+          this.parseOrgStorageKey(item.storageId);
+        const { data } = await fusebitContext.storage.get(valueLookupKey);
+        dataSource.addValueLookup(valueLookupName, data);
       }
     }
 
@@ -574,6 +928,43 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     return dataSource.getConfig();
   }
 
+  private async getCriteriaConfig(
+    fusebitContext: FusebitContext,
+    orgId: string,
+    vendorUserId: string
+  ) {
+    const dataSource = await this.createDataSource(
+      fusebitContext,
+      orgId,
+      vendorUserId
+    );
+    const criteriaProvider = await this.createCriteriaProvider(
+      fusebitContext,
+      orgId,
+      dataSource
+    );
+    if (!(criteriaProvider instanceof JsonCriteriaProvider)) {
+      throw createHttpError(
+        StatusCodes.BAD_REQUEST,
+        'Hypersync does not support customization.'
+      );
+    }
+    return criteriaProvider.getConfig();
+  }
+
+  private async getProofTypesConfig(
+    fusebitContext: FusebitContext,
+    orgId: string
+  ) {
+    const messages = await this.createMessageMap(fusebitContext, orgId);
+    const proofProviderFactory = await this.createProofProviderFactory(
+      fusebitContext,
+      orgId,
+      messages
+    );
+    return proofProviderFactory.getConfig();
+  }
+
   private async createCriteriaProvider(
     fusebitContext: FusebitContext,
     orgId: string,
@@ -583,8 +974,17 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       dataSource
     );
 
+    // Add organization customizations if there are any.
     if (criteriaProvider instanceof JsonCriteriaProvider) {
-      // TODO: HYP-32281: Add org customizations
+      const { items } = await fusebitContext.storage.list(
+        this.createOrgStorageKey(orgId, 'criteriafields')
+      );
+      for (const item of items) {
+        const criteriaFieldKey = item.storageId.split('/root/')[1];
+        const criteriaFieldName = criteriaFieldKey.split('/')[3];
+        const { data } = await fusebitContext.storage.get(criteriaFieldKey);
+        criteriaProvider.addCriteriaField(criteriaFieldName, data);
+      }
     }
 
     return criteriaProvider;
@@ -594,10 +994,22 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     fusebitContext: FusebitContext,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    orgId: string
+    orgId: string,
+    messages: StringMap
   ) {
-    const factory = this.hypersyncApp.getProofProviderFactory();
-    // TODO: HYP-32282: Add org customizations
+    const factory = await this.hypersyncApp.getProofProviderFactory(messages);
+
+    // Load the list of custom org proof types out of storage.
+    const customProofTypeMap = await this.getOrgProofTypes(
+      fusebitContext,
+      orgId
+    );
+
+    // Add each of the org proof types to the factory.
+    for (const [proofType, config] of Object.entries(customProofTypeMap)) {
+      factory.addProofType(proofType, config);
+    }
+
     return factory;
   }
 
@@ -608,32 +1020,59 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   ) {
     let key = `organizations/${orgId}/${subPath}`;
     if (itemName) {
-      key = `${key}/${itemName}`;
+      key = `${key}/${encodeURIComponent(itemName)}`;
     }
     return key;
   }
 
-  private async createorUpdateDataSet(
+  private parseOrgStorageKey(storageId: string) {
+    const orgStorageKey = storageId.split('/root/')[1];
+    const parts = orgStorageKey.split('/');
+    if (parts.length < 3) {
+      throw new Error('Invalid org storage key');
+    }
+    return { orgStorageKey, itemName: decodeURIComponent(parts.pop()!) };
+  }
+
+  /**
+   * Returns true if an custom object is stored in org storage under
+   * the provided subPath with the given name.
+   */
+  private async doesOrgStorageItemExist(
     fusebitContext: FusebitContext,
     orgId: string,
-    vendorUserId: string,
+    subPath: string,
+    itemName: string
+  ) {
+    const result = await fusebitContext.storage.list(
+      this.createOrgStorageKey(orgId, subPath)
+    );
+
+    for (const item of result.items) {
+      const { itemName: storedItemName } = this.parseOrgStorageKey(
+        item.storageId
+      );
+      if (storedItemName === itemName) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  private async createOrUpdateDataSet(
+    fusebitContext: FusebitContext,
+    orgId: string,
     dataSetName: string,
     dataSet: IDataSet,
     oldDataSetName?: string
   ) {
     // Make sure the data set name does not conflict with a built-in data set.
-    const config = await this.getDataSourceConfig(
-      fusebitContext,
-      orgId,
-      vendorUserId as string
-    );
-    if (Object.prototype.hasOwnProperty.call(config.dataSets, dataSetName)) {
-      if (!config.dataSets[dataSetName].isCustom) {
-        throw createHttpError(
-          StatusCodes.BAD_REQUEST,
-          `Invalid data set name: ${dataSetName}`
-        );
-      }
+    if (this.isBuiltInObject(dataSetName)) {
+      throw createHttpError(
+        StatusCodes.BAD_REQUEST,
+        `Invalid data set name: ${dataSetName}`
+      );
     }
 
     // Save the data set to org storage.
@@ -650,7 +1089,6 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       );
     }
 
-    dataSet.isCustom = true;
     return { dataSetName, dataSet };
   }
 
@@ -703,13 +1141,283 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
 
     return results.data;
   }
+
+  private async createOrUpdateValueLookup(
+    fusebitContext: FusebitContext,
+    orgId: string,
+    valueLookupName: string,
+    valueLookup: ValueLookup,
+    oldMessageLookupName?: string
+  ) {
+    // Make sure the value lookup name does not conflict with a built-in value lookup.
+    if (this.isBuiltInObject(valueLookupName)) {
+      throw createHttpError(
+        StatusCodes.BAD_REQUEST,
+        `Invalid value lookup name: ${valueLookupName}`
+      );
+    }
+
+    // Save the value lookup to org storage.
+    await fusebitContext.storage.put(
+      { data: valueLookup },
+      this.createOrgStorageKey(
+        orgId,
+        'datasource/valuelookups',
+        valueLookupName
+      )
+    );
+
+    // If the object is being renamed, the old name should be passed in
+    // as a query string param so that we can clean it up.
+    if (oldMessageLookupName) {
+      await fusebitContext.storage.delete(
+        this.createOrgStorageKey(
+          orgId,
+          'datasource/valuelookups',
+          oldMessageLookupName
+        )
+      );
+    }
+
+    return { valueLookupName, valueLookup };
+  }
+
+  private async deleteValueLookup(
+    fusebitContext: FusebitContext,
+    orgId: string,
+    messageLookupName: string
+  ) {
+    const key = this.createOrgStorageKey(
+      orgId,
+      'datasource/valuelookups',
+      messageLookupName
+    );
+
+    const { data: valueLookup } = await fusebitContext.storage.get(key);
+    await fusebitContext.storage.delete(key);
+    return { messageLookupName, valueLookup };
+  }
+
+  private async createOrUpdateCriteriaField(
+    fusebitContext: FusebitContext,
+    orgId: string,
+    vendorUserId: string,
+    criteriaFieldName: string,
+    criteriaField: ICriteriaFieldConfig,
+    oldCriteriaFieldName?: string
+  ) {
+    if (this.isBuiltInObject(criteriaFieldName)) {
+      throw createHttpError(
+        StatusCodes.BAD_REQUEST,
+        `Invalid criteria field name: ${criteriaField}`
+      );
+    }
+
+    // Save the criteria field to org storage.
+    await fusebitContext.storage.put(
+      { data: criteriaField },
+      this.createOrgStorageKey(orgId, 'criteriafields', criteriaFieldName)
+    );
+
+    // If the object is being renamed, the old name should be passed in
+    // as a query string param so that we can clean it up.
+    if (oldCriteriaFieldName) {
+      await fusebitContext.storage.delete(
+        this.createOrgStorageKey(orgId, 'criteriafields', oldCriteriaFieldName)
+      );
+    }
+
+    return { criteriaFieldName, criteriaField };
+  }
+
+  private async deleteCriteriaField(
+    fusebitContext: FusebitContext,
+    orgId: string,
+    criteriaFieldName: string
+  ) {
+    const key = this.createOrgStorageKey(
+      orgId,
+      'criteriafields',
+      criteriaFieldName
+    );
+
+    const { data: criteriaField } = await fusebitContext.storage.get(key);
+    await fusebitContext.storage.delete(key);
+    return { criteriaFieldName, criteriaField };
+  }
+
+  private async getProofTypeDefinition(
+    fusebitContext: FusebitContext,
+    orgId: string,
+    proofType: string
+  ) {
+    const messages = await this.createMessageMap(fusebitContext, orgId);
+    const proofProviderFactory = await this.createProofProviderFactory(
+      fusebitContext,
+      orgId,
+      messages
+    );
+    return proofProviderFactory.getProofTypeDefinition(proofType);
+  }
+
+  private async createOrUpdateProofType(
+    fusebitContext: FusebitContext,
+    orgId: string,
+    proofType: string,
+    label: string,
+    category: string | undefined,
+    definition: IHypersyncDefinition,
+    oldProofType?: string
+  ) {
+    // Make sure the data set name does not conflict with a built-in data set.
+    if (this.isBuiltInObject(proofType)) {
+      throw createHttpError(
+        StatusCodes.BAD_REQUEST,
+        `Invalid proof type name: ${proofType}`
+      );
+    }
+
+    const customProofType: ICustomProofType = {
+      label,
+      category,
+      definition
+    };
+
+    // Save the custom proof type to org storage.
+    await fusebitContext.storage.put(
+      { data: customProofType },
+      this.createOrgStorageKey(orgId, 'proof', proofType)
+    );
+
+    // Is the proof type is being renamed?
+    if (oldProofType) {
+      // Delete the old proofs definition.
+      await fusebitContext.storage.delete(
+        this.createOrgStorageKey(orgId, 'proof', oldProofType)
+      );
+    }
+
+    return {
+      [proofType]: { label, category, isJson: true }
+    };
+  }
+
+  private async deleteProofType(
+    fusebitContext: FusebitContext,
+    orgId: string,
+    proofType: string
+  ) {
+    const customProofTypeMap = await this.getOrgProofTypes(
+      fusebitContext,
+      orgId
+    );
+
+    const proofTypeConfig = customProofTypeMap[proofType];
+    if (!proofTypeConfig) {
+      throw createHttpError(
+        StatusCodes.NOT_FOUND,
+        `Proof type ${proofType} not found.`
+      );
+    }
+
+    // Delete the custom proof type from org storage.
+    await fusebitContext.storage.delete(
+      this.createOrgStorageKey(orgId, 'proof', proofType)
+    );
+
+    return {
+      [proofType]: { ...proofTypeConfig, isJson: true }
+    };
+  }
+
+  /**
+   * Loads the list of org proof types out of storage.
+   */
+  private async getOrgProofTypes(
+    fusebitContext: FusebitContext,
+    orgId: string
+  ) {
+    const customProofTypes: CustomProofTypeMap = {};
+
+    // Look for all custom proof types for the given org and add them to customProofTypes.
+    const proofTypesKey = this.createOrgStorageKey(orgId, 'proof');
+    const storageKeys = await fusebitContext.storage.list(proofTypesKey);
+    for (const storageKey of storageKeys.items) {
+      const customProofTypeEntry = await fusebitContext.storage.get(
+        storageKey.storageId.split('root/')[1]
+      );
+
+      const proofType = storageKey.storageId.split('/').at(-1);
+      customProofTypes[proofType!] = customProofTypeEntry.data;
+    }
+
+    return customProofTypes;
+  }
+
+  private async createOrUpdateMessage(
+    fusebitContext: FusebitContext,
+    orgId: string,
+    messageName: string,
+    message: string,
+    oldMessageName?: string
+  ) {
+    // Make sure the name does not conflict with a built-in message.
+    if (this.isBuiltInObject(messageName)) {
+      throw createHttpError(
+        StatusCodes.BAD_REQUEST,
+        `Invalid message field name: ${messageName}`
+      );
+    }
+
+    // Save the message to org storage.
+    await fusebitContext.storage.put(
+      { data: message },
+      this.createOrgStorageKey(orgId, 'messages', messageName)
+    );
+
+    // If the object is being renamed, the old name should be passed in
+    // as a query string param so that we can clean it up.
+    if (oldMessageName) {
+      await fusebitContext.storage.delete(
+        this.createOrgStorageKey(orgId, 'messages', oldMessageName)
+      );
+    }
+
+    return { messageName, message };
+  }
+
+  private async deleteMessage(
+    fusebitContext: FusebitContext,
+    orgId: string,
+    messageName: string
+  ) {
+    // It is not possible to delete a built-in message.
+    if (this.isBuiltInObject(messageName)) {
+      throw createHttpError(
+        StatusCodes.BAD_REQUEST,
+        `Invalid message field name: ${messageName}`
+      );
+    }
+
+    const key = this.createOrgStorageKey(orgId, 'messages', messageName);
+    const { data: message } = await fusebitContext.storage.get(key);
+    await fusebitContext.storage.delete(key);
+    return { messageName, message };
+  }
+
+  /**
+   * Retruns true if the provided name references a built-in object
+   * in a Hypersync app that supports the Hypersync Designer.
+   */
+  private isBuiltInObject(objectName: string) {
+    return objectName.toLowerCase().startsWith('hp_');
+  }
 }
 
 /**
  * Base class for a Hypersync app.
  */
 export class HypersyncApp<TUserProfile = object> {
-  protected proofProviderFactory?: ProofProviderFactory;
   protected appRootDir: string;
   private connector: HypersyncAppConnector;
   private messages: StringMap;
@@ -848,6 +1556,19 @@ export class HypersyncApp<TUserProfile = object> {
     );
   }
 
+  public async validateAccessToken(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    fusebitContext: FusebitContext,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    userContext: UserContext,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    accessToken: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    body?: ICheckConnectionHealthInvocationPayload
+  ): Promise<void> {
+    throw createHttpError(StatusCodes.NOT_IMPLEMENTED, 'Not Implemented');
+  }
+
   /**
    * Refreshes credentials provided by the user in a custom auth application.
    * Returns updated credentials or undefined if unneeded
@@ -916,6 +1637,13 @@ export class HypersyncApp<TUserProfile = object> {
   }
 
   /**
+   * Retrieves the messages associated with the app.
+   */
+  public getMessages(): StringMap {
+    return this.messages;
+  }
+
+  /**
    * Creates a data source that can be used to retrieve data.
    *
    * @param tokenOrCreds For OAuth apps, an OAuth access token.  For custom auth apps, an object containing user credentials.
@@ -940,6 +1668,7 @@ export class HypersyncApp<TUserProfile = object> {
    * Returns the metadata that is used to generate the user interface
    * that allows the user to specify proof criteria.
    *
+   * @param messages Messages assocaited with the app.
    * @param dataSource IDataSource instance used to retrieve data.
    * @param criteriaProvider ICriteriaProvider instance used to generate criteria metadata.
    * @param proofProviderFactory Factory object that provides ProofProviderBase objects.
@@ -948,6 +1677,7 @@ export class HypersyncApp<TUserProfile = object> {
    * @param search Search criteria used in some criteria fields.  Optional.
    */
   public async generateCriteriaMetadata(
+    messages: StringMap,
     dataSource: IDataSource,
     criteriaProvider: ICriteriaProvider,
     proofProviderFactory: ProofProviderFactory,
@@ -957,33 +1687,96 @@ export class HypersyncApp<TUserProfile = object> {
     search?: string
   ): Promise<ICriteriaMetadata> {
     await Logger.debug('Generating criteria metadata.');
-    const proofTypes = proofProviderFactory.getProofTypeOptions(criteria);
+
+    // Is there a proof category field?  If so add it before the proof type.
+    const categoryField = await criteriaProvider.generateProofCategoryField(
+      criteria,
+      {
+        criteria,
+        messages
+      }
+    );
+    if (categoryField) {
+      // Make sure we have a well formed proof category field.
+      if (
+        categoryField.type !== HypersyncCriteriaFieldType.Select ||
+        !categoryField.options ||
+        categoryField.options.length <= 0 ||
+        typeof categoryField.options[0].value !== 'string'
+      ) {
+        throw new Error('Invalid proof category field.');
+      }
+
+      // If there are any custom proof types and if any of them have
+      // 'other' listed as the category, add the "Other" option to the
+      // category dropdown.  We don't ship any "Other" proof types out
+      // of the box so this is special case code to make custom proof
+      // type development a little nicer.
+      const customProofTypeCategories =
+        proofProviderFactory.getCustomProofTypeCategories();
+      if (customProofTypeCategories.has('other')) {
+        categoryField.options!.push({
+          value: 'other',
+          label: MESSAGES.ProofCategoryOther
+        });
+      }
+
+      pages[0].fields.push(categoryField);
+    }
+
+    // Grab the list of proof types that match the proof category.
+    const proofTypes = proofProviderFactory.getProofTypeOptions(
+      categoryField?.value as string | undefined
+    );
+
+    // If the previously selected proof type is not found in the set of
+    // proof types for the default criteria, then we clear out the proof type
+    // value because it seems the user is going a different direction.
+    if (
+      criteria.proofType &&
+      proofTypes &&
+      !proofTypes.find(t => t.value === criteria.proofType)
+    ) {
+      delete criteria.proofType;
+    }
+
     pages[0].fields.push({
       name: 'proofType',
-      type: FieldType.SELECT,
+      type: HypersyncCriteriaFieldType.Select,
       label: MESSAGES.ProofType,
       options: proofTypes,
       value: criteria.proofType as string,
-      isRequired: true
+      isRequired: true,
+      isDisabled: categoryField != null && !categoryField.value
     });
 
+    // If the user hasn't chosen a proof type yet, we can exit at this point.
+    // There's no way to create a proof provider until we know the type.
     if (!criteria.proofType) {
       return {
         pages,
-        period: HypersyncPeriod.MONTHLY,
+        period: HypersyncPeriod.Monthly,
         useVersioning: true,
         suggestedName: '',
         description: '',
         enableExcelOutput: false
       };
-    } else {
-      const provider = proofProviderFactory.createProofProvider(
-        criteria.proofType!,
-        dataSource,
-        criteriaProvider
-      );
-      return provider.generateCriteriaMetadata(criteria, pages);
     }
+
+    // We have a proofType which means we also have values for any
+    // default criteria in this Hyperysnc app.  The first page is valid
+    // at this point, but that may change as more fields are added by
+    // the proof provider for the selected proof type.
+    pages[0].isValid = true;
+
+    // Create a proof provider for the type and let it provide any remaining
+    // criteria fields.
+    const provider = proofProviderFactory.createProofProvider(
+      criteria.proofType!,
+      dataSource,
+      criteriaProvider
+    );
+    return provider.generateCriteriaMetadata(criteria, pages);
   }
 
   /**
@@ -1024,6 +1817,7 @@ export class HypersyncApp<TUserProfile = object> {
    * @param syncStartDate Date and time at which the sync operation was initiated.
    * @param page Current proof page number being synchronized.  Optional.
    * @param metadata Arbitrary synchronization state associated with the sync.  Optional.
+   * @param retryCount Current retry count of sync. Optional.
    */
   public async getProofData(
     dataSource: IDataSource,
@@ -1034,7 +1828,8 @@ export class HypersyncApp<TUserProfile = object> {
     userProfile: TUserProfile,
     syncStartDate: string,
     page?: string,
-    metadata?: SyncMetadata
+    metadata?: SyncMetadata,
+    retryCount?: number
   ): Promise<IProofFile[] | IGetProofDataResponse> {
     await Logger.debug(
       `Retrieving data for proof type '${hypersync.settings.criteria.proofType}'.`
@@ -1050,7 +1845,8 @@ export class HypersyncApp<TUserProfile = object> {
       this.getUserAccountName(userProfile),
       new Date(syncStartDate),
       page,
-      metadata
+      metadata,
+      retryCount
     );
   }
 
@@ -1070,42 +1866,27 @@ export class HypersyncApp<TUserProfile = object> {
     // Does nothing by default
   }
 
-  // TODO: HYP-32283: Get rid of this.
-  public async getJsonFile(filename: string) {
-    if (!['messages.json'].includes(filename)) {
-      throw createHttpError(
-        StatusCodes.BAD_REQUEST,
-        `Unrecognized filename: ${filename}`
-      );
-    }
-
-    await Logger.info(`Retrieving JSON file: ${filename}`);
-    const filePath = path.resolve(this.appRootDir, `json/${filename}`);
-    const contents = fs.readFileSync(filePath, 'utf8');
-    return contents;
-  }
-
   /**
    * Returns an initialized ProofProviderFactory object.
+   *
+   * @param messages Messages associated with the app.
    */
-  public async getProofProviderFactory(): Promise<ProofProviderFactory> {
-    if (!this.proofProviderFactory) {
-      const providersPath = path.resolve(this.appRootDir, 'proof-providers');
-      let providers: typeof ProofProviderBase[] = [];
-      if (fs.existsSync(providersPath)) {
-        const exportedProviders = await import(
-          path.resolve(this.appRootDir, 'proof-providers')
-        );
-        providers = Object.values(exportedProviders);
-      }
-      this.proofProviderFactory = new ProofProviderFactory(
-        this.connector.connectorName,
-        this.appRootDir,
-        this.messages,
-        providers
+  public async getProofProviderFactory(
+    messages: StringMap
+  ): Promise<ProofProviderFactory> {
+    const providersPath = path.resolve(this.appRootDir, 'proof-providers');
+    let providers: typeof ProofProviderBase[] = [];
+    if (fs.existsSync(providersPath)) {
+      const exportedProviders = await import(
+        path.resolve(this.appRootDir, 'proof-providers')
       );
+      providers = Object.values(exportedProviders);
     }
-
-    return this.proofProviderFactory;
+    return new ProofProviderFactory(
+      this.connector.connectorName,
+      this.appRootDir,
+      messages,
+      providers
+    );
   }
 }

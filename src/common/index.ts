@@ -2,7 +2,6 @@ export * from './ApiClient';
 export * from './authModels';
 export * from './common';
 export * from './enums';
-export * from './express';
 export * from './HyperproofApiClient';
 export * from './hyperproofTokens';
 export * from './Logger';

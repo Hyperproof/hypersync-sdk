@@ -1,10 +1,11 @@
+import { HttpMethod, LogContextKey } from './enums';
+import { Logger } from './Logger';
+import { IThrottleModel, ThrottleManager } from './throttle';
+
 import AbortController from 'abort-controller';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
 import fetch, { HeadersInit, Response } from 'node-fetch';
-import { Logger } from './Logger';
-import { HttpMethod, LogContextKey } from './enums';
-import { IThrottleModel, ThrottleManager } from './throttle';
 
 /**
  * Type alias for the tuple of parameters taken by `ApiClient.sendRequest()`.
@@ -104,6 +105,7 @@ export class ApiClient {
       response.status,
       `Error retrieving JSON from ${apiUrl}: ${errMsg}`,
       {
+        [LogContextKey.Headers]: response.headers.raw(),
         [LogContextKey.StatusCode]: response.status,
         [LogContextKey.ApiUrl]: apiUrl,
         [LogContextKey.ExtendedMessage]: errMsg
@@ -111,7 +113,7 @@ export class ApiClient {
     );
   }
 
-  private sendRequest(...params: ApiClientRequestArgs) {
+  public sendRequest(...params: ApiClientRequestArgs) {
     return this.throttleManager.retrieve(params);
   }
 
@@ -151,11 +153,10 @@ export class ApiClient {
           StatusCodes.INTERNAL_SERVER_ERROR,
           'Failed to convert response body to JSON',
           {
+            [LogContextKey.Headers]: response.headers.raw(),
             [LogContextKey.StatusCode]: response.status,
             [LogContextKey.ApiUrl]: url,
-            [LogContextKey.ExtendedMessage]:
-              `Response Headers: ${response.headers.raw()}\n` +
-              `Response Body: ${text}`
+            [LogContextKey.ExtendedMessage]: `Response Body: ${text}`
           }
         );
       }

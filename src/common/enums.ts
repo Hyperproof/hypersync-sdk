@@ -11,24 +11,6 @@ export enum AuthorizationType {
   CUSTOM = 'custom'
 }
 
-export enum FieldType {
-  PAIRED_SELECT = 'pairedSelect',
-  SELECT = 'select',
-  TEXT = 'text',
-  SEARCH = 'search',
-  RADIO = 'radio',
-  KEY_VALUE_SET = 'keyValueSet'
-}
-
-export enum CredentialFieldType {
-  GROUP = 'group',
-  HIDDEN = 'hidden',
-  PASSWORD = 'password',
-  SELECT = 'select',
-  TEXT = 'text',
-  TEXT_AREA = 'textArea'
-}
-
 export enum AppId {
   ASANA = 'asana',
   AWS = 'aws',
@@ -48,6 +30,7 @@ export enum LogContextKey {
   ApiUrl = 'apiUrl',
   Category = 'category',
   ExtendedMessage = 'extendedMessage',
+  Headers = 'headers',
   HttpVersion = 'httpVersion',
   HypersyncCriteria = 'hypersyncCriteria',
   HypersyncSettings = 'hypersyncSettings',
@@ -76,6 +59,7 @@ export enum MimeType {
   APPLICATION_JSON = 'application/json',
   CSV_MIME = 'text/csv',
   FORM_URL_ENCODED = 'application/x-www-form-urlencoded',
+  HTML = 'text/html',
   HYPERSYNC_DATA = 'application/vnd.hyperproof.hypersync.data'
 }
 
@@ -134,7 +118,8 @@ export enum HttpHeader {
   ContentLength = 'Content-Length',
   ContentType = 'Content-Type',
   HyperproofClientSecret = 'hp-client-secret',
-  SubscriptionKey = 'hyperproof-subscription-key'
+  SubscriptionKey = 'hyperproof-subscription-key',
+  TraceParent = 'traceparent'
 }
 
 export enum HealthStatus {

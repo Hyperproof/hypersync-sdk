@@ -1,39 +1,46 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import * as express from 'express';
+
+import { formatHypersyncError } from './common';
+import { HypersyncStage } from './enums';
+import { createHypersyncStorageClient } from './HypersyncStorageClient';
+import { ICriteriaMetadata } from './ICriteriaProvider';
+import { SyncMetadata } from './IDataSource';
+import { IHypersync } from './models';
+import { IHypersyncSchema } from './ProofProviderBase';
+import { IGetProofDataResponse } from './Sync';
+
+import { HypersyncCriteria } from '@hyperproof/hypersync-models';
+import {
+  FusebitContext,
+  OAuthConnector,
+  StorageItem,
+  UserContext
+} from '@hyperproof/integration-sdk';
+import express from 'express';
+import fs from 'fs';
+import createHttpError from 'http-errors';
+import { StatusCodes } from 'http-status-codes';
 
 import {
   AuthorizationType,
+  createConnector,
   CustomAuthCredentials,
-  HYPERPROOF_VENDOR_KEY,
+  formatUserKey,
+  getHpUserFromUserKey,
   HttpHeader,
+  HYPERPROOF_VENDOR_KEY,
+  ICheckConnectionHealthInvocationPayload,
+  IConnectionHealth,
   IHyperproofUser,
   IHyperproofUserContext,
   IRetryResponse,
   IUserConnection,
   LogContextKey,
   Logger,
-  ObjectType,
-  createConnector,
-  formatKey,
-  formatUserKey,
-  getHpUserFromUserKey,
   mapObjectTypesParamToType,
-  IConnectionHealth
+  ObjectType
 } from '../common';
-import { FusebitContext, StorageItem } from '@fusebit/add-on-sdk';
-import { HypersyncCriteria, IHypersync } from './models';
-import { IGetProofDataResponse, SyncMetadata } from './Sync';
-import { OAuthConnector, UserContext } from '@fusebit/oauth-connector';
-
 import { HealthStatus, InstanceType } from '../common/enums';
-import { HypersyncStage } from './enums';
-import { ICriteriaMetadata } from './ICriteriaProvider';
-import { IHypersyncSchema } from './ProofProviderBase';
-import { StatusCodes } from 'http-status-codes';
-import createHttpError from 'http-errors';
-import { createHypersyncStorageClient } from './HypersyncStorageClient';
-import { formatHypersyncError } from './common';
-import fs from 'fs';
 
 /**
  * Object returned from the validateCredentials method.
@@ -241,13 +248,14 @@ export function createHypersync(superclass: typeof OAuthConnector) {
                 data = await this.syncNow(
                   req.fusebit,
                   orgId,
-                  mapObjectTypesParamToType(req.params.objectType),
+                  mapObjectTypesParamToType(objectType),
                   objectId,
                   req.body.hypersync,
                   req.body.syncStartDate,
                   req.body.user,
                   req.body.page,
-                  req.body.metadata
+                  req.body.metadata,
+                  req.body.retryCount
                 );
                 res.json(data);
                 break;
@@ -259,16 +267,11 @@ export function createHypersync(superclass: typeof OAuthConnector) {
             const status =
               err.status || err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR;
             if (status >= StatusCodes.INTERNAL_SERVER_ERROR) {
-              const objectKey = formatKey(
-                orgId,
-                objectType as ObjectType,
-                objectId
-              );
               await Logger.error(
                 `Hypersync invoke failure: ${process.env.vendor_name}`,
                 formatHypersyncError(
                   err,
-                  objectKey,
+                  req.body?.hypersync?.id,
                   'Hypersync invoke failure.'
                 )
               );
@@ -415,25 +418,26 @@ export function createHypersync(superclass: typeof OAuthConnector) {
       orgId: string,
       userId: string,
       vendorUserId: string,
-      hostUrl?: string
+      body?: ICheckConnectionHealthInvocationPayload
     ): Promise<IConnectionHealth> {
-      const userContext = await this.getHyperproofUserContext(
-        fusebitContext,
-        vendorUserId
-      );
-
-      // we'll need to allow JiraHS to find its userContext using hostUrl
-      if (!userContext) {
-        throw createHttpError(
-          StatusCodes.UNAUTHORIZED,
-          this.getUserNotFoundMessage(vendorUserId)
-        );
-      }
-
       try {
+        const userContext = await this.getHyperproofUserContext(
+          fusebitContext,
+          vendorUserId
+        );
+
+        // we'll need to allow JiraHS to find its userContext using hostUrl
+        if (!userContext) {
+          throw createHttpError(
+            StatusCodes.UNAUTHORIZED,
+            this.getUserNotFoundMessage(vendorUserId)
+          );
+        }
+
         if (this.authorizationType === AuthorizationType.CUSTOM) {
           // NOTE: calling this will not save any token retrieved from the corresponding service to the vendor-user.
           // In the case of AWS, the temporary token for cross-account role auth is saved in vendor-user for each sync, but not saved by validateCredentials itself.
+          // Since the token is temporary they will expire in an hour and way before AWS scheduled syncs are run and thus no reason to save it in this step.
           await this.validateCredentials(
             userContext.keys!,
             fusebitContext,
@@ -449,7 +453,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
             fusebitContext,
             userContext,
             tokenResponse.access_token,
-            hostUrl
+            body
           );
         }
       } catch (e: any) {
@@ -460,18 +464,15 @@ export function createHypersync(superclass: typeof OAuthConnector) {
 
         if (healthResult.healthStatus === HealthStatus.NotImplemented) {
           Logger.info(
-            `Connection health check found the connector did not implement validate credentials function ${healthResult}`,
-            healthResult.message
+            `Connection health check found the connector did not implement validate credentials function.`
           );
         } else if (healthResult.healthStatus === HealthStatus.Unhealthy) {
           Logger.info(
-            `Connection health check returned an unhealthy response ${healthResult}`,
-            healthResult.message
+            `Connection health check returned an unhealthy response: ${healthResult.message}`
           );
         } else if (healthResult.healthStatus === HealthStatus.Unknown) {
-          Logger.error(
-            `Connection health check returned an unknown error ${healthResult.message}`,
-            e
+          Logger.warn(
+            `Connection health check returned an unknown error: ${healthResult.message}`
           );
         }
 
@@ -508,9 +509,9 @@ export function createHypersync(superclass: typeof OAuthConnector) {
     async validateAccessToken(
       fusebitContext: FusebitContext,
       userContext: UserContext,
-      accessToken?: string,
-      hostUrl?: string
-    ): Promise<boolean> {
+      accessToken: string,
+      body?: ICheckConnectionHealthInvocationPayload
+    ): Promise<void> {
       throw createHttpError(StatusCodes.NOT_IMPLEMENTED, 'Not Implemented');
     }
 
@@ -521,31 +522,25 @@ export function createHypersync(superclass: typeof OAuthConnector) {
       const extendedErrorMessage = error[LogContextKey.ExtendedMessage];
       const healthResult: Readonly<IConnectionHealth> = {
         healthStatus: HealthStatus.Unknown,
-        message: `The health check returned an unknown result. The connector has encountered an unexpected error. Status code ${
-          error.statusCode
-        }. Error message: ${
+        message: `Error: ${
           extendedErrorMessage ? extendedErrorMessage : error.message
         }`,
         details: undefined,
-        statusCode: StatusCodes.INTERNAL_SERVER_ERROR
+        statusCode: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR
       };
-
       switch (error.statusCode) {
         case StatusCodes.UNAUTHORIZED:
         case StatusCodes.FORBIDDEN:
           return {
             ...healthResult,
             healthStatus: HealthStatus.Unhealthy,
-            message: extendedErrorMessage
-              ? extendedErrorMessage
-              : error.messageUnhealthy
+            message: extendedErrorMessage ? extendedErrorMessage : error.message
           };
         case StatusCodes.NOT_IMPLEMENTED:
           return {
             ...healthResult,
             healthStatus: HealthStatus.NotImplemented,
-            message: 'The function for validating token is not implemented.',
-            statusCode: error.statusCode
+            message: 'The function for validating token is not implemented.'
           };
       }
 
@@ -650,7 +645,8 @@ export function createHypersync(superclass: typeof OAuthConnector) {
       syncStartDate: string,
       hyperproofUser: IHyperproofUser,
       page?: string,
-      metadata?: SyncMetadata
+      metadata?: SyncMetadata,
+      retryCount?: number
     ): Promise<IGetProofDataResponse | IRetryResponse> {
       throw Error('Not implemented');
     }

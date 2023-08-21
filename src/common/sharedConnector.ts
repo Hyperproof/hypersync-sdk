@@ -1,14 +1,4 @@
-import { FusebitContext } from '@fusebit/add-on-sdk';
-import {
-  OAuthConnector,
-  OAuthTokenResponse,
-  UserContext
-} from '@fusebit/oauth-connector';
 import * as express from 'express';
-import fs from 'fs';
-import createHttpError from 'http-errors';
-import { StatusCodes } from 'http-status-codes';
-import path from 'path';
 import { CustomAuthCredentials, IAuthorizationConfigBase } from './authModels';
 import {
   formatUserKey,
@@ -37,7 +27,22 @@ import {
   setHyperproofClientSecret
 } from './hyperproofTokens';
 import { Logger, LoggerContextKey } from './Logger';
-import { IConnectionHealth } from './models';
+import {
+  ICheckConnectionHealthInvocationPayload,
+  IConnectionHealth
+} from './models';
+import { TraceParent } from './TraceParent';
+
+import {
+  FusebitContext,
+  OAuthConnector,
+  OAuthTokenResponse,
+  UserContext
+} from '@hyperproof/integration-sdk';
+import fs from 'fs';
+import createHttpError from 'http-errors';
+import { StatusCodes } from 'http-status-codes';
+import path from 'path';
 
 /**
  * Representation of a user's connection to an external service.
@@ -115,6 +120,26 @@ export function createConnector(superclass: typeof OAuthConnector) {
     public connectorName: string;
     public authorizationType: AuthorizationType;
 
+    // TODO: Move types into @types/fusebit__oauth-connector (HYP-30165)
+    /**
+     * Maximum number of times the user status will be queried before failing while waiting for the user's
+     * access token to be refreshed.
+     */
+    public refreshWaitCountLimit: number;
+    /**
+     * Intial backoff in milliseconds before querying user status for completion of an access token refresh.
+     */
+    public refreshInitialBackoff: number;
+    /**
+     * Backoff increment for consecutive attempts to query user status for completion of an access token refresh.
+     */
+    public refreshBackoffIncrement: number;
+    /**
+     * Time in milliseconds from the start of a token refresh operation after which subsequent token refresh attempts
+     * are not longer queued waiting for its completion but initiate another token refresh request instead.
+     */
+    public concurrentRefreshLockTimeout: number;
+
     constructor(connectorName: string) {
       super();
       if (!process.env.integration_type) {
@@ -129,6 +154,20 @@ export function createConnector(superclass: typeof OAuthConnector) {
           ? AuthorizationType.OAUTH
           : AuthorizationType.CUSTOM;
       this.checkAuthorized = this.checkAuthorized.bind(this);
+
+      // this must be set in the constructor after super() and not as a default
+      // value because the OAuthConnector constructor will set these
+      //
+      // refreshInitialBackoff * refreshBackoffIncrement ^ refreshWaitCountLimit = max refresh wait time in ms
+      //
+      // wait up to ~29s for other connector to finish refreshing token before
+      // saying the other connector's refresh failed
+      this.refreshWaitCountLimit = 10;
+      this.refreshInitialBackoff = 1000;
+      this.refreshBackoffIncrement = 1.4;
+      // should wait 30s after a refresh lock is started before starting
+      // another token refresh
+      this.concurrentRefreshLockTimeout = 30000;
     }
 
     /**
@@ -171,6 +210,12 @@ export function createConnector(superclass: typeof OAuthConnector) {
             userId = parts[i + 1];
           }
         }
+
+        const traceParentHeader = req.headers.traceparent;
+        const traceParent = Array.isArray(traceParentHeader)
+          ? traceParentHeader[0]
+          : traceParentHeader;
+        TraceParent.traceParent = traceParent;
 
         Logger.init(
           {
@@ -271,6 +316,39 @@ export function createConnector(superclass: typeof OAuthConnector) {
       );
 
       /**
+       * Check a connection's health by vendorUserId
+       */
+      app.post(
+        [
+          '/organizations/:orgId/users/:userId/connections/:vendorUserId/connectionhealth'
+        ],
+        this.checkAuthorized(),
+        async (req: express.Request, res: express.Response) => {
+          try {
+            const fusebitContext = req.fusebit;
+            const { orgId, userId, vendorUserId } = req.params;
+
+            const result = await this.checkConnectionHealth(
+              fusebitContext,
+              orgId,
+              userId,
+              vendorUserId,
+              req.body
+            );
+            return res.json(result);
+          } catch (err: any) {
+            await Logger.error(
+              `Connection health check returned with error ${err.message}`,
+              err
+            );
+            res
+              .status(err.status || StatusCodes.INTERNAL_SERVER_ERROR)
+              .json({ message: err.message });
+          }
+        }
+      );
+
+      /**
        * Retrieves a list of connections created by a user.
        */
       app.get(
@@ -299,41 +377,6 @@ export function createConnector(superclass: typeof OAuthConnector) {
             }
           } catch (err: any) {
             await Logger.error('Failed to retrieve connections', err);
-            res
-              .status(err.status || StatusCodes.INTERNAL_SERVER_ERROR)
-              .json({ message: err.message });
-          }
-        }
-      );
-
-      /**
-       * Check a connection's health by vendorUserId
-       */
-      app.post(
-        [
-          '/organizations/:orgId/users/:userId/connections/:vendorUserId/connectionhealth'
-        ],
-        this.checkAuthorized(),
-        async (req: express.Request, res: express.Response) => {
-          try {
-            const fusebitContext = req.fusebit;
-            const { orgId, userId, vendorUserId } = req.params;
-            const { hostUrl } = req.body;
-
-            const result = await this.checkConnectionHealth(
-              fusebitContext,
-              orgId,
-              userId,
-              vendorUserId,
-              hostUrl
-            );
-
-            return res.json(result);
-          } catch (err: any) {
-            await Logger.error(
-              `Connection health check returned with error ${err.message}`,
-              err
-            );
             res
               .status(err.status || StatusCodes.INTERNAL_SERVER_ERROR)
               .json({ message: err.message });
@@ -1094,7 +1137,7 @@ export function createConnector(superclass: typeof OAuthConnector) {
       orgId: string,
       userId: string,
       vendorUserId: string,
-      hostUrl?: string
+      body?: ICheckConnectionHealthInvocationPayload
     ): Promise<IConnectionHealth> {
       throw new Error('Must be implemented by the derived class.');
     }

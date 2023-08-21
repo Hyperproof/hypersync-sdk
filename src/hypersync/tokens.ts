@@ -1,4 +1,9 @@
-import { DataObject, DataValue, HypersyncCriteria } from './models';
+import {
+  DataObject,
+  DataValue,
+  HypersyncCriteria,
+  HypersyncCriteriaValue
+} from '@hyperproof/hypersync-models';
 
 /**
  * Context object that is used when resolving placeholder tokens in a string.
@@ -17,14 +22,20 @@ export type TokenContext = {
  * in a provided context object.  Tokens are of the form:
  *   {foo.bar.prop}
  *
- * @param {*} value Tokenized string.
- * @param {*} context Dictionary of values to use in place of tokens.
+ * @param value Tokenized string.
+ * @param context Dictionary of values to use in place of tokens.
+ * @param suppressErrors Whether or not to supress errors when they are detected.
  */
-export const resolveTokens = (value: string, context: TokenContext) => {
+export const resolveTokens = (
+  value: string,
+  context: TokenContext,
+  suppressErrors = false
+) => {
   let output = value;
   const regEx = /\{\{.*?\}\}/g;
   let tokens = output.match(regEx);
-  while (tokens) {
+  let foundError = false;
+  while (tokens && !foundError) {
     for (const token of tokens) {
       const variable = token.substring(2, token.length - 2).trim();
       if (!variable || variable.length === 0) {
@@ -37,14 +48,18 @@ export const resolveTokens = (value: string, context: TokenContext) => {
         | DataObject
         | DataObject[]
         | HypersyncCriteria
+        | HypersyncCriteriaValue
         | TokenContext;
 
+      // Special handling for `env.` references.
       if (parts.length === 2 && parts[0] === 'env') {
         value = process.env[parts[1]];
         if (!value) {
-          throw new Error(`Unable to resolve token: ${token}`);
+          foundError = true;
         }
       } else {
+        // For all other tokens, we have to iterate through the parts of
+        // the token to find the value we are after.
         value = context;
         while (parts.length) {
           const part = parts.shift();
@@ -55,17 +70,33 @@ export const resolveTokens = (value: string, context: TokenContext) => {
             value instanceof Date ||
             value instanceof BigInt
           ) {
-            throw new Error(`Invalid token: ${token}`);
+            foundError = true;
+            break;
           }
           value = value[part!];
           if (!value && parts.length) {
-            throw new Error(`Unable to resolve token: ${token}`);
+            foundError = true;
+            break;
           }
         }
       }
-      if (typeof value === 'object') {
-        throw new Error(`Invalid token: ${token}`);
+
+      // If the token resolved to an object reference, it is considered
+      // invalid.  We cannot insert an object into the target.
+      if (!foundError && typeof value === 'object') {
+        foundError = true;
       }
+
+      // If we ran into an error processing the token and suppressErrors
+      // is true, just leave the token as-is and move on.  Otherwise throw.
+      if (foundError) {
+        if (suppressErrors) {
+          continue;
+        } else {
+          throw new Error(`Invalid token: ${token}`);
+        }
+      }
+
       output = output.replace(token, (value ?? '').toString());
     }
 

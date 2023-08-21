@@ -8,6 +8,48 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ## Release Notes
 
+### 2.0.0
+
+Version 2.0 of the Hypersync SDK represents the first major enhancement since the
+initial release. There are a number of feature enhancements and breaking changes
+in this update.
+
+- The Hypersync SDK now depends on two new public packages: `@hyperproof/hypersync-models` and
+  `@hyperproof/integration-sdk`. This refactoring has been done to support current and
+  future enhancements to integrations in Hyperproof.
+
+- Some types, interfaces and enums have been extracted from `@hyperproof/hypersync-sdk`
+  and are now a part of `@hyperproof/hypersync-models`. The complete list of the models
+  exposed by `@hyperproof/hypersync-models` can be found in the
+  [public repository](https://github.com/Hyperproof/hypersync-models). Hypersync apps that
+  depend on these models will need to add a dependency on the package.
+
+- The `OAuthTokenResponse` interface has been moved from the `@hyperproof/hypersync sdk`
+  package to `@hyperproof/integration-sdk`. Hypersync apps that depend on this interface
+  will need to add a dependency on `@hyperproof/integration-sdk`.
+
+- Enum values in `CredentialFieldType`, `HypersyncCriteriaFieldType`, `HypersyncDataFormat`,
+  `HypersyncPageOrientation` and `HypersyncFieldType` have been updated to use Pascal casing.
+
+- The SDK now supports Hyperproof's Connection Health feature. To return connection health
+  information in an OAuth Hypersync app, override the `validateAccessToken` method. In a custom auth
+  Hypersync app, the `validateCredentials` method is used to determine connection health.
+
+- Proof types can now be grouped by category. When a category is specified in a proof type
+  (e.g. in `proofTypes.json`) the user will be required to choose the category first after
+  which they can choose a proof type. This categorization is helpful in apps with many proof types.
+  If your app uses a `criteriaFields.json` file to provide criteria, you can enable proof
+  categories by defining field called `proofCategory`. This field will generally be a select
+  control where the options in the select are the proof categories. If you are using a custom
+  `ICriteriaProvider` instance, you will need to implement the `generateProofCategoryField` method.
+
+- The `webPageUrl` property of a proof specification is now optional.
+
+- For REST data sources, the optional `filter` property on `dataSet`
+  now supports JSONata expressions.
+
+- Various enhancements and fixes have been made to improve overall quality and reliability.
+
 ### 1.1.0
 
 #### Rename data source messages to "value lookups".

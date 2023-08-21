@@ -1,13 +1,18 @@
-import Sdk, { FusebitContext } from '@fusebit/add-on-sdk';
 import {
+  createStorageClient,
+  FusebitContext,
+  StorageClient
+} from '@hyperproof/integration-sdk';
+import createHttpError from 'http-errors';
+import StatusCodes from 'http-status-codes';
+
+import {
+  getHpUserFromUserKey,
   IUserConnection,
   IUserConnectionPatch,
   listAllStorageKeys,
-  getHpUserFromUserKey,
   Logger
 } from '../common';
-import createHttpError from 'http-errors';
-import StatusCodes from 'http-status-codes';
 
 /**
  * Storage client that can be used to access the Hypersync connection information
@@ -15,12 +20,9 @@ import StatusCodes from 'http-status-codes';
  */
 export class HypersyncStorageClient {
   private fusebitContext: FusebitContext;
-  private storage: Sdk.StorageClient;
+  private storage: StorageClient;
 
-  private constructor(
-    fusebitContext: FusebitContext,
-    storage: Sdk.StorageClient
-  ) {
+  private constructor(fusebitContext: FusebitContext, storage: StorageClient) {
     this.fusebitContext = fusebitContext;
     this.storage = storage;
   }
@@ -34,7 +36,7 @@ export class HypersyncStorageClient {
         process.env.custom_function_key ?? ''
       }/root`;
     }
-    const storage = await Sdk.createStorageClient(
+    const storage = await createStorageClient(
       fusebitContext,
       fusebitContext.fusebit.functionAccessToken,
       storageIdPrefix

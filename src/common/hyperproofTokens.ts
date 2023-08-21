@@ -1,11 +1,13 @@
-import { FusebitContext } from '@fusebit/add-on-sdk';
-import createHttpError from 'http-errors';
-import { StatusCodes } from 'http-status-codes';
-import Superagent from 'superagent';
 import { IAuthorizationConfig, IAuthorizationConfigBase } from './authModels';
 import { formatUserKey } from './common';
 import { AuthorizationType, InstanceType } from './enums';
 import { Logger } from './Logger';
+import { TraceParent } from './TraceParent';
+
+import { FusebitContext } from '@hyperproof/integration-sdk';
+import createHttpError from 'http-errors';
+import { StatusCodes } from 'http-status-codes';
+import Superagent from 'superagent';
 
 /**
  * Hyperproof user information is stored under this storage root.
@@ -142,6 +144,7 @@ export const getHyperproofAccessToken = async (
     process.env.hyperproof_oauth_token_url!
   )
     .type('form')
+    .set(TraceParent.getHeaders())
     .send({
       grant_type: 'authorization_code',
       code: authorizationCode,
@@ -189,6 +192,7 @@ const refreshHyperproofAccessToken = async (
     process.env.hyperproof_oauth_token_url!
   )
     .type('form')
+    .set(TraceParent.getHeaders())
     .send({
       grant_type: 'refresh_token',
       refresh_token: hpUserContext.hyperproofToken.refresh_token,
@@ -463,7 +467,10 @@ export const deleteHyperproofUser = async (
       `${process.env.hyperproof_oauth_token_url}/organizations/${orgId}`
     )
       .send({ client_secret: hyperproofClientSecret })
-      .set('Authorization', `Bearer ${accessToken}`);
+      .set({
+        ...TraceParent.getHeaders(),
+        Authorization: `Bearer ${accessToken}`
+      });
   } catch (err: any) {
     await Logger.error(
       'Failed to notify Hyperproof that user is being deleted.',

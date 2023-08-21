@@ -52,3 +52,7 @@ export interface IConnectionHealth {
   message?: string;
   details?: string;
 }
+
+export interface ICheckConnectionHealthInvocationPayload {
+  hostUrl: string;
+}

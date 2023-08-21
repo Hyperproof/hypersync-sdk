@@ -1,7 +1,13 @@
-import { FieldType, ISelectOption } from '../common';
-import { HypersyncPeriod } from './enums';
-import { DataValue, HypersyncCriteria } from './models';
 import { TokenContext } from './tokens';
+
+import {
+  HypersyncCriteria,
+  HypersyncCriteriaFieldType,
+  HypersyncCriteriaValue,
+  HypersyncPeriod,
+  IProofCriterionRef,
+  ISelectOption
+} from '@hyperproof/hypersync-models';
 
 /**
  * Information needed to render a criteria field used in the configuration
@@ -9,7 +15,7 @@ import { TokenContext } from './tokens';
  */
 export interface ICriteriaField {
   name: string;
-  type: FieldType;
+  type: HypersyncCriteriaFieldType;
   label: string;
   options?: ISelectOption[];
   value?: string | number;
@@ -41,26 +47,33 @@ export interface ICriteriaMetadata {
 }
 
 /**
- * Reference to a proof criterion and the page on which it should be included.
- */
-export interface IProofCriterionRef {
-  name: string;
-  page: number;
-}
-
-/**
  * Information used to display a criterion value in a generated proof document.
  */
 export interface IProofCriterionValue {
   name: string;
   label: string;
-  value: DataValue;
+  value: HypersyncCriteriaValue;
 }
 
 /**
  * Provides criteria metadata and values to a proof provider.
  */
 export interface ICriteriaProvider {
+  /**
+   * Generates the proof category criteria field for the app.
+   *
+   * Proof category fields are fields that must be filled in before
+   * the user can select a proof type.  The set of proof types shown to
+   * the user is filtered such that it only shows matching proof types.
+   *
+   * @param criteriaValues Criteria values selected by the user.
+   * @param tokenContext Context object used in resolving placeholder tokens.
+   */
+  generateProofCategoryField(
+    criteriaValues: HypersyncCriteria,
+    tokenContext: TokenContext
+  ): Promise<ICriteriaField | null>;
+
   /**
    * Adds criteria fields to the provided set of criteria pages.
    *

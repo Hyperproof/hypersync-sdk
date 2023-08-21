@@ -6,6 +6,7 @@ export const MESSAGES = {
     'This import will take {hours} hour and {minutes} minutes',
   ImportTimeGreaterThan2Hours:
     'This import will take {hours} hours and {minutes} minutes',
+  ProofCategoryOther: 'Other',
   ProofType: 'Proof'
 };
 

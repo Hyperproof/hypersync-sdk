@@ -1,12 +1,13 @@
-import Sdk, {
-  getFunctionUrl,
-  FusebitContext,
-  StorageItem,
-  ListStorageResult
-} from '@fusebit/add-on-sdk';
-import Jwt from 'jsonwebtoken';
-
 import { ObjectType } from './enums';
+
+import {
+  debug,
+  FusebitContext,
+  getFunctionUrl,
+  ListStorageResult,
+  StorageItem
+} from '@hyperproof/integration-sdk';
+import Jwt from 'jsonwebtoken';
 
 const pluralize = (value: ObjectType) => {
   return value.endsWith('s') ? value : `${value}s`;
@@ -283,13 +284,13 @@ export const pickProps = (
     if (props in source) {
       target[source[props]] = source[props];
     } else {
-      Sdk.debug(`Invalid prop: ${props}`);
+      debug(`Invalid prop: ${props}`);
     }
   }
 
   if (Array.isArray(props)) {
     if (props.length < 1) {
-      Sdk.debug(`Empty props array`);
+      debug(`Empty props array`);
     }
     for (const prop of props) {
       switch (typeof prop) {
@@ -301,14 +302,14 @@ export const pickProps = (
           }
           break;
         default:
-          Sdk.debug(`Invalid prop type supplied: ${prop}`);
+          debug(`Invalid prop type supplied: ${prop}`);
       }
 
       if (typeof prop === 'string') {
         if (prop in source) {
           target[prop] = source[prop];
         } else {
-          Sdk.debug(`Prop not found on source object: ${prop}`);
+          debug(`Prop not found on source object: ${prop}`);
         }
       } else if (isTransformOption(prop)) {
         const propName = prop.sourceProp;
@@ -330,16 +331,16 @@ export const pickProps = (
             }
           }
         } else {
-          Sdk.debug(`Prop not found on source object: ${propName}`);
+          debug(`Prop not found on source object: ${propName}`);
         }
       } else {
-        Sdk.debug(
+        debug(
           `Invalid individual prop: ${prop}. Expect string | TransformOption. Received ${typeof prop}.`
         );
       }
     }
   } else {
-    Sdk.debug(
+    debug(
       `Invalid 'props' argument. Expected Array or String but instead got ${typeof props}.`
     );
   }

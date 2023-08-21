@@ -1,12 +1,9 @@
-import { AuthorizationType, CredentialFieldType } from './enums';
+import { AuthorizationType } from './enums';
 
-/**
- * An option that may be chosen in a select control.
- */
-export interface ISelectOption {
-  value: string | number;
-  label: string;
-}
+import {
+  CredentialFieldType,
+  ISelectOption
+} from '@hyperproof/hypersync-models';
 
 /**
  * Metadata for a field that is used to provide credentials in a custom
