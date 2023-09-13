@@ -10,7 +10,7 @@ To use the Hypersync SDK you will need a Windows, Mac or Linux computer with a f
 
 Since each Hypersync is a Node.js module, you will need to have Node.js installed in order to build custom Hypersyncs. The Hypersync platform uses Node.js version 16 which you can install here:
 
-- [Node JS version 16](https://nodejs.org/download/release/v16.18.1/).
+- [Node JS version 18](https://nodejs.org/download/release/v18.17.1/).
 
 You will also need to install the yarn package manager using the link below.
 

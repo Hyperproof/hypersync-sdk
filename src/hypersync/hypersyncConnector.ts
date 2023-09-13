@@ -5,14 +5,17 @@ import { HypersyncStage } from './enums';
 import { createHypersyncStorageClient } from './HypersyncStorageClient';
 import { ICriteriaMetadata } from './ICriteriaProvider';
 import { SyncMetadata } from './IDataSource';
+import { formatMessage, MESSAGES } from './messages';
 import { IHypersync } from './models';
 import { IHypersyncSchema } from './ProofProviderBase';
 import { IGetProofDataResponse } from './Sync';
 
 import { HypersyncCriteria } from '@hyperproof/hypersync-models';
 import {
+  ErrorName,
   FusebitContext,
   OAuthConnector,
+  RefreshTokenError,
   StorageItem,
   UserContext
 } from '@hyperproof/integration-sdk';
@@ -429,7 +432,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
         // we'll need to allow JiraHS to find its userContext using hostUrl
         if (!userContext) {
           throw createHttpError(
-            StatusCodes.UNAUTHORIZED,
+            StatusCodes.NOT_FOUND,
             this.getUserNotFoundMessage(vendorUserId)
           );
         }
@@ -457,21 +460,32 @@ export function createHypersync(superclass: typeof OAuthConnector) {
           );
         }
       } catch (e: any) {
+        if (e instanceof RefreshTokenError) {
+          await Logger.info(e.message);
+        }
         // The connector can customize the health result status and message here.
         // However custom connectors' validateCredentials may have already handled the
         // error and threw a different error/status code.
         const healthResult = this.handleHealthError(e);
 
         if (healthResult.healthStatus === HealthStatus.NotImplemented) {
-          Logger.info(
+          await Logger.info(
             `Connection health check found the connector did not implement validate credentials function.`
           );
         } else if (healthResult.healthStatus === HealthStatus.Unhealthy) {
-          Logger.info(
-            `Connection health check returned an unhealthy response: ${healthResult.message}`
-          );
+          if (healthResult.statusCode === StatusCodes.NOT_FOUND) {
+            await Logger.info(
+              `Connection health check returned an unhealthy response: ${this.getUserNotFoundMessage(
+                vendorUserId
+              )}`
+            );
+          } else {
+            await Logger.info(
+              `Connection health check returned an unhealthy response: ${healthResult.message}`
+            );
+          }
         } else if (healthResult.healthStatus === HealthStatus.Unknown) {
-          Logger.warn(
+          await Logger.warn(
             `Connection health check returned an unknown error: ${healthResult.message}`
           );
         }
@@ -519,22 +533,38 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * This can be overriden by the connector in order to provide better health check result with more information or to process/filter errors.
      */
     handleHealthError(error: any): IConnectionHealth {
+      let errorMessage = error.message;
+      if (error instanceof RefreshTokenError) {
+        if (error.name === ErrorName.REFRESH_TOKEN_ATTEMPTS_EXHAUSTED) {
+          errorMessage = formatMessage(MESSAGES.NoAccountFound, {
+            [MESSAGES.App]: this.connectorName
+          });
+        }
+      }
       const extendedErrorMessage = error[LogContextKey.ExtendedMessage];
       const healthResult: Readonly<IConnectionHealth> = {
         healthStatus: HealthStatus.Unknown,
         message: `Error: ${
-          extendedErrorMessage ? extendedErrorMessage : error.message
+          extendedErrorMessage ? extendedErrorMessage : errorMessage
         }`,
         details: undefined,
         statusCode: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR
       };
       switch (error.statusCode) {
+        case StatusCodes.NOT_FOUND:
+          return {
+            ...healthResult,
+            healthStatus: HealthStatus.Unhealthy,
+            message: formatMessage(MESSAGES.NoAccountFound, {
+              [MESSAGES.App]: this.connectorName
+            })
+          };
         case StatusCodes.UNAUTHORIZED:
         case StatusCodes.FORBIDDEN:
           return {
             ...healthResult,
             healthStatus: HealthStatus.Unhealthy,
-            message: extendedErrorMessage ? extendedErrorMessage : error.message
+            message: extendedErrorMessage ? extendedErrorMessage : errorMessage
           };
         case StatusCodes.NOT_IMPLEMENTED:
           return {

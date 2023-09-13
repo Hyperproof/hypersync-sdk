@@ -8,6 +8,12 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ## Release Notes
 
+### 2.1.0
+
+- Add support for Node 18
+- Add ability to test for service permissions
+- Various bug fixes
+
 ### 2.0.0
 
 Version 2.0 of the Hypersync SDK represents the first major enhancement since the

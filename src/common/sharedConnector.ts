@@ -29,7 +29,9 @@ import {
 import { Logger, LoggerContextKey } from './Logger';
 import {
   ICheckConnectionHealthInvocationPayload,
-  IConnectionHealth
+  IConnectionHealth,
+  ITestExternalPermissionsBody,
+  ITestExternalPermissionsResponse
 } from './models';
 import { TraceParent } from './TraceParent';
 
@@ -534,6 +536,28 @@ export function createConnector(superclass: typeof OAuthConnector) {
             });
           } catch (err: any) {
             await Logger.error('Failed to delete connection', err);
+            res
+              .status(err.status || StatusCodes.INTERNAL_SERVER_ERROR)
+              .json({ message: err.message });
+          }
+        }
+      );
+
+      app.post(
+        '/organizations/:orgId/users/:userId/testpermissions',
+        this.checkAuthorized(),
+        async (req, res) => {
+          try {
+            const { orgId, userId } = req.params;
+            const permissionsResponse = await this.testPermissions(
+              req.fusebit,
+              orgId,
+              userId,
+              req.body
+            );
+            res.json(permissionsResponse);
+          } catch (err: any) {
+            await Logger.error('Failed to retrieve user permissions', err);
             res
               .status(err.status || StatusCodes.INTERNAL_SERVER_ERROR)
               .json({ message: err.message });
@@ -1186,6 +1210,19 @@ export function createConnector(superclass: typeof OAuthConnector) {
         return JSON.parse(
           Buffer.from(fusebitContext.query.state as string, 'base64').toString()
         );
+    }
+
+    async testPermissions(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      fusebitContext: FusebitContext,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      orgId: string,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      userId: string,
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      body: ITestExternalPermissionsBody
+    ): Promise<ITestExternalPermissionsResponse> {
+      return { permissions: [] };
     }
 
     async serveStaticFile(fileName: string, res: express.Response) {
