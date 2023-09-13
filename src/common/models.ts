@@ -56,3 +56,18 @@ export interface IConnectionHealth {
 export interface ICheckConnectionHealthInvocationPayload {
   hostUrl: string;
 }
+
+export interface ITestExternalPermissionsBody {
+  appId: string;
+  [key: string]: any;
+}
+
+export interface ITestExternalPermissionsResponse {
+  permissions: IExternalPermission[];
+}
+
+export interface IExternalPermission {
+  label: string;
+  havePermission: boolean;
+  required?: boolean;
+}
