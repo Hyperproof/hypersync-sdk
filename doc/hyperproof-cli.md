@@ -11,9 +11,9 @@ The Hyperproof CLI is a cross-platform command line tool that can be installed t
 - [Linux (Ubuntu)](#install-on-linux)
 - [Windows 10 and 11](#install-on-windows)
 
-The Hyperproof CLI has a dependency on the .Net Runtime 6.0. Before installing the Hyperproof CLI, please install the .Net Runtime 6.0 using the link below.
+The Hyperproof CLI has a dependency on the .Net Runtime 7.0. Before installing the Hyperproof CLI, please install the .Net Runtime 7.0 using the link below.
 
-- [Download .Net 6.0](https://dotnet.microsoft.com/en-us/download/dotnet/6.0).
+- [Download .Net 7.0](https://dotnet.microsoft.com/en-us/download/dotnet/7.0).
 
 ### Install on Linux
 
@@ -25,9 +25,9 @@ The Hyperproof CLI has been tested on the following Linux distributions.
 
 It may also be installed on other Debian distributions but the Hyperprof CLI has not been tested on these platforms.
 
-Once you have installed the [.Net Runtime 6.0](https://dotnet.microsoft.com/en-us/download/dotnet/6.0), the CLI can be installed by downloading a `.deb` package from the Hyperproof web site. Click the link below to download the latest version of the Hyperproof CLI.
+Once you have installed the [.Net Runtime 7.0](https://dotnet.microsoft.com/en-us/download/dotnet/7.0), the CLI can be installed by downloading a `.deb` package from the Hyperproof web site. Click the link below to download the latest version of the Hyperproof CLI.
 
-- [Download HP CLI `.deb` for Debian Linux Distributions](https://downloads.hyperproof.app/hpcli/hpcli_0.9.1-1_amd64.deb)
+- [Download HP CLI `.deb` for Debian Linux Distributions](https://downloads.hyperproof.app/hpcli/hpcli_1.0.0-1_amd64.deb)
 
 The `.deb` package installs the HP CLI under `/usr/bin`.
 
@@ -42,15 +42,15 @@ The Hyperproof CLI has been tested on the following Windows versions.
 | Windows 10 |
 | Windows 11 |
 
-Once you have installed the [.Net Runtime 6.0](https://dotnet.microsoft.com/en-us/download/dotnet/6.0), click the link below to download and run the HP CLI Windows installer.
+Once you have installed the [.Net Runtime 7.0](https://dotnet.microsoft.com/en-us/download/dotnet/7.0), click the link below to download and run the HP CLI Windows installer.
 
-- [Download HP CLI Windows Installer](https://downloads.hyperproof.app/hpcli/hpcli-0.9.1.exe)
+- [Download HP CLI Windows Installer](https://downloads.hyperproof.app/hpcli/hpcli-1.0.0.exe)
 
 The Hyperproof CLI will be installed under `C:\Program Files\Hyperproof CLI` unless you choose a different installation location. The installation directory should be added to your path.
 
 ### Install on Mac
 
-The Hyperproof CLI for Mac depends on the [.Net Runtime 6.0](https://dotnet.microsoft.com/en-us/download/dotnet/6.0). Use the links on that page to install the appropriate .Net 6.0 Runtime for your system.
+The Hyperproof CLI for Mac depends on the [.Net Runtime 7.0](https://dotnet.microsoft.com/en-us/download/dotnet/7.0). Use the links on that page to install the appropriate .Net 7.0 Runtime for your system.
 
 Once you have installed the .Net Runtime, you can use Homebrew to install, update and uninstall the Hyperproof CLI. If you don't have Homebrew available on your system, install [Homebrew](https://docs.brew.sh/Installation.html) before continuing.
 
@@ -59,6 +59,12 @@ You can install the Hyperproof CLI on macOS by adding the Hyperproof tap, and th
 ```
 brew tap Hyperproof/hyperproof
 brew install hyperproof-cli
+```
+
+If you have already installed an earlier version of the Hyperproof CLI, you can upgrade to the latest version with this command:
+
+```
+brew upgrade hyperproof-cli
 ```
 
 ### Installation Verification
