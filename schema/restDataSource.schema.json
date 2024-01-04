@@ -29,6 +29,13 @@
             "url": {
               "type": "string"
             },
+            "method": {
+              "type": "string",
+              "enum": ["GET", "POST"]
+            },
+            "body": {
+              "type": "string"
+            },
             "property": {
               "type": "string"
             },
