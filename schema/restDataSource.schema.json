@@ -34,7 +34,7 @@
               "enum": ["GET", "POST"]
             },
             "body": {
-              "type": "string"
+              "type": ["object", "string"]
             },
             "property": {
               "type": "string"
