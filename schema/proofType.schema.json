@@ -97,6 +97,9 @@
         "noResultsMessage": {
           "type": "string"
         },
+        "autoLayout": {
+          "type": "boolean"
+        },
         "fields": {
           "type": "array",
           "items": {
