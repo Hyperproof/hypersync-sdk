@@ -7,6 +7,10 @@
   "properties": {
     "$schema": {
       "type": "string"
+    },
+    "schemaCategory": {
+      "type": "string",
+      "enum": ["uarDirectory", "uarApplication"]
     }
   },
   "patternProperties": {
