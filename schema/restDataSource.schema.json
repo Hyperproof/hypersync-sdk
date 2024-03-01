@@ -1,5 +1,4 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema#",
   "$id": "restDataSource.schema.json",
   "title": "Hypersync REST Data Source Schema",
   "description": "Describes the information stored in a Hypersync REST data source JSON file.",
@@ -32,6 +31,57 @@
             "method": {
               "type": "string",
               "enum": ["GET", "POST"]
+            },
+            "pagingScheme": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string",
+                  "enum": ["offsetAndLimit", "pageBased"]
+                },
+                "request": {
+                  "type": "object",
+                  "properties": {
+                    "pageParameter": {
+                      "type": "string"
+                    },
+                    "pageStartingValue": {
+                      "type": "number"
+                    },
+                    "offsetParameter": {
+                      "type": "string"
+                    },
+                    "offsetStartingValue": {
+                      "type": "number"
+                    },
+                    "limitParameter": {
+                      "type": "string"
+                    },
+                    "limitValue": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "response": {
+                  "type": "object",
+                  "properties": {
+                    "totalCount": {
+                      "type": "string"
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "pageUntil": {
+                  "type": "string",
+                  "enum": ["noDataLeft", "reachTotalCount"]
+                },
+                "level": {
+                  "type": "string",
+                  "enum": ["connector", "job"]
+                }
+              },
+              "required": ["type", "request", "pageUntil"]
             },
             "body": {
               "type": ["object", "string"]
