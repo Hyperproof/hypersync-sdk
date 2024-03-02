@@ -42,27 +42,44 @@
                 },
                 "request": {
                   "type": "object",
-                  "properties": {
-                    "pageParameter": {
-                      "type": "string"
+                    "oneOf": [
+                      {
+                      "properties": {
+                        "pageParameter": {
+                          "type": "string"
+                        },
+                        "pageStartingValue": {
+                          "type": "number"
+                        },
+                        "limitParameter": {
+                          "type": "string"
+                        },
+                        "limitValue": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "minProperties": 4
                     },
-                    "pageStartingValue": {
-                      "type": "number"
-                    },
-                    "offsetParameter": {
-                      "type": "string"
-                    },
-                    "offsetStartingValue": {
-                      "type": "number"
-                    },
-                    "limitParameter": {
-                      "type": "string"
-                    },
-                    "limitValue": {
-                      "type": "number"
+                    {
+                      "properties": {
+                        "offsetParameter": {
+                          "type": "string"
+                        },
+                        "offsetStartingValue": {
+                          "type": "number"
+                        },
+                        "limitParameter": {
+                          "type": "string"
+                        },
+                        "limitValue": {
+                          "type": "number"
+                        }
+                      },
+                      "additionalProperties": false,
+                      "minProperties": 4
                     }
-                  },
-                  "additionalProperties": false
+                    ]
                 },
                 "response": {
                   "type": "object",
