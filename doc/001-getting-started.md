@@ -12,9 +12,9 @@ Since each Hypersync is a Node.js module, you will need to have Node.js installe
 
 - [Node JS version 18](https://nodejs.org/download/release/v18.17.1/).
 
-You will also need to install the yarn package manager using the link below.
+You will also need to install the classic yarn package manager (version 1.22.19) using the link below.
 
-- [yarn package manager](https://yarnpkg.com/)
+- [yarn package manager](https://classic.yarnpkg.com)
 
 The Hyperproof CLI is needed to publish and manage your custom Hypersyncs:
 
