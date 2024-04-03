@@ -66,7 +66,7 @@ Many REST APIs use a paging mechanism to allow data to be retrieved in chunks. F
 
 Three paging styles are supported.
 
-1.  __Page Based.__  Begin paging at a starting value and increment the page value by 1 after each iteration.  Return at most `limit` items.
+1.  __Page Based.__  Begin paging at a starting value and increment the page value by 1 after each iteration.  Return at most `limitValue` items.
 
 ```
 "pagingScheme": {
@@ -81,7 +81,7 @@ Three paging styles are supported.
 }
 ```
 
-2.  __Offset And Limit.__  Beging paging at a starting value and increment the offset by the number of elements in a full page.  Return at most `limit` items.
+2.  __Offset And Limit.__  Beging paging at a starting value and increment the offset by the number of elements in a full page.  Return at most `limitValue` items.
 
 ```
 "pagingScheme": {
@@ -99,7 +99,7 @@ Three paging styles are supported.
 }
 ```
 
-3.  __Next Token.__  Begin paging and continue until `nextToken` is no longer provided.  Return at most `limit` items.  Tokens may be a unique string returned from the external service or a url.
+3.  __Next Token.__  Begin paging and continue until `nextToken` is no longer provided.  Return at most `limitValue` items.  Tokens may be a unique string returned from the external service or a url.
 
 ```
 "pagingScheme": {
