@@ -64,33 +64,66 @@ For more information on configuring the data sets in your data source using `dat
 
 Many REST APIs use a paging mechanism to allow data to be retrieved in chunks. For example, some APIs take a `pageSize` and `pageNumber` argument which specify how many items to return, and the page number to start reading from, respectively.
 
-While it is possible to configure many aspects of your data sets using the `dataSource.json` file, there is currently no mechanism to handle paging. To handle paging properly, you will have to write a bit of code.
+Three paging styles are supported: __Page Based__, __Offset And Limit__, and __Next Token__.
 
-To implement paging in a data source that derives from RestDataSourceBase, override the `getDataFromUrl` method:
+1.  __Page Based.__  Begin paging at a starting value and increment the page value by 1 after each iteration (1, 2, 3, etc).  Return at most `limitValue` items per page.
 
+```json
+"pagingScheme": {
+  "type": "pageBased",
+  "request": {
+    "pageParameter": "pageNumber",
+    "pageStartingValue": 1,
+    "limitParameter": "pageSize",
+    "limitValue": 100
+  },
+  "pageUntil": "noDataLeft"
+}
 ```
-  protected async getDataFromUrl(
-    dataSetName: string,
-    dataSet: IDataSet,
-    relativeUrl: string,
-    params: DataValueMap
-  ) {
-    // No need for paging if we are just getting one object.
-    if (dataSet.result === 'object' && !dataSet.filter) {
-      return super.getDataFromUrl(dataSetName, dataSet, relativeUrl, params);
-    }
 
-    // TODO: Handle paging for My Service here.
-    const PAGE_SIZE = 50;
-    const results: DataObject[] = [];
-    const pageNumber = 0;
-    let pageResults;
-    do {
-        pageResults = await fetchPage(PAGE_SIZE, pageNumber++)
-        Array.prototype.push.apply(results, pageResults);
-    } while (pageResults.length < PAGE_SIZE)
-  }
+The mandatory `request` property in the paging scheme constructs the paged query string.  The query string of the first API call from the above example will be: `?pageNumber=1&pageSize=100`.  Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops.  If `reachTotalCount` condition is applied, `totalCount` must be defined in the response object, which represents the path to the total combined number of items in the data returned from the external service.*
+
+2.  __Offset And Limit.__  Beging paging at a starting value and increment the offset by the number of elements in a full page (0, 100, 200, 300, etc).  Return at most `limitValue` items per page.
+
+```json
+"pagingScheme": {
+  "type": "offsetAndLimit",
+  "request": {
+    "offsetParameter": "offset",
+    "offsetStartingValue": 0,
+    "limitParameter": "limit",
+    "limitValue": 100
+  },
+  "response": {
+    "totalCount": "pagination.total"
+  },
+  "pageUntil": "reachTotalCount"
+}
 ```
+
+The mandatory `request` property in the paging scheme constructs the paged query string.  The query string of the first API call from the above example will be: `?offset=0&limit=100`.  Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops.  If `reachTotalCount` condition is applied, `totalCount` must be defined in the response object.  This string value represents the path to the total combined number of items in the data returned from the external service.*
+
+3.  __Next Token.__  Begin paging and continue until `nextToken` is no longer provided.  Return at most `limitValue` items per page.  Tokens may be a unique string returned from the external service or a url.
+
+```json
+"pagingScheme": {
+  "type": "nextToken",
+  "request": {
+    "tokenParameter": "token",
+    "limitParameter": "size",
+    "limitValue": 20
+  },
+  "response": {
+    "nextToken": "next.token"
+  },
+  "pageUntil": "noNextToken",
+  "tokenType": "token"
+}
+```
+
+The mandatory `request` property in the paging scheme constructs the paged query string.  The query string of the first API call from the above example will be: `?size=20`.  Each successive call will be structured in the pattern: `?size=20&token=891b629672384d04`.  Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops.  When `noNextToken` condition is applied, `nextToken` must be included in the response object.  This string value represents the path to the expected value in the data returned from the external service.*
+
+*If values are to be found in the response header, apply the `header:` prefix.
 
 ## Custom Data Sources
 

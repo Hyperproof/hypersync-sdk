@@ -29,6 +29,7 @@ Each data set object contains the following properties:
 | filter        | No        | Predicate applied to retrieved data                      |
 | transform     | No        | Transform to apply to each object in the filtered result |
 | sort          | No        | Sort to apply to the transformed data                    |
+| pagingScheme  | No        | Definition of pagination behavior                        |
 
 ## messages
 
