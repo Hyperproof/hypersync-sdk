@@ -81,7 +81,7 @@ Three paging styles are supported: __Page Based__, __Offset And Limit__, and __N
 }
 ```
 
-The mandatory `request` property in the paging scheme constructs the paged query string.  The query string of the first API call from the above example will be: `?pageNumber=1&pageSize=100`.  Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops.  If `reachTotalCount` condition is applied, `totalCount` must be defined in the response object, which represents the path to the total combined number of items in the data returned from the external service*.
+The mandatory `request` property in the paging scheme constructs the paged query string.  The query string of the first API call from the above example will be: `?pageNumber=1&pageSize=100`.  Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops.  If `reachTotalCount` condition is applied, `totalCount` must be defined in the response object, which represents the path to the total combined number of items in the data returned from the external service.*
 
 2.  __Offset And Limit.__  Beging paging at a starting value and increment the offset by the number of elements in a full page (0, 100, 200, 300, etc).  Return at most `limitValue` items per page.
 
@@ -101,7 +101,7 @@ The mandatory `request` property in the paging scheme constructs the paged query
 }
 ```
 
-The mandatory `request` property in the paging scheme constructs the paged query string.  The query string of the first API call from the above example will be: `?offset=0&limit=100`.  Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops.  If `reachTotalCount` condition is applied, `totalCount` must be defined in the response object.  This string value represents the path to the total combined number of items in the data returned from the external service*.
+The mandatory `request` property in the paging scheme constructs the paged query string.  The query string of the first API call from the above example will be: `?offset=0&limit=100`.  Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops.  If `reachTotalCount` condition is applied, `totalCount` must be defined in the response object.  This string value represents the path to the total combined number of items in the data returned from the external service.*
 
 3.  __Next Token.__  Begin paging and continue until `nextToken` is no longer provided.  Return at most `limitValue` items per page.  Tokens may be a unique string returned from the external service or a url.
 
@@ -121,7 +121,7 @@ The mandatory `request` property in the paging scheme constructs the paged query
 }
 ```
 
-The mandatory `request` property in the paging scheme constructs the paged query string.  The query string of the first API call from the above example will be: `?size=20`.  Each successive call will be structured in the pattern: `?size=20&token=891b629672384d04`.  Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops.  When `noNextToken` condition is applied, `nextToken` must be included in the response object*.  This string value represents the path to the expected value in the data returned from the external service.
+The mandatory `request` property in the paging scheme constructs the paged query string.  The query string of the first API call from the above example will be: `?size=20`.  Each successive call will be structured in the pattern: `?size=20&token=891b629672384d04`.  Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops.  When `noNextToken` condition is applied, `nextToken` must be included in the response object.  This string value represents the path to the expected value in the data returned from the external service.*
 
 *If values are to be found in the response header, apply the `header:` prefix.
 
