@@ -10,7 +10,26 @@ export const MESSAGES = {
   ProofCategoryOther: 'Other',
   ProofType: 'Proof',
   NoAccountFound:
-    "Hyperproof cannot connect to {app}, your credentials may have expired. Try Update Credentials in Hyperproof and if that doesn't fix the connection, contact your system admin."
+    "Hyperproof cannot connect to {app}, your credentials may have expired. Try Update Credentials in Hyperproof and if that doesn't fix the connection, contact your system admin.",
+  LabelEmail: 'Email',
+  LabelAccessReview: 'Access Reviews',
+  UarDirectory: {
+    LabelAccessReview: 'Directory - Access Reviews',
+    LabelDepartment: 'Department',
+    LabelJobTitle: 'Job Title',
+    LabelManagerEmail: 'Manager Email',
+    LabelManagerName: 'Manager Name',
+    LabelName: 'Name',
+    LabelStartDate: 'Start Date'
+  },
+  UarApplication: {
+    LabelAccessReview: 'Application - Access Reviews',
+    LabelGroups: 'Groups',
+    LabelLastLogin: 'Last Login',
+    LabelOwner: 'Owner',
+    LabelRole: 'Role',
+    LabelUserName: 'Username'
+  }
 };
 
 const MESSAGE_KEYS = {

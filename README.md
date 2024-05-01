@@ -8,6 +8,30 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ## Release Notes
 
+### 3.0.0
+
+- Classes, functions, types, interfaces and enums common to all integration types have been
+  moved to @hyperproof/integration-sdk.
+
+- Paging of data set results can now be done delcaratively. For more information on
+  declarative paging, see the documentation on [declarative paging](./doc/005-data-sources.md#paging).
+
+- Data sets now support a `method` property that can be set to `GET`, `POST` or `PATCH`. Data
+  sets also include a new `body` property which is included in data requests when `POST` or `PATCH` is
+  specified.
+
+- Criteria pages can now include messages displayed at the page level. See `ICriteriaPageMessage`.
+
+- The Hypersync SDK now supports the creation of proof types that work with User Access Reviews. The
+  documentation section will soon be updated with information on creating these proof types.
+
+- Proof fields can now be laid out automaticaly by setting `autoLayout` to `true` on the proof spec.
+
+- The Hypersync SDK now supports a new integration execution environment that is under active
+  development. More information on this environment will be shared in the future.
+
+- Various enhancements and fixes have been made to improve overall quality and reliability.
+
 ### 2.1.0
 
 - Add support for Node 18

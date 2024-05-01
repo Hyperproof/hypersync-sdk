@@ -7,22 +7,32 @@ import {
   SyncMetadata
 } from './IDataSource';
 import { IErrorInfo } from './models';
+import { Paginator } from './Paginator';
 import { resolveTokens, TokenContext } from './tokens';
 
 import {
   DataObject,
+  DataSetMethod,
   DataValue,
   DataValueMap,
   IDataSet,
   IRestDataSourceConfig,
+  PagingLevel,
   Transform,
   ValueLookup
 } from '@hyperproof/hypersync-models';
+import {
+  ApiClient,
+  compareValues,
+  IApiClientResponse,
+  IHyperproofUser,
+  Logger
+} from '@hyperproof/integration-sdk';
+import createHttpError from 'http-errors';
+import { StatusCodes } from 'http-status-codes';
 import jsonata from 'jsonata';
-import { HeadersInit } from 'node-fetch';
+import { HeadersInit, Response } from 'node-fetch';
 import queryString from 'query-string';
-
-import { ApiClient, compareValues, Logger } from '../common';
 
 const LOOKUP_DEFAULT_VALUE = '__default__';
 
@@ -56,13 +66,15 @@ interface IPredicateClause {
  * Connectors should override this class and add support for service-specific
  * functionality like paging.
  */
-export class RestDataSourceBase extends DataSourceBase {
-  protected config: IRestDataSourceConfig;
+export class RestDataSourceBase<
+  TDataSet extends IDataSet = IDataSet
+> extends DataSourceBase {
+  protected config: IRestDataSourceConfig<TDataSet>;
   protected apiClient: ApiClient;
-  private messages: StringMap;
+  protected messages: StringMap;
 
   constructor(
-    config: IRestDataSourceConfig,
+    config: IRestDataSourceConfig<TDataSet>,
     messages: StringMap,
     headers: HeadersInit
   ) {
@@ -78,6 +90,13 @@ export class RestDataSourceBase extends DataSourceBase {
   }
 
   /**
+   * Explicitly set the retry count on the DataSource's ApiClient's ThrottleManager
+   */
+  public setRetryCount(retryCount: number) {
+    this.apiClient.setRetryCount(retryCount);
+  }
+
+  /**
    * Returns the configuration for the data source.
    */
   public getConfig() {
@@ -87,7 +106,7 @@ export class RestDataSourceBase extends DataSourceBase {
   /**
    * Adds a new data set to the collection of configured data sets.
    */
-  public addDataSet(name: string, dataSet: IDataSet) {
+  public addDataSet(name: string, dataSet: TDataSet) {
     if (Object.prototype.hasOwnProperty.call(this.config.dataSets, name)) {
       throw new Error('A data set with that name already exists.');
     }
@@ -107,6 +126,25 @@ export class RestDataSourceBase extends DataSourceBase {
     this.config.valueLookups[name] = valueLookup;
   }
 
+  public async getNonProcessedResponse(
+    dataSetName: string,
+    params?: DataValueMap
+  ): Promise<Response> {
+    const dataSet = this.config.dataSets[dataSetName];
+    if (!dataSet) {
+      throw new Error(`Invalid data set name: ${dataSetName}`);
+    }
+
+    // Resolve tokens in the URL and query string.
+    const { relativeUrl } = this.resolveUrlTokens(params, dataSet);
+
+    await Logger.info(
+      `RestDataSourceBase: Retrieving RAW response from URL '${relativeUrl}'`
+    );
+
+    return this.apiClient.getNonProcessedResponse(relativeUrl);
+  }
+
   /**
    * Retrieves data from the service.  IDataSource method.
    *
@@ -119,7 +157,8 @@ export class RestDataSourceBase extends DataSourceBase {
     dataSetName: string,
     params?: DataValueMap,
     page?: string,
-    metadata?: SyncMetadata
+    metadata?: SyncMetadata,
+    hyperproofUser?: IHyperproofUser
   ): Promise<RestDataSetResult<TData>> {
     await Logger.debug(
       `RestDataSourceBase: Retrieving Hypersync service data for data set '${dataSetName}'`
@@ -130,6 +169,65 @@ export class RestDataSourceBase extends DataSourceBase {
     }
 
     // Resolve tokens in the URL and query string.
+    const { relativeUrl, tokenContext } = this.resolveUrlTokens(
+      params,
+      dataSet
+    );
+    let resolvedBody;
+    if (dataSet.body) {
+      resolvedBody = resolveTokens(
+        dataSet.body as object | string,
+        tokenContext
+      );
+    }
+
+    let response;
+    if (dataSet.pagingScheme) {
+      // Fetch paginated data from the service.
+      response = await this.pageDataFromUrl(
+        dataSetName,
+        dataSet,
+        relativeUrl,
+        params,
+        page,
+        metadata,
+        dataSet.method,
+        resolvedBody,
+        hyperproofUser
+      );
+    } else {
+      // Fetch the data from the service.
+      response = await this.getDataFromUrl(
+        dataSetName,
+        dataSet,
+        relativeUrl,
+        params,
+        page,
+        metadata,
+        dataSet.method,
+        resolvedBody,
+        hyperproofUser
+      );
+    }
+
+    if (response.status !== DataSetResultStatus.Complete) {
+      return response;
+    }
+
+    return this.processResponse(
+      dataSetName,
+      dataSet,
+      tokenContext,
+      response,
+      params,
+      metadata
+    );
+  }
+
+  private resolveUrlTokens(
+    params: DataValueMap | undefined,
+    dataSet: TDataSet
+  ) {
     const tokenContext = this.initTokenContext(params);
     let relativeUrl = resolveTokens(dataSet.url, tokenContext);
     const query = { ...dataSet.query };
@@ -139,24 +237,35 @@ export class RestDataSourceBase extends DataSourceBase {
       }
       relativeUrl = `${relativeUrl}?${queryString.stringify(query)}`;
     }
+    return { relativeUrl, tokenContext };
+  }
 
-    // Fetch the data from the service.
-    const response = await this.getDataFromUrl(
-      dataSetName,
-      dataSet,
-      relativeUrl,
-      params,
-      page,
-      metadata
-    );
-    if (response.status !== DataSetResultStatus.Complete) {
-      return response;
-    }
-
+  /**
+   * Processes data retrieved from the service.  This includes applying joins,
+   * lookups, filters, transforms and sorting.
+   *
+   * @param dataSetName Name of the data set to retrieve.
+   * @param dataSet The data set to retrieve
+   * @param tokenContext The token context to use when resolving tokens.
+   * @param response The result of the data retrieval.
+   * @param params Parameter values to be used when retrieving data. Optional.
+   * @param metadata Metadata from previous sync run if requeued. Optional.
+   */
+  protected async processResponse<TData>(
+    dataSetName: string,
+    dataSet: TDataSet,
+    tokenContext: TokenContext,
+    response: IRestDataSetComplete<TData>,
+    params?: DataValueMap,
+    metadata?: SyncMetadata
+  ): Promise<RestDataSetResult<TData>> {
     let data: any = response.data;
 
     // The `property` attribute can be used to select data out of the response.
-    if (dataSet.property) {
+    const isConnectorPaged: boolean =
+      dataSet.pagingScheme?.level === PagingLevel.Connector;
+    if (dataSet.property && !isConnectorPaged) {
+      // Connector pagination previously applied expression from `property`
       await Logger.info(
         `RestDataSourceBase: Extracting data from '${dataSet.property}' property.`
       );
@@ -206,6 +315,9 @@ export class RestDataSourceBase extends DataSourceBase {
     if (this.isArrayResult(dataSet) !== isDataArray) {
       if (isDataArray && data.length === 1) {
         data = data[0];
+      } else if (this.isArrayResult(dataSet) && data === null) {
+        // Allow for offset pagination beyond end of record set
+        data = [];
       } else {
         throw new Error(
           `Data returned does not match expected ${dataSet.result} result.`
@@ -293,17 +405,161 @@ export class RestDataSourceBase extends DataSourceBase {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     page?: string,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    metadata?: SyncMetadata
+    metadata?: SyncMetadata,
+    method?: DataSetMethod,
+    body?: any,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    hyperproofUser?: IHyperproofUser
   ): Promise<RestDataSetResult<any>> {
     await Logger.info(
       `RestDataSourceBase: Retrieving data from URL '${relativeUrl}'`
     );
-    const {
-      json: data,
+    let response: IApiClientResponse<any>;
+
+    switch (method) {
+      case 'PATCH':
+        response = await this.apiClient.patchJson(relativeUrl, body);
+        break;
+      case 'POST':
+        response = await this.apiClient.postJson(relativeUrl, body);
+        break;
+      case 'GET':
+      case undefined:
+        response = await this.apiClient.getJson(relativeUrl);
+        break;
+      default:
+        throw createHttpError(
+          StatusCodes.METHOD_NOT_ALLOWED,
+          `RestDataSourceBase does not support ${method} requests`
+        );
+    }
+
+    const { json: data, source, headers } = response;
+    return {
+      status: DataSetResultStatus.Complete,
+      data,
       source,
       headers
-    } = await this.apiClient.getJson(relativeUrl);
-    return { status: DataSetResultStatus.Complete, data, source, headers };
+    };
+  }
+
+  /**
+   * Retrieves paginated data as JSON from a service-relative URL.
+   * Pagination can be aggregated at the job (default) or connector level.
+   *
+   * @param {string} dataSetName Name of the data set.
+   * @param {object} dataSet Data set for which data is being retrieved.
+   * @param {string} relativeUrl Service-relative URL from which data should be retrieved.
+   * @param {object} params Parameter values to be used when retrieving data.  Optional.
+   * @param {string} page The page value to continue fetching data from a previous sync. Optional.
+   * @param {object} metadata Metadata from previous sync run if requeued. Optional.
+   * @param {HttpMethod} method REST HTTP Method. Optional.
+   * @param {object} body Body of the HTTP request. Optional.
+   * @param {*} hyperproofUser The Hyperproof user who initiated the sync. Optional.
+   *
+   * @returns RestDataSetResult
+   */
+  protected async pageDataFromUrl(
+    dataSetName: string,
+    dataSet: IDataSet,
+    relativeUrl: string,
+    params?: DataValueMap,
+    page?: string,
+    metadata?: SyncMetadata,
+    method?: DataSetMethod,
+    body?: any,
+    hyperproofUser?: IHyperproofUser
+  ): Promise<RestDataSetResult<any>> {
+    const baseUrl = this.config.baseUrl;
+    const paginator = Paginator.createPaginator(dataSet.pagingScheme!);
+
+    if (dataSet.pagingScheme?.level === PagingLevel.Connector) {
+      const results: any = [];
+      let connectorPage: string | undefined;
+      let response;
+      do {
+        const pagedRelativeUrl: string = paginator.paginateRequest(
+          relativeUrl,
+          baseUrl,
+          connectorPage
+        );
+        response = await this.getDataFromUrl(
+          dataSetName,
+          dataSet,
+          pagedRelativeUrl,
+          params,
+          page,
+          metadata,
+          method,
+          body,
+          hyperproofUser
+        );
+
+        if (response.status !== DataSetResultStatus.Complete) {
+          return response;
+        }
+
+        if (dataSet.property) {
+          const resultsAtProperty = this.getPropertyValue(
+            response.data,
+            dataSet.property
+          );
+          results.push(...((resultsAtProperty ?? []) as DataObject[]));
+        } else {
+          results.push(...(response.data ?? []));
+        }
+
+        connectorPage = paginator.getNextPage(
+          dataSet,
+          response.data,
+          response.headers,
+          baseUrl
+        );
+      } while (connectorPage !== undefined);
+      return {
+        ...response,
+        source: baseUrl
+          ? new URL(relativeUrl, baseUrl).toString()
+          : relativeUrl,
+        data: results
+      };
+    } else {
+      // Default to job level paging
+      const pagedRelativeUrl = paginator.paginateRequest(
+        relativeUrl,
+        baseUrl,
+        page
+      );
+      const response = await this.getDataFromUrl(
+        dataSetName,
+        dataSet,
+        pagedRelativeUrl,
+        params,
+        page,
+        metadata,
+        method,
+        body,
+        hyperproofUser
+      );
+
+      if (response.status !== DataSetResultStatus.Complete) {
+        return response;
+      }
+
+      const nextPage: string | undefined = paginator.getNextPage(
+        dataSet,
+        response.data,
+        response.headers,
+        baseUrl
+      );
+      return {
+        ...response,
+        source: baseUrl
+          ? new URL(relativeUrl, baseUrl).toString()
+          : relativeUrl,
+        nextPage
+      };
+    }
   }
 
   /**
@@ -461,7 +717,10 @@ export class RestDataSourceBase extends DataSourceBase {
       // a filter criterion now that we support expressions.
       const filterCriteria = dataSet.filter.map(criterion => ({
         expression: jsonata(criterion.property),
-        value: resolveTokens(criterion.value, tokenContext)
+        value:
+          criterion.value && typeof criterion.value === 'string'
+            ? resolveTokens(criterion.value, tokenContext)
+            : criterion.value
       }));
 
       data = data.filter(item => {
@@ -565,7 +824,7 @@ export class RestDataSourceBase extends DataSourceBase {
    *
    * @param {object} dataSet Data set for which data is being retrieved.
    */
-  private isArrayResult(dataSet: IDataSet) {
+  protected isArrayResult(dataSet: IDataSet) {
     return dataSet.result === 'array';
   }
 
@@ -576,7 +835,7 @@ export class RestDataSourceBase extends DataSourceBase {
    * @param {object} o Object to be transformed.
    * @param {object} params Parameter values to be used when retrieving data.  Optional.
    */
-  private transformObject(
+  protected transformObject(
     transform: Transform,
     o: DataObject,
     params?: DataValueMap
@@ -654,7 +913,7 @@ export class RestDataSourceBase extends DataSourceBase {
     return result;
   }
 
-  private initTokenContext(params?: DataValueMap): TokenContext {
+  protected initTokenContext(params?: DataValueMap): TokenContext {
     return {
       ...params,
       messages: this.messages
@@ -669,7 +928,7 @@ export class RestDataSourceBase extends DataSourceBase {
    *
    * @returns The property value or undefined if the property was not found.
    */
-  private getPropertyValue(
+  protected getPropertyValue(
     o: any,
     property: string
   ): DataValue | DataObject | DataObject[] | undefined {
@@ -684,7 +943,7 @@ export class RestDataSourceBase extends DataSourceBase {
    * @param right Object on right side of join.
    * @param predicate Predicate to use for comparison.
    */
-  private isPredicateMatch(
+  protected isPredicateMatch(
     left: any,
     right: any,
     predicate: IPredicateClause[]

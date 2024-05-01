@@ -6,8 +6,10 @@ import {
   HypersyncCriteriaValue,
   HypersyncPeriod,
   IProofCriterionRef,
-  ISelectOption
+  ISelectOption,
+  SchemaCategory
 } from '@hyperproof/hypersync-models';
+import { CriteriaPageMessageLevel } from '@hyperproof/integration-sdk';
 
 /**
  * Information needed to render a criteria field used in the configuration
@@ -32,6 +34,12 @@ export interface ICriteriaField {
 export interface ICriteriaPage {
   fields: ICriteriaField[];
   isValid: boolean;
+  info?: ICriteriaPageMessage[];
+}
+
+export interface ICriteriaPageMessage {
+  message: string;
+  alertStyle: CriteriaPageMessageLevel;
 }
 
 /**
@@ -68,10 +76,12 @@ export interface ICriteriaProvider {
    *
    * @param criteriaValues Criteria values selected by the user.
    * @param tokenContext Context object used in resolving placeholder tokens.
+   * @param schemaCategory The schema category that the proof type is using. Proof result is then validated against the schema category.
    */
   generateProofCategoryField(
     criteriaValues: HypersyncCriteria,
-    tokenContext: TokenContext
+    tokenContext: TokenContext,
+    schemaCategory?: SchemaCategory
   ): Promise<ICriteriaField | null>;
 
   /**

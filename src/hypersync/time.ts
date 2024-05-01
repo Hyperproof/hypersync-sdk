@@ -2,6 +2,7 @@ import { HypersyncPeriod } from '@hyperproof/hypersync-models';
 import {
   ChronoUnit,
   convert,
+  DateTimeFormatter,
   DayOfWeek,
   Instant,
   LocalDateTime,
@@ -124,7 +125,7 @@ const dateToZonedDateTime = (date: Date, timeZone: string) => {
  *
  * @param {LocalDateTime} localDateTime The js-joda object to convert
  */
-const localDateTimeToDate = (localDateTime: LocalDateTime) => {
+const localDateTimeToDate = (localDateTime: LocalDateTime | ZonedDateTime) => {
   return convert(localDateTime).toDate();
 };
 
@@ -174,7 +175,7 @@ export const dateToLocalizedString = (
  * @param {string} locale Locale code for the user (e.g. US)
  */
 export const formatJsJodaDateRange = (
-  periodStart: LocalDateTime,
+  periodStart: LocalDateTime | ZonedDateTime,
   period: HypersyncPeriod,
   lang: string,
   locale: string
@@ -198,6 +199,10 @@ export const formatJsJodaDateRange = (
     default:
       throw new Error(`HypersyncPeriod "${period}" is not supported`);
   }
+};
+
+export const zonedDateTimeToISOString = (zdt: ZonedDateTime) => {
+  return zdt.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 };
 
 /**

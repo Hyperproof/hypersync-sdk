@@ -2,7 +2,6 @@
 
 import { formatHypersyncError } from './common';
 import { HypersyncStage } from './enums';
-import { createHypersyncStorageClient } from './HypersyncStorageClient';
 import { ICriteriaMetadata } from './ICriteriaProvider';
 import { SyncMetadata } from './IDataSource';
 import { formatMessage, MESSAGES } from './messages';
@@ -10,12 +9,29 @@ import { IHypersync } from './models';
 import { IHypersyncSchema } from './ProofProviderBase';
 import { IGetProofDataResponse } from './Sync';
 
-import { HypersyncCriteria } from '@hyperproof/hypersync-models';
 import {
-  ErrorName,
-  FusebitContext,
+  HypersyncCriteria,
+  SchemaCategory
+} from '@hyperproof/hypersync-models';
+import {
+  AuthorizationType,
+  createConnector,
+  CustomAuthCredentials,
+  ExternalAPIError,
+  formatUserKey,
+  HealthStatus,
+  HttpHeader,
+  ICheckConnectionHealthInvocationPayload,
+  IConnectionHealth,
+  IHyperproofUser,
+  IHyperproofUserContext,
+  IntegrationContext,
+  IRetryResponse,
+  LogContextKey,
+  Logger,
+  mapObjectTypesParamToType,
   OAuthConnector,
-  RefreshTokenError,
+  ObjectType,
   StorageItem,
   UserContext
 } from '@hyperproof/integration-sdk';
@@ -23,27 +39,6 @@ import express from 'express';
 import fs from 'fs';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
-
-import {
-  AuthorizationType,
-  createConnector,
-  CustomAuthCredentials,
-  formatUserKey,
-  getHpUserFromUserKey,
-  HttpHeader,
-  HYPERPROOF_VENDOR_KEY,
-  ICheckConnectionHealthInvocationPayload,
-  IConnectionHealth,
-  IHyperproofUser,
-  IHyperproofUserContext,
-  IRetryResponse,
-  IUserConnection,
-  LogContextKey,
-  Logger,
-  mapObjectTypesParamToType,
-  ObjectType
-} from '../common';
-import { HealthStatus, InstanceType } from '../common/enums';
 
 /**
  * Object returned from the validateCredentials method.
@@ -84,14 +79,14 @@ export function createHypersync(superclass: typeof OAuthConnector) {
         this.checkAuthorized(),
         async (req, res) => {
           try {
-            const fusebitContext = req.fusebit;
+            const integrationContext = req.fusebit;
             const { orgId, userId } = req.params;
             const keys: {
               [key: string]: string;
             } = req.body;
             const response = await this.validateCredentials(
               keys,
-              fusebitContext,
+              integrationContext,
               userId
             );
 
@@ -105,9 +100,9 @@ export function createHypersync(superclass: typeof OAuthConnector) {
             }
 
             // If there isn't already a saved userContext for this vendor user,
-            // save the keys along with some user information in Fusebit storage.
+            // save the keys along with some user information in integration storage.
             let userContext = await this.getHyperproofUserContext(
-              fusebitContext,
+              integrationContext,
               response.vendorUserId
             );
 
@@ -140,12 +135,12 @@ export function createHypersync(superclass: typeof OAuthConnector) {
             userContext.foreignOAuthIdentities = {
               hyperproof: {
                 userId: formatUserKey(orgId, userId),
-                connectorBaseUrl: fusebitContext.baseUrl!
+                connectorBaseUrl: integrationContext.baseUrl!
               }
             };
 
-            await this.onNewUser(fusebitContext, userContext);
-            await this.saveUser(fusebitContext, userContext);
+            await this.onNewUser(integrationContext, userContext);
+            await this.saveUser(integrationContext, userContext);
 
             const connection = await this.getUserConnectionFromUserContext(
               userContext,
@@ -156,7 +151,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
             await Logger.error('Failed to add user connection', err);
             res
               .status(err.status || StatusCodes.INTERNAL_SERVER_ERROR)
-              .json({ message: err.message });
+              .json({ message: err.message, extendedError: err });
           }
         }
       );
@@ -174,7 +169,8 @@ export function createHypersync(superclass: typeof OAuthConnector) {
               req.params.orgId,
               req.body.vendorUserId,
               req.body.criteria,
-              req.body.search
+              req.body.search,
+              req.body.schemaCategory
             );
             res.json(result);
           } catch (err: any) {
@@ -215,29 +211,6 @@ export function createHypersync(superclass: typeof OAuthConnector) {
         }
       );
 
-      app.patch(
-        '/organizations/:orgId/users/:userId/connections/:vendorUserId',
-        this.checkAuthorized(),
-        async (req, res) => {
-          try {
-            const storage = await createHypersyncStorageClient(req.fusebit);
-            const connection = await storage.updateUserConnection(
-              req.params.orgId,
-              req.params.userId,
-              this.integrationType,
-              req.params.vendorUserId,
-              req.body
-            );
-            res.json(connection);
-          } catch (err: any) {
-            await Logger.error('Failed to patch connection', err);
-            res
-              .status(err.status || StatusCodes.INTERNAL_SERVER_ERROR)
-              .json({ message: err.message });
-          }
-        }
-      );
-
       app.post(
         '/organizations/:orgId/:objectType/:objectId/invoke',
         this.checkAuthorized(),
@@ -266,7 +239,17 @@ export function createHypersync(superclass: typeof OAuthConnector) {
               default:
                 break;
             }
-          } catch (err: any) {
+          } catch (syncErr: any) {
+            let err = syncErr;
+            if (err instanceof ExternalAPIError && err.canRetry()) {
+              try {
+                const retryResponse = await err.computeRetry();
+                return res.json(retryResponse);
+              } catch (retryErr) {
+                err = retryErr;
+              }
+            }
+
             const status =
               err.status || err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR;
             if (status >= StatusCodes.INTERNAL_SERVER_ERROR) {
@@ -281,6 +264,26 @@ export function createHypersync(superclass: typeof OAuthConnector) {
             }
 
             await Logger.error('Failed to sync Hypersync', err);
+
+            const headers = err.headers || err.response?.headers;
+            if (headers) {
+              const rateLimitKeys = [
+                'x-ratelimit-limit',
+                'x-ratelimit-remaining',
+                'x-ratelimit-retryafter',
+                'x-ratelimit-reset',
+                'x-ratelimit-used'
+              ];
+              const rateLimitHeaders = Object.keys(headers)
+                .filter(key => rateLimitKeys.includes(key))
+                .reduce((obj, key) => {
+                  return { ...obj, [key]: headers[key] };
+                }, {});
+              await Logger.info(
+                `Rate limit headers found: ${JSON.stringify(rateLimitHeaders)}`
+              );
+            }
+
             const statusCode =
               err.status || err.statusCode || StatusCodes.INTERNAL_SERVER_ERROR;
             res.status(statusCode).json({
@@ -299,8 +302,10 @@ export function createHypersync(superclass: typeof OAuthConnector) {
       );
 
       /**
-       * Delete all user connections and integrations for an org. Called when
-       * a Hyperproof organization is permanently deleted
+       * Hypersyncs do not manage user connections, so there are no artifacts to clean up
+       * when an organization is deleted.
+       *
+       * Called when a Hyperproof organization is permanently deleted
        *
        * TODO: HYP-27706: Unify all org delete routes
        */
@@ -309,12 +314,10 @@ export function createHypersync(superclass: typeof OAuthConnector) {
         this.checkAuthorized(),
         async (req, res) => {
           try {
-            const fusebitContext = req.fusebit;
             const orgId = req.params.orgId;
             await Logger.info(
-              `Received DELETE /organizations/${orgId} request. Starting deletion of all connections in the org`
+              `Received DELETE /organizations/${orgId} request.`
             );
-            await this.deleteOrganization(fusebitContext, orgId);
             res.json({
               success: true,
               message: 'Successfully deleted connections'
@@ -370,41 +373,25 @@ export function createHypersync(superclass: typeof OAuthConnector) {
         }
       });
 
-      // Register a handler that listens for CRON invocations, set by the
-      // "schedule.cron" parameter in the configuration file
-      app.use(async (req, res, next) => {
-        if (req.method === 'CRON') {
-          await Logger.debug(`Connector invoked via CRON`);
-          // Only invoke if the child connector has defined an API method to call
+      app.put('/keeptokensalive', this.checkAuthorized(), async (req, res) => {
+        try {
           await this.keepAllTokensAlive(req.fusebit);
-          return res.status(StatusCodes.OK).send();
-        } else {
-          next();
+          return res
+            .status(StatusCodes.OK)
+            .json({ integrationType: this.integrationType, success: true });
+        } catch (err: any) {
+          await Logger.error(err);
+          res.status(err.status || StatusCodes.INTERNAL_SERVER_ERROR).json({
+            integrationType: this.integrationType,
+            success: false,
+            message: err.message
+          });
         }
       });
     }
 
-    outboundOnly(integrationType: string, meta: Express.ParsedQs) {
+    override outboundOnly(integrationType: string, meta: Express.ParsedQs) {
       return true;
-    }
-
-    /**
-     * Override the same method in sharedConnector.ts
-     * It does nothing since Hypersyncs don't create hyperproof-user due to being outbound only.
-     *
-     * @param {FusebitContext} fusebitContext The Fusebit context of the request
-     * @param {*} orgId ID of the Hyperproof organization.
-     * @param {*} userId ID of the Hyperproof user.
-     * @param {*} instanceType Optional instance type to use when determining which user to delete.
-     */
-    async deleteHyperproofUserIfUnused(
-      fusebitContext: FusebitContext,
-      orgId: string,
-      userId: string,
-      vendorUserId: string,
-      instanceType?: InstanceType
-    ) {
-      return undefined;
     }
 
     /**
@@ -417,7 +404,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
     }
 
     override async checkConnectionHealth(
-      fusebitContext: FusebitContext,
+      integrationContext: IntegrationContext,
       orgId: string,
       userId: string,
       vendorUserId: string,
@@ -425,7 +412,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
     ): Promise<IConnectionHealth> {
       try {
         const userContext = await this.getHyperproofUserContext(
-          fusebitContext,
+          integrationContext,
           vendorUserId
         );
 
@@ -443,26 +430,23 @@ export function createHypersync(superclass: typeof OAuthConnector) {
           // Since the token is temporary they will expire in an hour and way before AWS scheduled syncs are run and thus no reason to save it in this step.
           await this.validateCredentials(
             userContext.keys!,
-            fusebitContext,
+            integrationContext,
             userId
           );
         } else {
           const tokenResponse = await this.ensureAccessToken(
-            fusebitContext,
+            integrationContext,
             userContext
           );
 
           await this.validateAccessToken(
-            fusebitContext,
+            integrationContext,
             userContext,
             tokenResponse.access_token,
             body
           );
         }
       } catch (e: any) {
-        if (e instanceof RefreshTokenError) {
-          await Logger.info(e.message);
-        }
         // The connector can customize the health result status and message here.
         // However custom connectors' validateCredentials may have already handled the
         // error and threw a different error/status code.
@@ -509,7 +493,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      */
     async validateCredentials(
       credentials: CustomAuthCredentials,
-      fusebitContext: FusebitContext,
+      integrationContext: IntegrationContext,
       hyperproofUserId: string
     ): Promise<IValidateCredentialsResponse> {
       throw createHttpError(StatusCodes.NOT_IMPLEMENTED, 'Not Implemented');
@@ -521,7 +505,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * The connector's implementation should not handle any error so that it can be handled in checkConnectionHealth
      */
     async validateAccessToken(
-      fusebitContext: FusebitContext,
+      integrationContext: IntegrationContext,
       userContext: UserContext,
       accessToken: string,
       body?: ICheckConnectionHealthInvocationPayload
@@ -533,14 +517,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * This can be overriden by the connector in order to provide better health check result with more information or to process/filter errors.
      */
     handleHealthError(error: any): IConnectionHealth {
-      let errorMessage = error.message;
-      if (error instanceof RefreshTokenError) {
-        if (error.name === ErrorName.REFRESH_TOKEN_ATTEMPTS_EXHAUSTED) {
-          errorMessage = formatMessage(MESSAGES.NoAccountFound, {
-            [MESSAGES.App]: this.connectorName
-          });
-        }
-      }
+      const errorMessage = error.message;
       const extendedErrorMessage = error[LogContextKey.ExtendedMessage];
       const healthResult: Readonly<IConnectionHealth> = {
         healthStatus: HealthStatus.Unknown,
@@ -585,89 +562,15 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * @param {*} userContext The user context representing the vendor's user. Contains vendorToken and vendorUserProfile, representing responses
      * from getAccessToken and getUserProfile, respectively.
      */
-    getUserAccount(userContext: UserContext): string {
+    override getUserAccount(userContext: UserContext): string {
       throw Error('Not implemented.');
-    }
-
-    async getUserConnection(
-      fusebitContext: FusebitContext,
-      orgId: string,
-      userId: string,
-      vendorUserId: string
-    ): Promise<IUserConnection> {
-      const storage = await createHypersyncStorageClient(fusebitContext);
-      const connections = await storage.getUserConnections(orgId, userId);
-      const connection = connections.find(
-        c => c.type === this.integrationType && c.vendorUserId === vendorUserId
-      );
-      if (!connection) {
-        throw new Error('No connection');
-      }
-      return connection;
-    }
-
-    /**
-     * Called after a new user successfuly completed a configuration flow and was persisted in the system. This extensibility
-     * point allows for creation of any artifacts required to serve this new user, for example creation of additional
-     * Fusebit functions.
-     * @param {FusebitContext} fusebitContext The Fusebit context of the request
-     * @param {*} userContext The user context representing the vendor's user. Contains vendorToken and vendorUserProfile, representing responses
-     * from getAccessToken and getUserProfile, respectively.
-     */
-    async onNewUser(fusebitContext: FusebitContext, userContext: UserContext) {
-      const hpUser = this.getHpUserFromUserContext(userContext);
-      if (hpUser) {
-        const storage = await createHypersyncStorageClient(fusebitContext);
-        await storage.addUserConnection(
-          hpUser.orgId,
-          hpUser.id,
-          await this.getUserConnectionFromUserContext(userContext, hpUser.id)
-        );
-        await super.onNewUser(fusebitContext, userContext);
-      }
-    }
-
-    /**
-     * Deletes all artifacts associated with a vendor user. This is an opportunity to remove any artifacts created in
-     * onNewUser, for example Fusebit functions.
-     * @param {FusebitContext} fusebitContext The Fusebit context
-     * @param {*} user Informtion about the user being deleted
-     * @param {string} vendorUserId The vendor user id
-     * @param {string} vendorId If specified, vendorUserId represents the identity of the user in another system.
-     * The vendorId must correspond to an entry in userContext.foreignOAuthIdentities.
-     */
-    async deleteUserIfLast(
-      fusebitContext: FusebitContext,
-      user: IHyperproofUserContext,
-      vendorUserId: string,
-      vendorId?: string
-    ) {
-      if (vendorId !== HYPERPROOF_VENDOR_KEY) {
-        throw new Error(
-          'Hypersync users must be deleted using a Hyperproof user key.'
-        );
-      }
-      await super.deleteUserIfLast(
-        fusebitContext,
-        user,
-        vendorUserId,
-        vendorId
-      );
-      const hpUser = getHpUserFromUserKey(vendorUserId);
-      const storage = await createHypersyncStorageClient(fusebitContext);
-      await storage.deleteUserConnection(
-        hpUser.orgId,
-        hpUser.id,
-        this.integrationType,
-        user.vendorUserId.toString()
-      );
     }
 
     /**
      * Execute a sync operation
      */
     async syncNow(
-      fusebitContext: FusebitContext,
+      integrationContext: IntegrationContext,
       orgId: string,
       objectType: ObjectType,
       objectId: string,
@@ -685,11 +588,12 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * Generate the fields necessary to configure a Hypersync
      */
     async generateCriteriaMetadata(
-      fusebitContext: FusebitContext,
+      integrationContext: IntegrationContext,
       orgId: string,
       vendorUserId: string,
       criteria: HypersyncCriteria,
-      search?: string
+      search?: string,
+      schemaCategory?: SchemaCategory
     ): Promise<ICriteriaMetadata> {
       throw Error('Not implemented');
     }
@@ -698,7 +602,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * Returns the schema of the proof that will be generated.
      */
     async generateSchema(
-      fusebitContext: FusebitContext,
+      integrationContext: IntegrationContext,
       orgId: string,
       vendorUserId: string,
       criteria: HypersyncCriteria
@@ -707,20 +611,6 @@ export function createHypersync(superclass: typeof OAuthConnector) {
         StatusCodes.NOT_FOUND,
         'Hypersync connector does not support schema generation.'
       );
-    }
-
-    /**
-     * Returns the HTML of the web page that initiates the authorization flow to the authorizationUrl. Return
-     * undefined if you don't want to present any HTML to the user but instead redirect the user directly to
-     * the authorizationUrl.
-     * @param {FusebitContext} fusebitContext The Fusebit context of the request
-     * @param {string} authorizationUrl The fully formed authorization url to redirect the user to
-     */
-    async getAuthorizationPageHtml(
-      fusebitContext: FusebitContext,
-      authorizationUrl: string
-    ) {
-      return undefined;
     }
 
     /**
@@ -740,14 +630,14 @@ export function createHypersync(superclass: typeof OAuthConnector) {
      * Keeps an access token alive.  Designed to be overridden in connectors
      * that have tokens that expire.  Behavior varies by connector.
      *
-     * @param {FusebitContext} fusebitContext The Fusebit context of the request
+     * @param {IntegrationContext} integrationContext The integration context of the request
      * @param {*} userContext The user context representing the vendor's user. Contains vendorToken and vendorUserProfile, representing responses
      * from getAccessToken and getUserProfile, respectively.
      *
      * @returns True if the token was kept alive.
      */
     async keepTokenAlive(
-      fusebitContext: FusebitContext,
+      integrationContext: IntegrationContext,
       userContext: IHyperproofUserContext
     ): Promise<boolean> {
       return true;
@@ -756,15 +646,15 @@ export function createHypersync(superclass: typeof OAuthConnector) {
     /**
      * Keeps all stored connections alive for the connector.
      *
-     * @param {FusebitContext} fusebitContext The Fusebit context of the request
+     * @param {IntegrationContext} integrationContext The integration context of the request
      *
      * @returns An array of booleans representing the kept alive status for each token.
      */
     async keepAllTokensAlive(
-      fusebitContext: FusebitContext
+      integrationContext: IntegrationContext
     ): Promise<boolean[]> {
       const vendorUserPath = 'vendor-user';
-      const storage = fusebitContext.storage;
+      const storage = integrationContext.storage;
       const listResponse = await storage.list(vendorUserPath);
       return Promise.all(
         listResponse.items.map(async (item: StorageItem) => {
@@ -772,7 +662,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
             item.storageId.split('root/')[1]
           );
           return this.keepTokenAlive(
-            fusebitContext,
+            integrationContext,
             vendorUserResponse.data
           ).catch(async err => {
             await Logger.error('Failed to keep token alive', err);
@@ -780,19 +670,6 @@ export function createHypersync(superclass: typeof OAuthConnector) {
           });
         })
       );
-    }
-
-    // Delete all the user connections in the organization
-    async deleteOrganization(fusebitContext: FusebitContext, orgId: string) {
-      // Get all vendor-user entries
-      const users = await this.getAllOrgUsers(fusebitContext, orgId);
-      await Logger.info(
-        `Found ${users.length} to delete. Deleting the ${orgId} hyperproof users from these entries.`,
-        users.map(u => u.vendorUserId).join(', ')
-      );
-      // Delete the hyperproof identities attached to those vendor-user entries
-      // one at a time while ensuring that any hyperproof users not in the target org are unaffected
-      await this.deleteUserConnections(fusebitContext, users, orgId);
     }
   };
 }
