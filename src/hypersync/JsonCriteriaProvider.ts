@@ -15,10 +15,9 @@ import {
   IProofCriterionRef,
   ISelectOption
 } from '@hyperproof/hypersync-models';
+import { compareValues, Logger } from '@hyperproof/integration-sdk';
 import fs from 'fs';
 import path from 'path';
-
-import { compareValues } from '../common';
 
 /**
  * Provides criteria fields and values to a proof provider using fields declared
@@ -253,32 +252,46 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
           }
         }
       }
-
-      // Fetch the data from the service.
-      const result = await this.dataSource.getData(config.dataSet, params);
-
-      if (result.status !== DataSetResultStatus.Complete) {
-        throw new Error(
-          `Pending response received for critiera field data set: ${config.dataSet}`
+      let nextPage = undefined;
+      do {
+        // Fetch the data from the service.
+        const result: any = await this.dataSource.getData(
+          config.dataSet,
+          params,
+          nextPage
         );
-      }
 
-      if (!Array.isArray(result.data)) {
-        throw new Error(`Invalid criteria field data set: ${config.dataSet}`);
-      }
+        if (result.status !== DataSetResultStatus.Complete) {
+          throw new Error(
+            `Pending response received for critiera field data set: ${config.dataSet}`
+          );
+        }
 
-      // Extract the columns we need.
-      const valueProperty = config.valueProperty;
-      const labelProperty = config.labelProperty;
-      data = result.data.map(
-        item =>
-          ({
-            value: item[valueProperty] as string | number,
-            label: item[labelProperty] as string
-          } as ISelectOption)
-      );
+        if (!Array.isArray(result.data)) {
+          throw new Error(`Invalid criteria field data set: ${config.dataSet}`);
+        }
 
-      // Sort the list of values.
+        nextPage = result.nextPage;
+        // Extract the columns we need.
+        const valueProperty = config.valueProperty;
+        const labelProperty = config.labelProperty;
+        data = result.data
+          .map(
+            (item: any) =>
+              ({
+                value: item[valueProperty] as string | number,
+                label: item[labelProperty] as string
+              } as ISelectOption)
+          )
+          .concat(data);
+        await Logger.info(
+          `getCriteriaFieldOptions ${
+            nextPage
+              ? `paging nextPage: ${nextPage}.`
+              : `has no nextPage to return.`
+          }`
+        );
+      } while (nextPage);
       data.sort((a, b) => compareValues(a.label, b.label));
     }
 

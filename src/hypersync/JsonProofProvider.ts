@@ -2,8 +2,13 @@ import { ID_ALL, ID_ANY, ID_NONE, StringMap } from './common';
 import { HypersyncTemplate } from './enums';
 import { ICriteriaPage, ICriteriaProvider } from './ICriteriaProvider';
 import { DataSetResultStatus, IDataSource, SyncMetadata } from './IDataSource';
+import { calcLayoutInfo } from './layout';
 import { IHypersync } from './models';
-import { IProofFile, ProofProviderBase } from './ProofProviderBase';
+import {
+  IHypersyncProofField,
+  IProofFile,
+  ProofProviderBase
+} from './ProofProviderBase';
 import { IGetProofDataResponse } from './Sync';
 import { dateToLocalizedString } from './time';
 import { resolveTokens, TokenContext } from './tokens';
@@ -18,8 +23,9 @@ import {
   IHypersyncField,
   IProofSpec
 } from '@hyperproof/hypersync-models';
+import { IHyperproofUser, Logger } from '@hyperproof/integration-sdk';
 
-import { IHyperproofUser, Logger } from '../common';
+import { validateDataSchema } from '../schema-proof/common';
 
 /**
  * Provides methods for working with proof type definitions stored
@@ -135,7 +141,8 @@ export class JsonProofProvider extends ProofProviderBase {
       proofSpec.dataSet,
       params,
       page,
-      metadata
+      metadata,
+      hyperproofUser
     );
 
     if (response.status !== DataSetResultStatus.Complete) {
@@ -157,6 +164,10 @@ export class JsonProofProvider extends ProofProviderBase {
       tokenContext.dataSource = dataSourceContext;
     }
 
+    if (hypersync.schemaCategory) {
+      validateDataSchema(hypersync, data);
+    }
+
     const dateFields = proofSpec.fields.filter(f => f.type === 'date');
     const numberFields = proofSpec.fields.filter(f => f.type === 'number');
     if (dateFields.length || numberFields.length) {
@@ -172,6 +183,23 @@ export class JsonProofProvider extends ProofProviderBase {
       } else {
         this.addFormattedValues(data, dateFields, numberFields, hyperproofUser);
       }
+    }
+
+    let resolvedFields = proofSpec.fields.map(f => ({
+      property: f.property,
+      label: resolveTokens(f.label, tokenContext),
+      width: f.width,
+      type: f.type === HypersyncFieldType.Text ? undefined : f.type
+    })) as IHypersyncProofField[];
+
+    let zoom = 1;
+    if (proofSpec.autoLayout === true) {
+      const layoutInfo = calcLayoutInfo(
+        resolvedFields,
+        Array.isArray(data) ? data : [data]
+      );
+      resolvedFields = layoutInfo.fields;
+      zoom = layoutInfo.zoom;
     }
 
     // Since Job Engine seeks the first job-level page, assign
@@ -219,12 +247,7 @@ export class JsonProofProvider extends ProofProviderBase {
                 proof.length > 0 || !proofSpec.noResultsMessage
                   ? ''
                   : resolveTokens(proofSpec.noResultsMessage, tokenContext),
-              fields: proofSpec.fields.map(f => ({
-                property: f.property,
-                label: resolveTokens(f.label, tokenContext),
-                width: f.width,
-                type: f.type === HypersyncFieldType.Text ? undefined : f.type
-              }))
+              fields: resolvedFields
             },
             proof,
             authorizedUser,
@@ -235,7 +258,8 @@ export class JsonProofProvider extends ProofProviderBase {
               hyperproofUser.language,
               hyperproofUser.locale
             )!,
-            errorInfo
+            errorInfo,
+            zoom
           }
         }
       ],

@@ -16,10 +16,10 @@ import {
   HypersyncDataFormat,
   HypersyncFieldFormat,
   HypersyncFieldType,
-  HypersyncPageOrientation
+  HypersyncPageOrientation,
+  SchemaCategory
 } from '@hyperproof/hypersync-models';
-
-import { IHyperproofUser } from '../common';
+import { IHyperproofUser } from '@hyperproof/integration-sdk';
 
 /**
  * Field information that is used in the layout of a generated proof document.
@@ -101,7 +101,7 @@ export interface IHypersyncContents {
  * A generated Hypersync proof document.
  */
 export interface IProofFile<TContents = IHypersyncContents> {
-  id?: string;
+  sourceFileId?: string;
   filename: string;
   contents: TContents;
 }
@@ -119,6 +119,7 @@ export class ProofProviderBase<T = any> {
     this.criteriaProvider = criteriaProvider;
   }
 
+  public static schemaCategory?: SchemaCategory;
   public static proofType: string;
   public static proofTypeLabel: string;
 

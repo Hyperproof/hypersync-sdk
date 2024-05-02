@@ -2,6 +2,7 @@ import { IErrorInfo } from './models';
 import { TokenContext } from './tokens';
 
 import { DataObject, DataValueMap } from '@hyperproof/hypersync-models';
+import { IHyperproofUser } from '@hyperproof/integration-sdk';
 
 export enum DataSetResultStatus {
   Complete = 'complete',
@@ -53,6 +54,7 @@ export interface IDataSource {
     dataSetName: string,
     params?: DataValueMap,
     page?: string,
-    metadata?: SyncMetadata
+    metadata?: SyncMetadata,
+    hyperproofUser?: IHyperproofUser
   ): Promise<DataSetResult<DataObject | DataObject[]>>;
 }

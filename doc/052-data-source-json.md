@@ -21,6 +21,8 @@ Each data set object contains the following properties:
 | Property      | Required? | Description                                              |
 | ------------- | --------- | -------------------------------------------------------- |
 | url           | Yes       | Relative or full URL for the REST API                    |
+| method        | No        | `GET`, `POST` or `PATCH`. Default: `GET`.                |
+| body          | No        | Body included in `POST` and `PATCH` requests             |
 | result        | Yes       | `object` or `array`                                      |
 | description   | No        | A description of the data set                            |
 | documentation | No        | Link to the REST API documentation                       |

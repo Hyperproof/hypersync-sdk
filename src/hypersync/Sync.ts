@@ -1,10 +1,9 @@
-import { formatHypersyncError } from './common';
 import { HypersyncResult } from './enums';
 import { SyncMetadata } from './IDataSource';
 import { IHypersync } from './models';
 import { IHypersyncContents, IProofFile } from './ProofProviderBase';
 
-import { ExternalAPIError, IHyperproofUser, Logger } from '../common';
+import { IHyperproofUser } from '@hyperproof/integration-sdk';
 
 /**
  * Detailed response object that may be returned from getProofData.
@@ -58,29 +57,14 @@ export class Sync {
    * Executes the sync operation. Gets data from the external source and returns it as proof-formatted JSON
    */
   async run() {
-    try {
-      const data = await this.getProofData();
-      const response = Array.isArray(data)
-        ? {
-            data
-          }
-        : data;
-      response.data.forEach(proofFile => this.formatProof(proofFile.contents));
-      return response;
-    } catch (err) {
-      if (
-        err instanceof ExternalAPIError &&
-        err?.computeRetry &&
-        err.throttleManager
-      ) {
-        return err.computeRetry();
-      }
-      await Logger.error(
-        `Hypersync Sync Error: ${process.env.vendor_name}`,
-        formatHypersyncError(err, this.hypersync?.id, 'Sync failure')
-      );
-      throw err;
-    }
+    const data = await this.getProofData();
+    const response = Array.isArray(data)
+      ? {
+          data
+        }
+      : data;
+    response.data.forEach(proofFile => this.formatProof(proofFile.contents));
+    return response;
   }
 
   /**

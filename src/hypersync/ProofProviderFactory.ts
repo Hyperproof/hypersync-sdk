@@ -8,14 +8,14 @@ import { resolveTokens } from './tokens';
 import {
   IHypersyncDefinition,
   IProofType,
-  IProofTypeMap
+  IProofTypeMap,
+  SchemaCategory
 } from '@hyperproof/hypersync-models';
+import { compareValues } from '@hyperproof/integration-sdk';
 import fs from 'fs';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
 import path from 'path';
-
-import { compareValues } from '../common';
 
 /**
  * Interface for an object that represents a proof type that can be
@@ -25,6 +25,7 @@ import { compareValues } from '../common';
 export interface IProofTypeConfig {
   label: string;
   category?: string;
+  schemaCategory?: SchemaCategory;
 
   // Definition property only used for org-specific proof types.
   definition?: IHypersyncDefinition;
@@ -60,7 +61,6 @@ export class ProofProviderFactory {
     this.connectorName = connectorName;
     this.appRootDir = appRootDir;
     this.messages = messages;
-
     // If there are any declarative proof providers, load those now.
     const proofProvidersPath = path.resolve(appRootDir, 'json/proofTypes.json');
     if (fs.existsSync(proofProvidersPath)) {
@@ -157,8 +157,16 @@ export class ProofProviderFactory {
    *
    * @param category Proof category chosen by the user ahead of choosing the proof type.
    */
-  public getProofTypeOptions = (category?: string) => {
+  public getProofTypeOptions = (
+    category?: string,
+    schemaCategory?: SchemaCategory
+  ) => {
     let providers = Object.entries(this.providers);
+
+    providers = providers.filter(
+      ([, provider]) => provider.schemaCategory === schemaCategory
+    );
+
     if (category) {
       providers = providers.filter(([, provider]) => {
         // If this is an imported provider (i.e. a class) then ask the

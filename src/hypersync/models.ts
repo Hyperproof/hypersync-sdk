@@ -3,16 +3,21 @@ import { IHypersyncSchema } from './ProofProviderBase';
 
 import {
   HypersyncCriteria,
-  HypersyncPeriod
+  HypersyncPeriod,
+  SchemaCategory
 } from '@hyperproof/hypersync-models';
-
-import { IIntegrationSettingsBase, ObjectStatus, ObjectType } from '../common';
+import {
+  IIntegration,
+  IIntegrationSettingsBase,
+  IntegrationSettingsClass
+} from '@hyperproof/integration-sdk';
 
 /**
  * Settings that are saved with a Hypersync integration.
  */
 export interface IHypersyncIntegrationSettings
   extends IIntegrationSettingsBase {
+  class: IntegrationSettingsClass.Hypersync;
   vendorUserId: string;
   name: string;
   description?: string;
@@ -32,18 +37,9 @@ export interface IHypersyncIntegrationSettings
 /**
  * Hypersync information stored in Hyperproof.
  */
-export interface IHypersync {
-  id: string;
-  orgId: string;
-  appId: string;
-  objectType: ObjectType;
-  objectId: string;
-  settings: IHypersyncIntegrationSettings;
-  createdBy: string;
-  createdOn: string;
-  updatedBy: string;
-  updatedOn: string;
-  status: ObjectStatus;
+export interface IHypersync
+  extends IIntegration<IHypersyncIntegrationSettings> {
+  schemaCategory?: SchemaCategory;
 }
 
 /**

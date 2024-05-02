@@ -40,6 +40,7 @@ The `proofSpec` property in a proof type file is a JSON object that specifies ho
 | noResultsMessage | No       | Text to render if no items are found in the data set                                                                 |
 | fields           | Yes      | Array of fields to include in the generated proof                                                                    |
 | webPageUrl       | No       | URL shown at the bottom of generated proof                                                                           |
+| autoLayout       | No       | `true` to automatically layout the fields in the specification. Default: `false`.                                    |
 
 ## overrides
 

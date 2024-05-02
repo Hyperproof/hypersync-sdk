@@ -29,14 +29,27 @@ import {
   ICriteriaFieldConfig,
   IDataSet,
   IHypersyncDefinition,
+  SchemaCategory,
   ValueLookup
 } from '@hyperproof/hypersync-models';
 import {
+  AuthorizationType,
+  createApp,
   createOAuthConnector,
-  FusebitContext,
+  CustomAuthCredentials,
+  ExternalAPIError,
+  IAuthorizationConfigBase,
+  ICheckConnectionHealthInvocationPayload,
+  ICredentialsMetadata,
+  IHyperproofUser,
+  IHyperproofUserContext,
+  IntegrationContext,
   ListStorageResult,
+  Logger,
   OAuthConnector,
   OAuthTokenResponse,
+  ObjectType,
+  RecordingManager,
   UserContext
 } from '@hyperproof/integration-sdk';
 import express from 'express';
@@ -46,19 +59,6 @@ import { StatusCodes } from 'http-status-codes';
 import path from 'path';
 import { ParsedQs } from 'qs';
 import Superagent from 'superagent';
-
-import {
-  AuthorizationType,
-  CustomAuthCredentials,
-  ExternalAPIError,
-  IAuthorizationConfigBase,
-  ICheckConnectionHealthInvocationPayload,
-  ICredentialsMetadata,
-  IHyperproofUser,
-  IHyperproofUserContext,
-  Logger,
-  ObjectType
-} from '../common';
 
 /**
  * Configuration information for a Hypersync app.
@@ -76,6 +76,7 @@ export interface IHypersyncAppConfig {
 export interface IValidatedUser<TUserProfile = object> {
   userId: string;
   profile: TUserProfile;
+  hostUrl?: string;
 }
 
 /**
@@ -569,7 +570,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   public async getAuthorizationUrl(
-    { configuration }: FusebitContext,
+    { configuration }: IntegrationContext,
     state: string,
     redirectUri: string
   ) {
@@ -581,7 +582,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   public async getAccessToken(
-    { configuration }: FusebitContext,
+    { configuration }: IntegrationContext,
     authorizationCode: string,
     redirectUri: string
   ) {
@@ -593,7 +594,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   public async refreshAccessToken(
-    { baseUrl, configuration }: FusebitContext,
+    { baseUrl, configuration }: IntegrationContext,
     tokenContext: OAuthTokenResponse,
     redirectUri: string
   ) {
@@ -614,13 +615,13 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   async validateAccessToken(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     userContext: UserContext,
     accessToken: string,
     body?: ICheckConnectionHealthInvocationPayload
   ): Promise<void> {
     await this.hypersyncApp.validateAccessToken(
-      fusebitContext,
+      integrationContext,
       userContext,
       accessToken,
       body
@@ -629,12 +630,12 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
 
   public async validateCredentials(
     credentials: CustomAuthCredentials,
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     hyperproofUserId: string
   ): Promise<IValidateCredentialsResponse> {
     const response = await this.hypersyncApp.validateCredentials(
       credentials,
-      fusebitContext.configuration,
+      integrationContext.configuration,
       hyperproofUserId
     );
     return {
@@ -657,14 +658,15 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   public async generateCriteriaMetadata(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     vendorUserId: string,
     criteria: HypersyncCriteria,
-    search?: string
+    search?: string,
+    schemaCategory?: SchemaCategory
   ) {
     const { messages, dataSource, criteriaProvider, proofProviderFactory } =
-      await this.createResources(fusebitContext, orgId, vendorUserId);
+      await this.createResources(integrationContext, orgId, vendorUserId);
     return this.hypersyncApp.generateCriteriaMetadata(
       messages,
       dataSource,
@@ -672,18 +674,19 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       proofProviderFactory,
       criteria,
       [{ isValid: false, fields: [] }],
-      search
+      search,
+      schemaCategory
     );
   }
 
   public async generateSchema(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     vendorUserId: string,
     criteria: HypersyncCriteria
   ) {
     const { dataSource, criteriaProvider, proofProviderFactory } =
-      await this.createResources(fusebitContext, orgId, vendorUserId);
+      await this.createResources(integrationContext, orgId, vendorUserId);
     return this.hypersyncApp.generateSchema(
       dataSource,
       criteriaProvider,
@@ -693,7 +696,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   public async syncNow(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     objectType: ObjectType,
     objectId: string,
@@ -705,9 +708,14 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     retryCount?: number
   ) {
     const vendorUserId = hypersync.settings.vendorUserId;
-    const userContext = await this.getUser(fusebitContext, vendorUserId);
+    const userContext = await this.getUser(integrationContext, vendorUserId);
     const { dataSource, criteriaProvider, proofProviderFactory } =
-      await this.createResources(fusebitContext, orgId, vendorUserId);
+      await this.createResources(
+        integrationContext,
+        orgId,
+        vendorUserId,
+        retryCount
+      );
 
     if (!userContext) {
       throw createHttpError(
@@ -715,7 +723,8 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
         this.getUserNotFoundMessage(vendorUserId)
       );
     }
-
+    const recordingManager = new RecordingManager(integrationContext);
+    recordingManager.start();
     try {
       const data = await this.hypersyncApp.getProofData(
         dataSource,
@@ -729,12 +738,14 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
         metadata,
         retryCount
       );
+      await recordingManager.stop();
       return Array.isArray(data)
         ? {
             data
           }
         : data;
     } catch (err) {
+      await recordingManager.stop();
       if (
         err instanceof ExternalAPIError &&
         err?.computeRetry &&
@@ -751,12 +762,12 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   public async keepTokenAlive(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     userContext: UserContext
   ): Promise<boolean> {
     if (this.authorizationType === AuthorizationType.OAUTH) {
       const { access_token: accessToken } = await this.ensureAccessToken(
-        fusebitContext,
+        integrationContext,
         userContext
       );
       return this.hypersyncApp.keepTokenAlive(accessToken);
@@ -767,55 +778,55 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     }
   }
 
-  public async deleteUserIfLast(
-    fusebitContext: FusebitContext,
-    userContext: IHyperproofUserContext,
-    vendorUserId: string,
-    vendorId?: string
-  ) {
-    // We also need to call the Finch's /disconnect API if there are no more users authenticated to the provider company
-    const prefixPath = await this.hypersyncApp.getRelatedTokenPath(
-      userContext.vendorUserProfile
-    );
-    const listResponse = await fusebitContext.storage.list(
-      `vendor-user/${prefixPath}`
-    );
-    // If we are the last user in the company, disconnect. This invalidates all access_tokens
-    // for the company-provider pair for the env client
-    if (listResponse.items.length === 1) {
-      const tokens = await this.ensureAccessToken(fusebitContext, userContext);
-      await this.hypersyncApp.onLastUserDeleted(
-        userContext.vendorUserProfile,
-        tokens.access_token
+  public override async deleteUser(
+    integrationContext: IntegrationContext,
+    vendorUserId: string
+  ): Promise<void> {
+    const userContext = await this.getUser(integrationContext, vendorUserId);
+    if (userContext) {
+      // We also need to call the Finch's /disconnect API if there are no more users authenticated to the provider company
+      const prefixPath = await this.hypersyncApp.getRelatedTokenPath(
+        userContext.vendorUserProfile
       );
+      const listResponse = await integrationContext.storage.list(
+        `vendor-user/${prefixPath}`
+      );
+      // If we are the last user in the company, disconnect. This invalidates all access_tokens
+      // for the company-provider pair for the env client
+      if (listResponse.items.length === 1) {
+        const tokens = await this.ensureAccessToken(
+          integrationContext,
+          userContext
+        );
+        await this.hypersyncApp.onLastUserDeleted(
+          userContext.vendorUserProfile,
+          tokens.access_token
+        );
+      }
     }
-
-    return super.deleteUserIfLast(
-      fusebitContext,
-      userContext,
-      vendorUserId,
-      vendorId
-    );
+    return super.deleteUser(integrationContext, vendorUserId);
   }
 
   private async createResources(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
-    vendorUserId: string
+    vendorUserId: string,
+    retryCount?: number
   ) {
-    const messages = await this.createMessageMap(fusebitContext, orgId);
+    const messages = await this.createMessageMap(integrationContext, orgId);
     const dataSource = await this.createDataSource(
-      fusebitContext,
+      integrationContext,
       orgId,
-      vendorUserId
+      vendorUserId,
+      retryCount
     );
     const criteriaProvider = await this.createCriteriaProvider(
-      fusebitContext,
+      integrationContext,
       orgId,
       dataSource
     );
     const proofProviderFactory = await this.createProofProviderFactory(
-      fusebitContext,
+      integrationContext,
       orgId,
       messages
     );
@@ -824,13 +835,13 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async createMessageMap(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string
   ): Promise<StringMap> {
     let messages = this.hypersyncApp.getMessages();
-
+    await Logger.info('Creating message map.');
     // Add organization customizations if there are any.
-    const { items } = await fusebitContext.storage.list(
+    const { items } = await integrationContext.storage.list(
       this.createOrgStorageKey(orgId, 'messages')
     );
     if (items && items.length > 0) {
@@ -838,7 +849,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       for (const item of items) {
         const messageKey = item.storageId.split('/root/')[1];
         const messageName = messageKey.split('/')[3];
-        const { data } = await fusebitContext.storage.get(messageKey);
+        const { data } = await integrationContext.storage.get(messageKey);
         messages[messageName] = data;
       }
     }
@@ -847,11 +858,12 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async createDataSource(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
-    vendorUserId: string
+    vendorUserId: string,
+    retryCount?: number
   ): Promise<IDataSource> {
-    const userContext = await this.getUser(fusebitContext, vendorUserId);
+    const userContext = await this.getUser(integrationContext, vendorUserId);
     if (!userContext) {
       throw createHttpError(
         StatusCodes.UNAUTHORIZED,
@@ -859,10 +871,11 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       );
     }
 
+    await Logger.info(`Retrieving access token to create data source`);
     let dataSource: IDataSource;
     if (this.authorizationType === AuthorizationType.OAUTH) {
       const { access_token: accessToken } = await this.ensureAccessToken(
-        fusebitContext,
+        integrationContext,
         userContext
       );
       dataSource = await this.hypersyncApp.createDataSource(accessToken);
@@ -872,10 +885,10 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
         credentials
       );
       if (newCredentials) {
-        await this.saveUser(fusebitContext, {
-          ...(userContext as IHyperproofUserContext),
+        await this.saveUser(integrationContext, {
+          ...userContext,
           keys: credentials
-        });
+        } as IHyperproofUserContext);
       }
       dataSource = await this.hypersyncApp.createDataSource(
         newCredentials ?? credentials
@@ -885,24 +898,28 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     // Add organization customizations if there are any.
     if (dataSource instanceof RestDataSourceBase) {
       let result: ListStorageResult;
-      result = await fusebitContext.storage.list(
+      result = await integrationContext.storage.list(
         this.createOrgStorageKey(orgId, 'datasource/datasets')
       );
       for (const item of result.items) {
         const { orgStorageKey: dataSetKey, itemName: dataSetName } =
           this.parseOrgStorageKey(item.storageId);
-        const { data } = await fusebitContext.storage.get(dataSetKey);
+        const { data } = await integrationContext.storage.get(dataSetKey);
         dataSource.addDataSet(dataSetName, data);
       }
 
-      result = await fusebitContext.storage.list(
+      result = await integrationContext.storage.list(
         this.createOrgStorageKey(orgId, 'datasource/valuelookups')
       );
       for (const item of result.items) {
         const { orgStorageKey: valueLookupKey, itemName: valueLookupName } =
           this.parseOrgStorageKey(item.storageId);
-        const { data } = await fusebitContext.storage.get(valueLookupKey);
+        const { data } = await integrationContext.storage.get(valueLookupKey);
         dataSource.addValueLookup(valueLookupName, data);
+      }
+
+      if (retryCount) {
+        dataSource.setRetryCount(retryCount);
       }
     }
 
@@ -910,12 +927,12 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async getDataSourceConfig(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     vendorUserId: string
   ) {
     const dataSource = await this.createDataSource(
-      fusebitContext,
+      integrationContext,
       orgId,
       vendorUserId
     );
@@ -929,17 +946,17 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async getCriteriaConfig(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     vendorUserId: string
   ) {
     const dataSource = await this.createDataSource(
-      fusebitContext,
+      integrationContext,
       orgId,
       vendorUserId
     );
     const criteriaProvider = await this.createCriteriaProvider(
-      fusebitContext,
+      integrationContext,
       orgId,
       dataSource
     );
@@ -953,12 +970,12 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async getProofTypesConfig(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string
   ) {
-    const messages = await this.createMessageMap(fusebitContext, orgId);
+    const messages = await this.createMessageMap(integrationContext, orgId);
     const proofProviderFactory = await this.createProofProviderFactory(
-      fusebitContext,
+      integrationContext,
       orgId,
       messages
     );
@@ -966,23 +983,24 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async createCriteriaProvider(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     dataSource: IDataSource
   ) {
+    await Logger.info('Creating criteria provider.');
     const criteriaProvider = await this.hypersyncApp.createCriteriaProvider(
       dataSource
     );
 
     // Add organization customizations if there are any.
     if (criteriaProvider instanceof JsonCriteriaProvider) {
-      const { items } = await fusebitContext.storage.list(
+      const { items } = await integrationContext.storage.list(
         this.createOrgStorageKey(orgId, 'criteriafields')
       );
       for (const item of items) {
         const criteriaFieldKey = item.storageId.split('/root/')[1];
         const criteriaFieldName = criteriaFieldKey.split('/')[3];
-        const { data } = await fusebitContext.storage.get(criteriaFieldKey);
+        const { data } = await integrationContext.storage.get(criteriaFieldKey);
         criteriaProvider.addCriteriaField(criteriaFieldName, data);
       }
     }
@@ -992,16 +1010,17 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
 
   private async createProofProviderFactory(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     orgId: string,
     messages: StringMap
   ) {
+    await Logger.info('Creating proof provider factory.');
     const factory = await this.hypersyncApp.getProofProviderFactory(messages);
 
     // Load the list of custom org proof types out of storage.
     const customProofTypeMap = await this.getOrgProofTypes(
-      fusebitContext,
+      integrationContext,
       orgId
     );
 
@@ -1039,12 +1058,12 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
    * the provided subPath with the given name.
    */
   private async doesOrgStorageItemExist(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     subPath: string,
     itemName: string
   ) {
-    const result = await fusebitContext.storage.list(
+    const result = await integrationContext.storage.list(
       this.createOrgStorageKey(orgId, subPath)
     );
 
@@ -1061,7 +1080,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async createOrUpdateDataSet(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     dataSetName: string,
     dataSet: IDataSet,
@@ -1076,7 +1095,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     }
 
     // Save the data set to org storage.
-    await fusebitContext.storage.put(
+    await integrationContext.storage.put(
       { data: dataSet },
       this.createOrgStorageKey(orgId, 'datasource/datasets', dataSetName)
     );
@@ -1084,7 +1103,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     // If the object is being renamed, the old name should be passed in
     // as a query string param so that we can clean it up.
     if (oldDataSetName) {
-      await fusebitContext.storage.delete(
+      await integrationContext.storage.delete(
         this.createOrgStorageKey(orgId, 'datasource/datasets', oldDataSetName)
       );
     }
@@ -1093,7 +1112,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async deleteDataSet(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     dataSetName: string
   ) {
@@ -1103,20 +1122,20 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       dataSetName
     );
 
-    const { data: dataSet } = await fusebitContext.storage.get(key);
-    await fusebitContext.storage.delete(key);
+    const { data: dataSet } = await integrationContext.storage.get(key);
+    await integrationContext.storage.delete(key);
     return { dataSetName, dataSet };
   }
 
   private async runDataSet(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     vendorUserId: string,
     dataSet: IDataSet,
     params: DataValueMap
   ) {
     const dataSource = await this.createDataSource(
-      fusebitContext,
+      integrationContext,
       orgId,
       vendorUserId
     );
@@ -1143,7 +1162,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async createOrUpdateValueLookup(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     valueLookupName: string,
     valueLookup: ValueLookup,
@@ -1158,7 +1177,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     }
 
     // Save the value lookup to org storage.
-    await fusebitContext.storage.put(
+    await integrationContext.storage.put(
       { data: valueLookup },
       this.createOrgStorageKey(
         orgId,
@@ -1170,7 +1189,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     // If the object is being renamed, the old name should be passed in
     // as a query string param so that we can clean it up.
     if (oldMessageLookupName) {
-      await fusebitContext.storage.delete(
+      await integrationContext.storage.delete(
         this.createOrgStorageKey(
           orgId,
           'datasource/valuelookups',
@@ -1183,7 +1202,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async deleteValueLookup(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     messageLookupName: string
   ) {
@@ -1193,13 +1212,13 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       messageLookupName
     );
 
-    const { data: valueLookup } = await fusebitContext.storage.get(key);
-    await fusebitContext.storage.delete(key);
+    const { data: valueLookup } = await integrationContext.storage.get(key);
+    await integrationContext.storage.delete(key);
     return { messageLookupName, valueLookup };
   }
 
   private async createOrUpdateCriteriaField(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     vendorUserId: string,
     criteriaFieldName: string,
@@ -1214,7 +1233,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     }
 
     // Save the criteria field to org storage.
-    await fusebitContext.storage.put(
+    await integrationContext.storage.put(
       { data: criteriaField },
       this.createOrgStorageKey(orgId, 'criteriafields', criteriaFieldName)
     );
@@ -1222,7 +1241,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     // If the object is being renamed, the old name should be passed in
     // as a query string param so that we can clean it up.
     if (oldCriteriaFieldName) {
-      await fusebitContext.storage.delete(
+      await integrationContext.storage.delete(
         this.createOrgStorageKey(orgId, 'criteriafields', oldCriteriaFieldName)
       );
     }
@@ -1231,7 +1250,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async deleteCriteriaField(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     criteriaFieldName: string
   ) {
@@ -1241,19 +1260,19 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       criteriaFieldName
     );
 
-    const { data: criteriaField } = await fusebitContext.storage.get(key);
-    await fusebitContext.storage.delete(key);
+    const { data: criteriaField } = await integrationContext.storage.get(key);
+    await integrationContext.storage.delete(key);
     return { criteriaFieldName, criteriaField };
   }
 
   private async getProofTypeDefinition(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     proofType: string
   ) {
-    const messages = await this.createMessageMap(fusebitContext, orgId);
+    const messages = await this.createMessageMap(integrationContext, orgId);
     const proofProviderFactory = await this.createProofProviderFactory(
-      fusebitContext,
+      integrationContext,
       orgId,
       messages
     );
@@ -1261,7 +1280,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async createOrUpdateProofType(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     proofType: string,
     label: string,
@@ -1284,7 +1303,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     };
 
     // Save the custom proof type to org storage.
-    await fusebitContext.storage.put(
+    await integrationContext.storage.put(
       { data: customProofType },
       this.createOrgStorageKey(orgId, 'proof', proofType)
     );
@@ -1292,7 +1311,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     // Is the proof type is being renamed?
     if (oldProofType) {
       // Delete the old proofs definition.
-      await fusebitContext.storage.delete(
+      await integrationContext.storage.delete(
         this.createOrgStorageKey(orgId, 'proof', oldProofType)
       );
     }
@@ -1303,12 +1322,12 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async deleteProofType(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     proofType: string
   ) {
     const customProofTypeMap = await this.getOrgProofTypes(
-      fusebitContext,
+      integrationContext,
       orgId
     );
 
@@ -1321,7 +1340,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     }
 
     // Delete the custom proof type from org storage.
-    await fusebitContext.storage.delete(
+    await integrationContext.storage.delete(
       this.createOrgStorageKey(orgId, 'proof', proofType)
     );
 
@@ -1334,16 +1353,16 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
    * Loads the list of org proof types out of storage.
    */
   private async getOrgProofTypes(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string
   ) {
     const customProofTypes: CustomProofTypeMap = {};
 
     // Look for all custom proof types for the given org and add them to customProofTypes.
     const proofTypesKey = this.createOrgStorageKey(orgId, 'proof');
-    const storageKeys = await fusebitContext.storage.list(proofTypesKey);
+    const storageKeys = await integrationContext.storage.list(proofTypesKey);
     for (const storageKey of storageKeys.items) {
-      const customProofTypeEntry = await fusebitContext.storage.get(
+      const customProofTypeEntry = await integrationContext.storage.get(
         storageKey.storageId.split('root/')[1]
       );
 
@@ -1355,7 +1374,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async createOrUpdateMessage(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     messageName: string,
     message: string,
@@ -1370,7 +1389,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     }
 
     // Save the message to org storage.
-    await fusebitContext.storage.put(
+    await integrationContext.storage.put(
       { data: message },
       this.createOrgStorageKey(orgId, 'messages', messageName)
     );
@@ -1378,7 +1397,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     // If the object is being renamed, the old name should be passed in
     // as a query string param so that we can clean it up.
     if (oldMessageName) {
-      await fusebitContext.storage.delete(
+      await integrationContext.storage.delete(
         this.createOrgStorageKey(orgId, 'messages', oldMessageName)
       );
     }
@@ -1387,7 +1406,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   private async deleteMessage(
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     orgId: string,
     messageName: string
   ) {
@@ -1400,8 +1419,8 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     }
 
     const key = this.createOrgStorageKey(orgId, 'messages', messageName);
-    const { data: message } = await fusebitContext.storage.get(key);
-    await fusebitContext.storage.delete(key);
+    const { data: message } = await integrationContext.storage.get(key);
+    await integrationContext.storage.delete(key);
     return { messageName, message };
   }
 
@@ -1439,6 +1458,15 @@ export class HypersyncApp<TUserProfile = object> {
    */
   public initialize() {
     return createOAuthConnector(this.connector);
+  }
+
+  /**
+   * Creates the Express app that processes requests to the integration.
+   *
+   * @returns An express.Express() instance.
+   */
+  public start() {
+    return createApp(this.connector);
   }
 
   /**
@@ -1558,7 +1586,7 @@ export class HypersyncApp<TUserProfile = object> {
 
   public async validateAccessToken(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    fusebitContext: FusebitContext,
+    integrationContext: IntegrationContext,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     userContext: UserContext,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1684,7 +1712,8 @@ export class HypersyncApp<TUserProfile = object> {
     criteria: HypersyncCriteria,
     pages: ICriteriaPage[],
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    search?: string
+    search?: string,
+    schemaCategory?: SchemaCategory
   ): Promise<ICriteriaMetadata> {
     await Logger.debug('Generating criteria metadata.');
 
@@ -1726,7 +1755,8 @@ export class HypersyncApp<TUserProfile = object> {
 
     // Grab the list of proof types that match the proof category.
     const proofTypes = proofProviderFactory.getProofTypeOptions(
-      categoryField?.value as string | undefined
+      categoryField?.value as string | undefined,
+      schemaCategory
     );
 
     // If the previously selected proof type is not found in the set of

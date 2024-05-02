@@ -7,6 +7,7 @@ import {
 } from './IDataSource';
 
 import { DataObject, DataValueMap } from '@hyperproof/hypersync-models';
+import { IHyperproofUser } from '@hyperproof/integration-sdk';
 
 /**
  * Abstract base class for a data source object.  Provides convenient
@@ -25,7 +26,8 @@ export abstract class DataSourceBase implements IDataSource {
     dataSetName: string,
     params?: DataValueMap,
     page?: string,
-    metadata?: SyncMetadata
+    metadata?: SyncMetadata,
+    hyperproofUser?: IHyperproofUser
   ): Promise<DataSetResult<TData | TData[]>>;
 
   /**
