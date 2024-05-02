@@ -13,7 +13,7 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 - Classes, functions, types, interfaces and enums common to all integration types have been
   moved to @hyperproof/integration-sdk.
 
-- Paging of data set results can now be done delcaratively. For more information on
+- Paging of data set results can now be done declaratively. For more information on
   declarative paging, see the documentation on [declarative paging](./doc/005-data-sources.md#paging).
 
 - Data sets now support a `method` property that can be set to `GET`, `POST` or `PATCH`. Data
