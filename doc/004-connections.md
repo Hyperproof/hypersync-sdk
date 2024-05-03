@@ -11,6 +11,18 @@ There are many different forms of authentication and authorization used by exter
 
 In a Hypersync app, there are two types connections: [OAuth connections](#oauth-authorization) and [Custom authentication connections](#custom-authentication).
 
+> **NOTE**
+>
+> The OAuth references in this document refer to the [OAuth 2.0 Authorization Code flow](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1).
+> Services using the Authorization Code flow redirect the user in the browser to the service's
+> authorization server, where the user signs in. The user is then presented with a consent form
+> where they must explicitly grant authorization to the data stored in the service. After consent
+> is granted, an access code is returned via redirect, which the target application may then use
+> to obtain an access token.
+>
+> For services that use [OAuth 2.0's Client Credentials flow](https://datatracker.ietf.org/doc/html/rfc6749#section-4.4),
+> a [custom authentication connection](#custom-authentication) should be used.
+
 ## OAuth Authorization
 
 For services that use OAuth 2.0 for authorization, the Hypersync SDK includes functionality that obtains and manages the access tokens that these APIs require.
