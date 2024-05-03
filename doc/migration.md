@@ -84,7 +84,7 @@ Where "MyApp" is the name of your custom app.
 After making these changes, when you build your app it will produce `./build/start.js` that is
 referenced by the `up` command.
 
-Once you have made this change, your custom Hypersync app will function correclty in either
+Once you have made this change, your custom Hypersync app will function correctly in either
 the Hyperproof or Hyperproof EU environments.
 
 > **NOTE**
