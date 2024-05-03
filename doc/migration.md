@@ -87,7 +87,7 @@ referenced by the `up` command.
 Once you have made this change, your custom Hypersync app will function correclty in either
 the Hyperproof or Hyperproof EU environments.
 
-> ** Note **
+> **NOTE**
 >
 > If you want to deploy your custom app to Hyperproof EU, you will need [HP CLI version](./hyperproof-cli.md)
 > version 1.1.0.0 or higher. See the `--domain` option on the `hp signin` command.
