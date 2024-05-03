@@ -21,9 +21,9 @@ The `dependencies` section of your app's `package.json` file should be updated a
 
 ```
   "dependencies": {
-    "@hyperproof/integration-sdk": "^1.0.2",
     "@hyperproof/hypersync-models": "^5.0.0",
     "@hyperproof/hypersync-sdk": "^3.0.0",
+    "@hyperproof/integration-sdk": "^1.0.2",
     ...
   }
 ```
@@ -38,6 +38,7 @@ If your app makes use of any of these elements, your `import` statements will ne
 
 | Element               | Type  |
 | --------------------- | ----- |
+| CredentialFieldType   | Enum  |
 | CustomAuthCredentials | Type  |
 | Logger                | Class |
 
