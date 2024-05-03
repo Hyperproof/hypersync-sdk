@@ -32,6 +32,8 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 - Various enhancements and fixes have been made to improve overall quality and reliability.
 
+For more information on migrationg from version 2.X to 3.0, please see the [migration guide](./doc/migration.md).
+
 ### 2.1.0
 
 - Add support for Node 18
