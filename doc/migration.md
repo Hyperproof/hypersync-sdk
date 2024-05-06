@@ -7,40 +7,29 @@ require small changes to Hypersync apps that use version 2.1 or earlier.
 
 ### Package Versions
 
-Hypersync SDK functionality is now distributed via three Node packages:
+The Hypersync SDK functionality is distributed via three Node packages:
 
 | Package                      | Version | Description                 |
 | ---------------------------- | ------- | --------------------------- |
-| @hyperproof/hyperysnc-sdk    | 3.0.0   | Core Hypersync SDK          |
+| @hyperproof/hyperysnc-sdk    | 3.0.2   | Core Hypersync SDK          |
 | @hyperproof/hypersync-models | 5.0.0   | Supporting Hypersync models |
 | @hyperproof/integration-sdk  | 1.0.2   | Common integration elements |
 
-Most Hypersync apps will require all three packages to function properly.
+All of the functionality needed to develop Hypersync applications is now
+exported from `@hyperproof/hypersync-sdk`.  There is no longer a need to
+include dependencies to `@hyperproof/hypersync-models` or `@hyperproof/integration-sdk`.
 
 The `dependencies` section of your app's `package.json` file should be updated as follows:
 
 ```
   "dependencies": {
-    "@hyperproof/hypersync-models": "^5.0.0",
-    "@hyperproof/hypersync-sdk": "^3.0.0",
-    "@hyperproof/integration-sdk": "^1.0.2",
+    "@hyperproof/hypersync-sdk": "^3.0.2",
     ...
   }
 ```
 
-### Imports
-
-As noted above and in the README, a number of classes, functions, types, interfaces and enums
-been moved to `@hyperproof/integration-sdk`. Hypersync SDK developers should take note of the
-following language elements which must now be imported from `@hyperproof/integration-sdk`.
-
-If your app makes use of any of these elements, your `import` statements will need to be updated.
-
-| Element               | Type  |
-| --------------------- | ----- |
-| CredentialFieldType   | Enum  |
-| CustomAuthCredentials | Type  |
-| Logger                | Class |
+If your code imported classes, types, interfaces, or enums from one of the
+other packages, those imports will need to be updated after making this change.
 
 ### Updated Execution Environment
 
