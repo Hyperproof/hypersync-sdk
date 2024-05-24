@@ -177,7 +177,56 @@
                     },
                     "required": ["type", "request", "pageUntil"],
                     "additionalProperties": false
-                  }                
+                  },
+                  {
+                    "properties": {
+                      "type": {
+                        "type": "string",
+                        "enum": ["graphqlConnections"]
+                      },
+                      "request": {
+                        "type": "object",
+                        "properties":{
+                          "limitParameter": {
+                            "anyOf": [
+                              {
+                                "type": "string",
+                                "enum": ["first"]
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "limitValue": {
+                            "type": "number"
+                          }
+                        },
+                        "required": ["limitParameter", "limitValue"],
+                        "additionalProperties": false
+                      },
+                      "response": {
+                        "type": "object",
+                        "properties":{
+                          "pageInfo": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["pageInfo"],
+                        "additionalProperties": false
+                      },
+                      "pageUntil": {
+                        "type": "string",
+                        "enum": ["noNextPage"]
+                      },
+                      "level": {
+                        "type": "string",
+                        "enum": ["connector", "job"]
+                      }
+                    },
+                    "required": ["type", "request", "response", "pageUntil"],
+                    "additionalProperties": false
+                  }
                 ]
             },
             "body": {
