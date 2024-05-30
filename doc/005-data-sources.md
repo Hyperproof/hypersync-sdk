@@ -123,7 +123,7 @@ The mandatory `request` property in the paging scheme constructs the paged query
 
 The mandatory `request` property in the paging scheme constructs the paged query string.  The query string of the first API call from the above example will be: `?size=20`.  Each successive call will be structured in the pattern: `?size=20&token=891b629672384d04`.  Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops.  When `noNextToken` condition is applied, `nextToken` must be included in the response object.  This string value represents the path to the expected value in the data returned from the external service.*
 
-3.  __GraphQL Connections.__  Following the GraphQL [Connections](https://graphql.org/learn/pagination/#connection-specification) specification, continue paging until `hasNextPage` is false.  Return at most `limitValue` items per page.  Supports forward, non-nested pagination.
+4.  __GraphQL Connections.__  Following the GraphQL [Connections](https://graphql.org/learn/pagination/#connection-specification) specification, continue paging until `hasNextPage` is false.  Return at most `limitValue` items per page.  Supports forward, non-nested pagination.
 
 ```json
 "body": {
