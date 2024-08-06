@@ -1,6 +1,6 @@
 {
   "name": "@hyperproof/hypersync-sdk",
-  "version": "3.0.2",
+  "version": "3.1.2",
   "description": "Hypersync SDK",
   "repository": {
     "type": "git",
@@ -17,7 +17,7 @@
   },
   "dependencies": {
     "@hyperproof/hypersync-models": "5.0.0",
-    "@hyperproof/integration-sdk": "1.0.2",
+    "@hyperproof/integration-sdk": "1.1.2",
     "@js-joda/core": "3.2.0",
     "@js-joda/timezone": "2.5.0",
     "@types/express": "^4.17.13",

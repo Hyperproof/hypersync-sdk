@@ -8,6 +8,10 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ## Release Notes
 
+### 3.1.0
+
+- Update Integration SDK
+
 ### 3.0.0
 
 - Classes, functions, types, interfaces and enums common to all integration types have been
