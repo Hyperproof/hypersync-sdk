@@ -41,10 +41,10 @@
   resolved "https://registry.yarnpkg.com/@hyperproof/hypersync-models/-/hypersync-models-5.0.0.tgz#6c789d096e4a0203f29dbe77d0854cf1aa9b4929"
   integrity sha512-224/5q2fxJi9XgBjEZ5Cy8P+6vLKzSBtmDJs/gMG+byK8ftu3p406NLPaLBD2pg29+DmXT1QT8YtemcL7OVOUw==
 
-"@hyperproof/integration-sdk@1.0.2":
-  version "1.0.2"
-  resolved "https://registry.yarnpkg.com/@hyperproof/integration-sdk/-/integration-sdk-1.0.2.tgz#8bd7e2c44514f1f88dc308be2ba378dce37412dc"
-  integrity sha512-rLTbitqQu+zMT0HWxeecd7IS2QSLS7jM8QB7pLfg2K11+5O3A8eHKoPvZgDUD6umzDsDnB7ggf+jimk+N9lGjw==
+"@hyperproof/integration-sdk@1.1.2":
+  version "1.1.2"
+  resolved "https://registry.yarnpkg.com/@hyperproof/integration-sdk/-/integration-sdk-1.1.2.tgz#60e2ffb176b2b01add73199ebbe544836d00c958"
+  integrity sha512-l/uqx6F6STot804N9TMLukTn0QqwzgeTZjglQBSQ6B4f4GDwiLsB5upEmdZyLddUj33CwQr6nZ1Pd7O7O0pVVg==
   dependencies:
     "@js-joda/core" "3.2.0"
     "@pollyjs/adapter-node-http" "6.0.6"
