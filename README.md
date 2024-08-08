@@ -10,7 +10,7 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ### 3.1.0
 
-- Update Integration SDK
+- Integrate latest Integration SDK which contains improvements for the new execution environment.
 
 ### 3.0.0
 
