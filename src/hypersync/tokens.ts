@@ -147,7 +147,6 @@ const executeResolveTokens = (
     // Resolving tokens may have introduced more tokens.
     tokens = output?.match(regEx) ?? null;
   }
-  console.log({ output });
 
   return output;
 };

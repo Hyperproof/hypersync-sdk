@@ -250,7 +250,6 @@ export class RestDataSourceBase<
       for (const key of Object.keys(query)) {
         query[key] = resolveTokens(query[key], tokenContext);
       }
-      console.log('query here', query);
       relativeUrl = `${relativeUrl}?${queryString.stringify(query)}`;
     }
     return { relativeUrl, tokenContext };
