@@ -1,3 +1,5 @@
+import '@js-joda/timezone';
+
 import { HypersyncPeriod } from '@hyperproof/hypersync-models';
 import {
   ChronoUnit,
@@ -11,7 +13,6 @@ import {
   ZoneId,
   ZoneOffset
 } from '@js-joda/core';
-require('@js-joda/timezone');
 
 const fallbackLocale = 'en-US';
 const fallbackTimeZone = 'UTC';

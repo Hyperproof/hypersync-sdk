@@ -7,6 +7,7 @@ import {
   HypersyncPeriod,
   IProofCriterionRef,
   ISelectOption,
+  IValidation,
   SchemaCategory
 } from '@hyperproof/hypersync-models';
 import { CriteriaPageMessageLevel } from '@hyperproof/integration-sdk';
@@ -25,6 +26,8 @@ export interface ICriteriaField {
   isRequired?: boolean;
   isDisabled?: boolean;
   noOptionsMessage?: string;
+  isMulti?: boolean;
+  validation?: IValidation;
 }
 
 /**
@@ -61,6 +64,7 @@ export interface IProofCriterionValue {
   name: string;
   label: string;
   value: HypersyncCriteriaValue;
+  validation?: IValidation;
 }
 
 /**

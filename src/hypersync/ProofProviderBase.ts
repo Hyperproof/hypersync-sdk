@@ -19,7 +19,10 @@ import {
   HypersyncPageOrientation,
   SchemaCategory
 } from '@hyperproof/hypersync-models';
-import { IHyperproofUser } from '@hyperproof/integration-sdk';
+import {
+  IHyperproofUser,
+  IntegrationContext
+} from '@hyperproof/integration-sdk';
 
 /**
  * Field information that is used in the layout of a generated proof document.

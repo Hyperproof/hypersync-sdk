@@ -72,11 +72,12 @@ export class RestDataSourceBase<
   protected config: IRestDataSourceConfig<TDataSet>;
   protected apiClient: ApiClient;
   protected messages: StringMap;
-
+  protected headers: HeadersInit;
   constructor(
     config: IRestDataSourceConfig<TDataSet>,
     messages: StringMap,
-    headers: HeadersInit
+    headers: HeadersInit,
+    apiClient = new ApiClient(headers, config.baseUrl)
   ) {
     super();
     // Make a deep copy of the config to support later modification.
@@ -86,7 +87,8 @@ export class RestDataSourceBase<
       valueLookups: { ...(config.valueLookups ?? config.messages) }
     };
     this.messages = messages;
-    this.apiClient = new ApiClient(headers, config.baseUrl);
+    this.headers = headers;
+    this.apiClient = apiClient;
   }
 
   /**
@@ -101,6 +103,14 @@ export class RestDataSourceBase<
    */
   public getConfig() {
     return this.config;
+  }
+
+  /**
+   * allows overwriting the base url and api client's headers
+   */
+  public overwriteBaseUrlAndHeaders(url: string, headers: HeadersInit) {
+    this.config.baseUrl = url;
+    this.setHeaders(headers);
   }
 
   /**
@@ -173,11 +183,14 @@ export class RestDataSourceBase<
       params,
       dataSet
     );
-    let resolvedBody;
-    if (dataSet.body) {
-      resolvedBody = resolveTokens(
-        dataSet.body as object | string,
-        tokenContext
+
+    let requestBody;
+    if (dataSet.method && ['POST', 'PATCH'].includes(dataSet.method)) {
+      requestBody = this.generateRequestBody(
+        dataSetName,
+        tokenContext,
+        dataSet.body,
+        params
       );
     }
 
@@ -192,7 +205,8 @@ export class RestDataSourceBase<
         page,
         metadata,
         dataSet.method,
-        resolvedBody,
+        requestBody,
+        dataSet.headers,
         hyperproofUser
       );
     } else {
@@ -205,7 +219,8 @@ export class RestDataSourceBase<
         page,
         metadata,
         dataSet.method,
-        resolvedBody,
+        requestBody,
+        dataSet.headers,
         hyperproofUser
       );
     }
@@ -235,6 +250,7 @@ export class RestDataSourceBase<
       for (const key of Object.keys(query)) {
         query[key] = resolveTokens(query[key], tokenContext);
       }
+      console.log('query here', query);
       relativeUrl = `${relativeUrl}?${queryString.stringify(query)}`;
     }
     return { relativeUrl, tokenContext };
@@ -393,6 +409,10 @@ export class RestDataSourceBase<
    * @param {object} params Parameter values to be used when retrieving data.  Optional.
    * @param {string} page The page value to continue fetching data from a previous sync. Optional.
    * @param {object} metadata Metadata from previous sync run if requeued. Optional.
+   * @param {DataSetMethod} method REST HTTP Method. Optional.
+   * @param {object} requestBody Request body of the HTTP request. Optional.
+   * @param {object} requestHeaders Additional headers to be included in the HTTP request. Optional.
+   * @param {*} hyperproofUser The Hyperproof user who initiated the sync. Optional.
    *
    * @returns RestDataSetResult
    */
@@ -407,7 +427,8 @@ export class RestDataSourceBase<
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     metadata?: SyncMetadata,
     method?: DataSetMethod,
-    body?: any,
+    requestBody?: any,
+    requestHeaders?: { [key: string]: string },
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     hyperproofUser?: IHyperproofUser
   ): Promise<RestDataSetResult<any>> {
@@ -418,14 +439,22 @@ export class RestDataSourceBase<
 
     switch (method) {
       case 'PATCH':
-        response = await this.apiClient.patchJson(relativeUrl, body);
+        response = await this.apiClient.patchJson(
+          relativeUrl,
+          requestBody,
+          requestHeaders
+        );
         break;
       case 'POST':
-        response = await this.apiClient.postJson(relativeUrl, body);
+        response = await this.apiClient.postJson(
+          relativeUrl,
+          requestBody,
+          requestHeaders
+        );
         break;
       case 'GET':
       case undefined:
-        response = await this.apiClient.getJson(relativeUrl);
+        response = await this.apiClient.getJson(relativeUrl, requestHeaders);
         break;
       default:
         throw createHttpError(
@@ -435,6 +464,9 @@ export class RestDataSourceBase<
     }
 
     const { json: data, source, headers } = response;
+
+    this.validateResponse(dataSetName, data, source, headers);
+
     return {
       status: DataSetResultStatus.Complete,
       data,
@@ -453,8 +485,9 @@ export class RestDataSourceBase<
    * @param {object} params Parameter values to be used when retrieving data.  Optional.
    * @param {string} page The page value to continue fetching data from a previous sync. Optional.
    * @param {object} metadata Metadata from previous sync run if requeued. Optional.
-   * @param {HttpMethod} method REST HTTP Method. Optional.
-   * @param {object} body Body of the HTTP request. Optional.
+   * @param {DataSetMethod} method REST HTTP Method. Optional.
+   * @param {object} requestBody Body of the HTTP request. Optional.
+   * @param {object} requestHeaders Additional headers to be included in the HTTP request. Optional.
    * @param {*} hyperproofUser The Hyperproof user who initiated the sync. Optional.
    *
    * @returns RestDataSetResult
@@ -467,22 +500,26 @@ export class RestDataSourceBase<
     page?: string,
     metadata?: SyncMetadata,
     method?: DataSetMethod,
-    body?: any,
+    requestBody?: any,
+    requestHeaders?: { [key: string]: string },
     hyperproofUser?: IHyperproofUser
   ): Promise<RestDataSetResult<any>> {
     const baseUrl = this.config.baseUrl;
-    const paginator = Paginator.createPaginator(dataSet.pagingScheme!);
+    const paginator = Paginator.createPaginator(dataSet.pagingScheme!, method);
 
     if (dataSet.pagingScheme?.level === PagingLevel.Connector) {
       const results: any = [];
       let connectorPage: string | undefined;
       let response;
       do {
-        const pagedRelativeUrl: string = paginator.paginateRequest(
-          relativeUrl,
-          baseUrl,
-          connectorPage
-        );
+        const { pagedRelativeUrl, pagedMessageBody } =
+          paginator.paginateRequest(
+            relativeUrl,
+            baseUrl,
+            requestBody,
+            method,
+            connectorPage
+          );
         response = await this.getDataFromUrl(
           dataSetName,
           dataSet,
@@ -491,7 +528,8 @@ export class RestDataSourceBase<
           page,
           metadata,
           method,
-          body,
+          pagedMessageBody,
+          requestHeaders,
           hyperproofUser
         );
 
@@ -525,9 +563,11 @@ export class RestDataSourceBase<
       };
     } else {
       // Default to job level paging
-      const pagedRelativeUrl = paginator.paginateRequest(
+      const { pagedRelativeUrl, pagedMessageBody } = paginator.paginateRequest(
         relativeUrl,
         baseUrl,
+        requestBody,
+        method,
         page
       );
       const response = await this.getDataFromUrl(
@@ -538,7 +578,8 @@ export class RestDataSourceBase<
         page,
         metadata,
         method,
-        body,
+        pagedMessageBody,
+        requestHeaders,
         hyperproofUser
       );
 
@@ -733,14 +774,20 @@ export class RestDataSourceBase<
       });
 
       // If the return type is an object and we just filtered down to one
-      // element in the array, return  the first element as an object.
+      // element in the array, return the first element as an object.
       if (!this.isArrayResult(dataSet)) {
-        if (data.length !== 1) {
-          throw new Error(
-            `Object result specified for data set but filtered result had ${data.length} items.`
-          );
+        switch (data.length) {
+          case 0:
+            data = undefined;
+            break;
+          case 1:
+            data = data[0];
+            break;
+          default:
+            throw new Error(
+              `Object result specified for data set but filtered result had ${data.length} items.`
+            );
         }
-        data = data[0];
       }
     }
 
@@ -957,5 +1004,50 @@ export class RestDataSourceBase<
       }
     }
     return true;
+  }
+
+  /**
+   * Generates request body before it is sent via POST or PATCH
+   * by replacing tokens found in request at all levels in JSON object.
+   *
+   * @param dataSetName Name of the data set to retrieve.
+   * @param tokenContext Dictionary of values to use in place of tokens.
+   * @param body Request body of a POST or PATCH to be created or modified. Optional.
+   * @param params Parameter values to be used when retrieving data. Optional.
+   */
+  protected generateRequestBody(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    dataSetName: string,
+    tokenContext: TokenContext,
+    body?: string | object | undefined,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    params?: DataValueMap
+  ): string | object | undefined {
+    if (body) {
+      return resolveTokens(body as object | string, tokenContext);
+    }
+    return body;
+  }
+
+  /**
+   * Validates response model of the external service.
+   * Derived class may throw error when model is unexpected or error is detected.
+   *
+   * @param dataSetName Name of the retrieved data set.
+   * @param data Data returned from the external service.
+   * @param source API endpoint of the external service.
+   * @param headers Response headers returned from external service.
+   */
+  protected validateResponse(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    dataSetName: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    data: any,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    source: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    headers: { [name: string]: string[] }
+  ): void {
+    // No validation applied by default
   }
 }

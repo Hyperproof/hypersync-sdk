@@ -1,9 +1,13 @@
 import {
+  DataSetMethod,
+  GraphQLConnectionsRequest,
   IDataSet,
+  IGraphQLConnectionsScheme,
   INextTokenScheme,
   IOffsetAndLimitScheme,
   IPageBasedScheme,
   NextTokenRequest,
+  NextTokenType,
   OffsetAndLimitRequest,
   PageBasedRequest,
   PageUntilCondition,
@@ -12,27 +16,99 @@ import {
 } from '@hyperproof/hypersync-models';
 import jsonata from 'jsonata';
 
-const HEADER_PREFIX = 'header:'; // prefix indicating property found in response header
+const HEADER_PREFIX = 'header:'; // Prefix indicating property found in response header
 const PROPERTY_ACCESSORS = ['@odata.nextLink']; // Do not evaluate as jsonata expression
 
 export abstract class Paginator {
   currentPage?: number | string;
 
   /**
-   * Add pagination parameters to a request before it is sent.
+   * Factory method calls appropriate constructor
+   * given a dataset's declarative paging scheme.
+   *
+   * @param {PagingScheme} pagingScheme JSON definition of pagination behavior.
+   * @param {DataSetMethod} method HTTP Method. Optional.
+   */
+  public static createPaginator(
+    pagingScheme: PagingScheme,
+    method?: DataSetMethod
+  ) {
+    const type: PagingType = pagingScheme.type;
+    switch (type) {
+      case PagingType.NextToken:
+        return new NextTokenPaginator(pagingScheme as INextTokenScheme);
+      case PagingType.PageBased:
+        return new PageBasedPaginator(pagingScheme as IPageBasedScheme);
+      case PagingType.OffsetAndLimit:
+        return new OffsetAndLimitPaginator(
+          pagingScheme as IOffsetAndLimitScheme
+        );
+      case PagingType.GraphQLConnections:
+        return new GraphQLConnectionsPaginator(
+          pagingScheme as IGraphQLConnectionsScheme,
+          method
+        );
+      default:
+        throw new Error(`Paginator: Invalid paging scheme: ${type}`);
+    }
+  }
+
+  /**
+   * Calls appropriate method to add paging parameters to a request.
+   * GET paginates querystring. POST paginates message body.
+   *
+   * @param relativeUrl Service-relative URL from which data should be retrieved.
+   * @param baseUrl The base URL off of which relative URLs stem. Optional.
+   * @param messageBody Body of the HTTP request.  Optional.
+   * @param method HTTP Method. Optional.
+   * @param page The page value to continue fetching data from a previous sync. Optional.
+   */
+  public paginateRequest(
+    relativeUrl: string,
+    baseUrl?: string,
+    messageBody?: { [key: string]: any },
+    method?: DataSetMethod,
+    page?: string
+  ) {
+    let pagedRelativeUrl = relativeUrl;
+    let pagedMessageBody = messageBody;
+    if (method === 'POST') {
+      pagedMessageBody = this.paginateMessageBody(messageBody, page);
+    } else {
+      pagedRelativeUrl = this.paginateQueryString(relativeUrl, baseUrl, page);
+    }
+    return {
+      pagedRelativeUrl,
+      pagedMessageBody
+    };
+  }
+
+  /**
+   * Adds pagination parameters to a querystring before it is sent.
    *
    * @param relativeUrl Service-relative URL from which data should be retrieved.
    * @param baseUrl The base URL off of which relative URLs stem. Optional.
    * @param page The page value to continue fetching data from a previous sync. Optional.
    */
-  public abstract paginateRequest(
+  protected abstract paginateQueryString(
     relativeUrl: string,
     baseUrl?: string,
     page?: string
   ): string;
 
   /**
-   * Measure progress and return next page for retrieval
+   * Adds pagination parameters to a message body before it is sent.
+   *
+   * @param body Body of the HTTP request.  Optional.
+   * @param page The page value to continue fetching data from a previous sync. Optional.
+   */
+  protected abstract paginateMessageBody(
+    messageBody?: { [key: string]: any },
+    page?: string
+  ): { [key: string]: any } | undefined;
+
+  /**
+   * Measures progress and returns next page for retrieval
    * or undefined if all data has been gathered.
    *
    * @param dataSet Data set for which data is being retrieved.
@@ -48,39 +124,19 @@ export abstract class Paginator {
   ): string | undefined;
 
   /**
-   * Apply validation rules for a given paging scheme.
-   * Return error message if invalid, undefined otherwise.
+   * Applies validation rules for a given paging scheme.
+   * Returns error message if invalid, undefined otherwise.
    *
    * @param pagingScheme JSON definition of pagination behavior.
+   * @param method HTTP Method. Optional.
    */
   protected abstract validatePagingScheme(
-    pagingScheme: PagingScheme
+    pagingScheme: PagingScheme,
+    method?: DataSetMethod
   ): string | undefined;
 
   /**
-   * Factory method to return appropriate constructor
-   * given a dataset's declarative paging scheme.
-   *
-   * @param {PagingScheme} pagingScheme JSON definition of pagination behavior.
-   */
-  public static createPaginator(pagingScheme: PagingScheme) {
-    const type: PagingType = pagingScheme.type;
-    switch (type) {
-      case PagingType.NextToken:
-        return new NextTokenPaginator(pagingScheme as INextTokenScheme);
-      case PagingType.PageBased:
-        return new PageBasedPaginator(pagingScheme as IPageBasedScheme);
-      case PagingType.OffsetAndLimit:
-        return new OffsetAndLimitPaginator(
-          pagingScheme as IOffsetAndLimitScheme
-        );
-      default:
-        throw new Error(`Paginator: Invalid paging scheme: ${type}`);
-    }
-  }
-
-  /**
-   * Return length of data array.  Flatten data if necessary using IDataSet property.
+   * Returns length of data array.  Flattens data if necessary using IDataSet property.
    *
    * @param {object} dataSet Data set for which data has been retrieved.
    * @param {*} data Data to be evaluated.
@@ -93,7 +149,7 @@ export abstract class Paginator {
   }
 
   /**
-   * Parse response headers to return target value.
+   * Parses response headers to return target value.
    *
    * @param {*} headers Response headers returned from external service.
    * @param {string} property Key of target element.
@@ -123,7 +179,7 @@ export abstract class Paginator {
   }
 
   /**
-   * Determine if query string exists in URL.
+   * Determines if query string exists in URL.
    * Returns the appropriate delimiter based on resulting condition.
    *
    * @param {string} relativeUrl Relative URL of service.
@@ -135,7 +191,7 @@ export abstract class Paginator {
   }
 
   /**
-   * Determine if current iteration is first page in pagination sequence.
+   * Determines if current iteration is first page in pagination sequence.
    *
    * @param {string} page The page value to continue fetching data from a previous sync.
    */
@@ -144,6 +200,19 @@ export abstract class Paginator {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Validates the expected return of a paged data set is array.
+   *
+   * @param dataSet Data set for which data has been retrieved.
+   */
+  protected ensureDataSetArray(dataSet: IDataSet): void {
+    if (dataSet.result !== 'array') {
+      throw new Error(
+        `Paginator: Expected result for paginated requests must be of type array.`
+      );
+    }
   }
 }
 
@@ -154,7 +223,7 @@ export abstract class Paginator {
 export class NextTokenPaginator extends Paginator {
   private limitParameter: string;
   private limitValue: number;
-  private tokenType: 'token' | 'url';
+  private tokenType: NextTokenType;
   private tokenParameter?: string;
 
   constructor(pagingScheme: INextTokenScheme) {
@@ -171,7 +240,7 @@ export class NextTokenPaginator extends Paginator {
     this.tokenParameter = request.tokenParameter;
   }
 
-  public paginateRequest(
+  protected paginateQueryString(
     relativeUrl: string,
     baseUrl?: string,
     page?: string
@@ -180,13 +249,50 @@ export class NextTokenPaginator extends Paginator {
     const delimiter = this.calcUrlDelimiter(relativeUrl, baseUrl);
     if (this.isFirstPage(page)) {
       return `${relativeUrl}${delimiter}${this.limitParameter}=${this.limitValue}`;
-    } else if (this.tokenType === 'url') {
-      return page as string;
-    } else if (this.tokenType === 'token') {
-      return `${relativeUrl}${delimiter}${this.limitParameter}=${this.limitValue}&${this.tokenParameter}=${page}`;
-    } else {
-      throw new Error('Paginator: Invalid paginateRequest parameters.');
     }
+
+    switch (this.tokenType) {
+      case NextTokenType.Url:
+        return page as string;
+      case NextTokenType.Token:
+        return `${relativeUrl}${delimiter}${this.limitParameter}=${
+          this.limitValue
+        }&${this.tokenParameter!}=${page}`;
+      default:
+        throw new Error(
+          'Paginator: Unable to paginate querystring.  Invalid token type.'
+        );
+    }
+  }
+
+  protected paginateMessageBody(
+    messageBody?: { [key: string]: any },
+    page?: string
+  ) {
+    this.currentPage = page;
+    if (!messageBody || typeof messageBody !== 'object') {
+      throw new Error(
+        `Paginator: Invalid POST request body: ${JSON.stringify(messageBody)}`
+      );
+    }
+    if (
+      ![NextTokenType.Token, NextTokenType.SearchArray].includes(this.tokenType)
+    ) {
+      throw new Error(
+        `Paginator: POST method pagination does not support ${this.tokenType}.  Type must be token or search array.`
+      );
+    }
+    const pagedMessageBody = {
+      ...messageBody,
+      [this.limitParameter]: this.limitValue
+    };
+    if (!this.isFirstPage(page)) {
+      pagedMessageBody[this.tokenParameter!] =
+        this.tokenType === NextTokenType.SearchArray
+          ? this.formatSearchArrayToken(page!)
+          : page;
+    }
+    return pagedMessageBody;
   }
 
   public getNextPage(
@@ -196,29 +302,35 @@ export class NextTokenPaginator extends Paginator {
     headers?: { [name: string]: string[] },
     baseUrl?: string
   ): string | undefined {
-    if (dataSet.result !== 'array') {
-      throw new Error(
-        `Paginator: Expected result for paginated requests must be of type array.`
-      );
-    }
+    this.ensureDataSetArray(dataSet);
     const pagingScheme = dataSet.pagingScheme as INextTokenScheme;
     const { pageUntil } = pagingScheme;
     const nextTokenExpression = pagingScheme.response.nextToken;
 
     // Page until next token is null or undefined
     if (pageUntil === PageUntilCondition.NoNextToken && nextTokenExpression) {
-      const nextToken = PROPERTY_ACCESSORS.includes(nextTokenExpression)
-        ? data[nextTokenExpression]
-        : this.getPropertyValue(data, nextTokenExpression);
-      if (nextToken === null || nextToken === undefined) {
+      let nextToken;
+      const isHeaderProperty = nextTokenExpression.startsWith(HEADER_PREFIX);
+      if (PROPERTY_ACCESSORS.includes(nextTokenExpression)) {
+        nextToken = data[nextTokenExpression];
+      } else if (headers && isHeaderProperty) {
+        nextToken = this.getHeaderValue(
+          headers,
+          nextTokenExpression.slice(HEADER_PREFIX.length)
+        );
+      } else {
+        nextToken = this.getPropertyValue(data, nextTokenExpression);
+      }
+      if (nextToken === null || nextToken === undefined || nextToken === '') {
         return undefined; // Last page detected, halt paging
-      } else if (
-        this.tokenType === 'url' &&
+      }
+      if (
+        this.tokenType === NextTokenType.Url &&
         !this.isValidUrl(nextToken, baseUrl)
       ) {
         throw new Error(`Paginator: Detected invalid url: ${nextToken}`);
       }
-      return nextToken;
+      return String(nextToken);
     }
   }
 
@@ -242,9 +354,30 @@ export class NextTokenPaginator extends Paginator {
     if (!pagingScheme.tokenType) {
       return `Token type must be defined for ${pagingScheme.type} schemes.`;
     }
-    if (pagingScheme.tokenType === 'token' && !request['tokenParameter']) {
+    if (
+      (pagingScheme.tokenType === NextTokenType.Token ||
+        pagingScheme.tokenType === NextTokenType.SearchArray) &&
+      !request['tokenParameter']
+    ) {
       return `Token parameter must be defined.`;
     }
+  }
+
+  /**
+   * Converts string representation of token into underlying array format.
+   *
+   * @param {string} searchArray Token value in the format: '[123456789, "c8b8e4edf184a64"]'
+   */
+  private formatSearchArrayToken(searchArray: string) {
+    try {
+      const parsedSearchArray = JSON.parse(searchArray);
+      if (Array.isArray(parsedSearchArray)) {
+        return parsedSearchArray;
+      }
+    } catch {
+      return searchArray;
+    }
+    return searchArray;
   }
 
   /**
@@ -285,7 +418,7 @@ export class PageBasedPaginator extends Paginator {
     this.limitValue = Number(request.limitValue);
   }
 
-  public paginateRequest(
+  protected paginateQueryString(
     relativeUrl: string,
     baseUrl?: string,
     page?: string
@@ -297,16 +430,31 @@ export class PageBasedPaginator extends Paginator {
     return `${relativeUrl}${delimiter}${this.pageParameter}=${this.currentPage}&${this.limitParameter}=${this.limitValue}`;
   }
 
+  protected paginateMessageBody(
+    messageBody?: { [key: string]: any },
+    page?: string
+  ) {
+    this.currentPage = this.isFirstPage(page)
+      ? this.pageStartingValue
+      : Number(page);
+    if (!messageBody || typeof messageBody !== 'object') {
+      throw new Error(
+        `Paginator: Invalid POST request body: ${JSON.stringify(messageBody)}`
+      );
+    }
+    return {
+      ...messageBody,
+      [this.pageParameter]: this.currentPage,
+      [this.limitParameter]: this.limitValue
+    };
+  }
+
   public getNextPage(
     dataSet: IDataSet,
     data: any,
     headers?: { [name: string]: string[] }
   ): string | undefined {
-    if (dataSet.result !== 'array') {
-      throw new Error(
-        `Paginator: Expected result for paginated requests must be of type array.`
-      );
-    }
+    this.ensureDataSetArray(dataSet);
     if (this.currentPage === null || this.currentPage === undefined) {
       throw new Error(
         'Paginator: currentPage must be defined while paginating request to external service.'
@@ -401,7 +549,7 @@ export class OffsetAndLimitPaginator extends Paginator {
     this.limitValue = Number(request.limitValue);
   }
 
-  public paginateRequest(
+  protected paginateQueryString(
     relativeUrl: string,
     baseUrl?: string,
     page?: string
@@ -413,16 +561,31 @@ export class OffsetAndLimitPaginator extends Paginator {
     return `${relativeUrl}${delimiter}${this.offsetParameter}=${this.currentPage}&${this.limitParameter}=${this.limitValue}`;
   }
 
+  protected paginateMessageBody(
+    messageBody?: { [key: string]: any },
+    page?: string
+  ) {
+    this.currentPage = this.isFirstPage(page)
+      ? this.offsetStartingValue
+      : Number(page);
+    if (!messageBody || typeof messageBody !== 'object') {
+      throw new Error(
+        `Paginator: Invalid POST request body: ${JSON.stringify(messageBody)}`
+      );
+    }
+    return {
+      ...messageBody,
+      [this.offsetParameter]: this.currentPage,
+      [this.limitParameter]: this.limitValue
+    };
+  }
+
   public getNextPage(
     dataSet: IDataSet,
     data: any,
     headers?: { [name: string]: string[] }
   ): string | undefined {
-    if (dataSet.result !== 'array') {
-      throw new Error(
-        `Paginator: Expected result for paginated requests must be of type array.`
-      );
-    }
+    this.ensureDataSetArray(dataSet);
     if (this.currentPage === null || this.currentPage === undefined) {
       throw new Error(
         'Paginator: currentPage must be defined while paginating request to external service.'
@@ -487,5 +650,93 @@ export class OffsetAndLimitPaginator extends Paginator {
     ) {
       return `totalCount must be defined for paging condition: ${pagingScheme.pageUntil}.`;
     }
+  }
+}
+
+/**
+ * GraphQL connections pagination continues paging
+ * following cursors until hasNextPage is false.
+ */
+export class GraphQLConnectionsPaginator extends Paginator {
+  private limitParameter: 'first' | string;
+  private limitValue: number;
+
+  constructor(pagingScheme: IGraphQLConnectionsScheme, method?: DataSetMethod) {
+    super();
+    const errMessage = this.validatePagingScheme(pagingScheme, method);
+    if (errMessage) {
+      throw new Error(`Paginator: ${errMessage}`);
+    }
+    const request = pagingScheme.request as GraphQLConnectionsRequest;
+    this.limitParameter = request.limitParameter;
+    this.limitValue = Number(request.limitValue);
+  }
+
+  protected paginateQueryString(
+    relativeUrl: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    baseUrl?: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    page?: string
+  ): string {
+    return relativeUrl; // No change
+  }
+
+  protected paginateMessageBody(
+    messageBody?: { [key: string]: any },
+    page?: string
+  ) {
+    this.currentPage = page;
+    if (!messageBody || typeof messageBody !== 'object' || !messageBody.query) {
+      throw new Error(
+        `Paginator: Invalid GraphQL request body: ${JSON.stringify(
+          messageBody
+        )}`
+      );
+    }
+    return {
+      ...messageBody,
+      variables: {
+        ...messageBody.variables,
+        [this.limitParameter]: this.limitValue,
+        after: this.currentPage
+      }
+    };
+  }
+
+  public getNextPage(
+    dataSet: IDataSet,
+    data: any,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    headers?: { [name: string]: string[] }
+  ): string | undefined {
+    this.ensureDataSetArray(dataSet);
+    const pagingScheme = dataSet.pagingScheme as IGraphQLConnectionsScheme;
+    const { pageUntil } = pagingScheme;
+    if (pageUntil === PageUntilCondition.NoNextPage) {
+      const pageInfoExpression = pagingScheme.response.pageInfo;
+      const pageInfo = this.getPropertyValue(data, pageInfoExpression);
+      const hasNextPage: boolean = pageInfo.hasNextPage;
+      const endCursor: string = pageInfo.endCursor;
+      return hasNextPage === true ? endCursor : undefined;
+    }
+  }
+
+  protected validatePagingScheme(
+    pagingScheme: IGraphQLConnectionsScheme,
+    method?: DataSetMethod
+  ): string | undefined {
+    const request = pagingScheme.request as GraphQLConnectionsRequest;
+    if (!request['limitParameter']) {
+      return `Request parameters must be defined for ${pagingScheme.type} schemes.`;
+    }
+    if (isNaN(+request.limitValue) || +request.limitValue <= 0) {
+      // Guard against a non-incrementing loop
+      return `Limit value ${this.limitValue} must be a positive integer for ${pagingScheme.type} schemes.`;
+    }
+    if (method !== 'POST') {
+      return `GraphQL pagination scheme ${pagingScheme.type} supports POST method.`;
+    }
+    return undefined;
   }
 }

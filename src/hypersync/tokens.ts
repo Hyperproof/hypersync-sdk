@@ -77,7 +77,6 @@ const executeResolveTokens = (
       if (!variable || variable.length === 0) {
         throw new Error(`Invalid token: ${token}`);
       }
-
       const parts = variable.split('.');
       let value:
         | DataValue
@@ -117,6 +116,11 @@ const executeResolveTokens = (
         }
       }
 
+      // For multiselect fields, we need to join the values together.
+      if (Array.isArray(value)) {
+        value = value.join(',');
+      }
+
       // If the token resolved to an object reference, it is considered
       // invalid.  We cannot insert an object into the target.
       if (!foundError && typeof value === 'object') {
@@ -143,6 +147,7 @@ const executeResolveTokens = (
     // Resolving tokens may have introduced more tokens.
     tokens = output?.match(regEx) ?? null;
   }
+  console.log({ output });
 
   return output;
 };

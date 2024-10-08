@@ -145,11 +145,13 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
     );
     const criteria: IProofCriterionValue[] = [];
     for (const field of proofCriteriaFields) {
+      const criteriaValue = criteriaValues[field.property];
       // If the field is not required and the user did not provide a value,
       // use the defaultDisplayName property as the value.
       if (
         field.isRequired === false &&
-        criteriaValues[field.property] === undefined
+        (criteriaValue === undefined ||
+          (Array.isArray(criteriaValue) && criteriaValue.length === 0))
       ) {
         criteria.push({
           name: field.property,
@@ -168,13 +170,21 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
               criteriaValues,
               tokenContext
             );
-            const option = options.find(
-              o => o.value === criteriaValues[field.property]
-            );
+            let displayedValue: string | undefined;
+            if (Array.isArray(criteriaValue)) {
+              displayedValue = options
+                .filter(option => criteriaValue.includes(option.value))
+                .map(option => option.label)
+                .join(', ');
+            } else {
+              displayedValue = options.find(
+                o => o.value === criteriaValue
+              )?.label;
+            }
             criteria.push({
               name: field.property,
               label: resolveTokens(field.label, tokenContext),
-              value: option?.label
+              value: displayedValue
             });
           }
           break;
@@ -225,7 +235,15 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
       placeholder: config.placeholder
         ? resolveTokens(config.placeholder, tokenContext)
         : undefined,
-      isDisabled
+      isDisabled,
+      isMulti: config.isMulti,
+      validation: config.validation && {
+        ...config.validation,
+        errorMessage: resolveTokens(
+          config.validation.errorMessage ?? '',
+          tokenContext
+        )
+      }
     };
   }
 

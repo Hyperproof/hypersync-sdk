@@ -60,5 +60,12 @@
     // "emitDecoratorMetadata": true,         /* Enables experimental support for emitting type metadata for decorators. */
     "downlevelIteration": true
   },
-  "exclude": ["lib"]
+  "exclude": [
+    "build",
+    "lib",
+    "**/*.test.ts",
+    "**/test/*.ts",
+    "**/__mocks__/*.ts",
+    "**/__tests__/*.ts"
+  ]
 }
