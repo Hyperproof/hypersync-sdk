@@ -39,17 +39,18 @@ import express from 'express';
 import fs from 'fs';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
+import { ParsedQs } from 'qs';
 
 /**
  * Object returned from the validateCredentials method.
  *
  * Ideally all validateCredentials implementers would return only the vendorUserId
  * and vendorUserProfile members.  But for historical reasons we also allow connectors
- * to return other, aribtrary values which will be blended into the persisted user context.
+ * to return other, arbitrary values which will be blended into the persisted user context.
  */
 export interface IValidateCredentialsResponse {
   vendorUserId: string;
-  vendorUserProfile?: {};
+  vendorUserProfile?: object;
   [key: string]: any;
 }
 
@@ -390,7 +391,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
       });
     }
 
-    override outboundOnly(integrationType: string, meta: Express.ParsedQs) {
+    override outboundOnly(integrationType: string, meta: ParsedQs) {
       return true;
     }
 

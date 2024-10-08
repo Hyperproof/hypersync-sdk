@@ -9,7 +9,7 @@ import {
 import { IHyperproofUser } from '@hyperproof/integration-sdk';
 import { date, InferType, object, string } from 'yup';
 
-import { DataSourceBase } from '../hypersync/DataSourceBase';
+import { DataSourceBase } from '../hypersync';
 import { HypersyncTemplate } from '../hypersync/enums';
 import {
   ICriteriaMetadata,
@@ -33,12 +33,14 @@ export const uarApplicationSchema = object({
 
 export type IUarApplication = InferType<typeof uarApplicationSchema>;
 
-export abstract class UarApplicationProofProvider extends ProofProviderBase {
+export abstract class UarApplicationProofProvider<
+  T extends DataSourceBase
+> extends ProofProviderBase<T> {
   static override schemaCategory = SchemaCategory.UarApplication;
   private connectorName;
 
   constructor(
-    dataSource: DataSourceBase,
+    dataSource: T,
     criteriaProvider: ICriteriaProvider,
     connectorName: string
   ) {
@@ -52,7 +54,7 @@ export abstract class UarApplicationProofProvider extends ProofProviderBase {
     pages: ICriteriaPage[]
   ): Promise<ICriteriaMetadata>;
 
-  abstract getData(): Promise<IUarApplication[]>;
+  abstract getData(hypersync: IHypersync): Promise<IUarApplication[]>;
 
   public async getProofData(
     hypersync: IHypersync,
@@ -61,7 +63,7 @@ export abstract class UarApplicationProofProvider extends ProofProviderBase {
     syncStartDate: Date
   ): Promise<IGetProofDataResponse | IProofFile[]> {
     // data available for syncing
-    const data = await this.getData();
+    const data = await this.getData(hypersync);
 
     // validate
     if (hypersync.schemaCategory) {

@@ -77,7 +77,6 @@ const executeResolveTokens = (
       if (!variable || variable.length === 0) {
         throw new Error(`Invalid token: ${token}`);
       }
-
       const parts = variable.split('.');
       let value:
         | DataValue
@@ -115,6 +114,11 @@ const executeResolveTokens = (
             break;
           }
         }
+      }
+
+      // For multiselect fields, we need to join the values together.
+      if (Array.isArray(value)) {
+        value = value.join(',');
       }
 
       // If the token resolved to an object reference, it is considered

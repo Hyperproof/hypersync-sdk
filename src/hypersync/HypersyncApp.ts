@@ -76,6 +76,7 @@ export interface IHypersyncAppConfig {
 export interface IValidatedUser<TUserProfile = object> {
   userId: string;
   profile: TUserProfile;
+  userIdPattern?: RegExp;
   hostUrl?: string;
 }
 
@@ -633,11 +634,27 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     integrationContext: IntegrationContext,
     hyperproofUserId: string
   ): Promise<IValidateCredentialsResponse> {
-    const response = await this.hypersyncApp.validateCredentials(
-      credentials,
-      integrationContext.configuration,
-      hyperproofUserId
-    );
+    const response: IValidatedUser =
+      await this.hypersyncApp.validateCredentials(
+        credentials,
+        integrationContext.configuration,
+        hyperproofUserId
+      );
+
+    if (response.userIdPattern) {
+      const { userIdPattern, userId } = response;
+      if (!userIdPattern.test(userId)) {
+        throw createHttpError(
+          StatusCodes.FORBIDDEN,
+          'External user failed expected pattern validation.',
+          {
+            extendedMessage: `externalUserId ${userId} fails expected regex pattern test: ${String(
+              userIdPattern
+            )}`
+          }
+        );
+      }
+    }
     return {
       vendorUserId: response.userId,
       vendorUserProfile: response.profile
@@ -991,7 +1008,6 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     const criteriaProvider = await this.hypersyncApp.createCriteriaProvider(
       dataSource
     );
-
     // Add organization customizations if there are any.
     if (criteriaProvider instanceof JsonCriteriaProvider) {
       const { items } = await integrationContext.storage.list(
@@ -1806,6 +1822,7 @@ export class HypersyncApp<TUserProfile = object> {
       dataSource,
       criteriaProvider
     );
+
     return provider.generateCriteriaMetadata(criteria, pages);
   }
 

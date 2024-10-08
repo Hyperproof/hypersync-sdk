@@ -8,6 +8,17 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ## Release Notes
 
+### 3.2.0
+
+- Integrate latest Integration SDK which contains reliability improvements and bug fixes.
+- Added support for type validation of criteria fields.
+- Added additional support for pagination in request body.
+- Update TypeScript to version 5.5.4
+- Update node-fetch to version 2.7.0
+- Update Express to version 4.21.0
+- Update Superagent to version 10.1.0
+- Update other dependencies to latest versions
+
 ### 3.1.0
 
 - Integrate latest Integration SDK which contains improvements for the new execution environment.

@@ -74,7 +74,14 @@ export class JsonProofProvider extends ProofProviderBase {
     if (pages[pages.length - 1].isValid) {
       proofSpec = this.buildProofSpec(definition, tokenContext);
       await this.fetchLookups(proofSpec, tokenContext);
-      suggestedName = resolveTokens(proofSpec.suggestedName, tokenContext);
+      const criteriaLabels = this.findCriteriaLabels(
+        pages,
+        tokenContext.criteria as HypersyncCriteria
+      );
+      suggestedName = resolveTokens(proofSpec.suggestedName, {
+        ...tokenContext,
+        criteriaLabels
+      });
     }
 
     return {
@@ -351,6 +358,28 @@ export class JsonProofProvider extends ProofProviderBase {
     }
   }
 
+  /**
+   * Performs reverse lookup of criteria labels for hypersync
+   * suggested name.
+   */
+  private findCriteriaLabels(
+    pages: ICriteriaPage[],
+    criteria?: HypersyncCriteria
+  ) {
+    const criteriaLabels: { [key: string]: any } = {};
+    const fields = pages.flatMap(page => page.fields);
+    for (const criterion in criteria) {
+      const criteriaField = fields.find(field => field.name === criterion);
+      if (!criteriaField || !criteriaField.options) {
+        continue;
+      }
+      criteriaLabels[criterion] = criteriaField.options.find(
+        option => option.value === criteria[criterion]
+      )?.label;
+    }
+    return criteriaLabels;
+  }
+
   private addFormattedValues(
     proofRow: DataObject,
     dateFields: IHypersyncField[],
@@ -374,6 +403,9 @@ export class JsonProofProvider extends ProofProviderBase {
     hyperproofUser: IHyperproofUser
   ) {
     for (const dateField of dateFields) {
+      if (proofRow[dateField.property + 'Formatted']) {
+        continue; // don't overwrite existing formatted date
+      }
       const dateValue = proofRow[dateField.property];
       if (dateValue instanceof Date || typeof dateValue === 'string') {
         proofRow[dateField.property + 'Formatted'] = dateToLocalizedString(
@@ -394,6 +426,9 @@ export class JsonProofProvider extends ProofProviderBase {
     numberFields: IHypersyncField[]
   ) {
     for (const numberField of numberFields) {
+      if (proofRow[numberField.property + 'Formatted']) {
+        continue; // don't overwrite existing formatted number
+      }
       const numberValue = proofRow[numberField.property];
       if (typeof numberValue === 'number') {
         proofRow[numberField.property + 'Formatted'] = this.formatNumber(
