@@ -64,7 +64,7 @@ For more information on configuring the data sets in your data source using `dat
 
 Many REST APIs use a paging mechanism to allow data to be retrieved in chunks. For example, some APIs take a `pageSize` and `pageNumber` argument which specify how many items to return, and the page number to start reading from, respectively.
 
-Four paging styles are supported: __Page Based__, __Offset And Limit__, __Next Token__, and __GraphQL Connections__.
+Four paging styles are supported: __Page Based__, __Offset And Limit__, __Next Token__, and __GraphQL Connections__.  As a default, query string parameters will be programatically added to an API url.  If POST is designated as the data source HTTP method, paging parameters are added to the body of the request.
 
 1.  __Page Based.__  Begin paging at a starting value and increment the page value by 1 after each iteration (1, 2, 3, etc).  Return at most `limitValue` items per page.
 
@@ -153,7 +153,7 @@ The paging scheme dynamically adds the `first` and `after` variables to the body
 
 ## Custom Data Sources
 
-For services that do not expose data as REST, or for services that use certain REST patterns that are incompatible with RestDataSourceBase (e.g. using POST to retrieve data), the Hypersync SDK makes it possible to create a custom data source.
+For services that do not expose data as REST, or for services that use certain REST patterns that are incompatible with RestDataSourceBase, the Hypersync SDK makes it possible to create a custom data source.
 
 To begin, define your data source class using one of the patterns below.
 
