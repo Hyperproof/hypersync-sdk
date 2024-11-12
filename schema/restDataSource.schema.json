@@ -74,7 +74,7 @@
                       },
                       "tokenType": {
                         "type": "string",
-                        "enum": ["token", "url"]
+                        "enum": ["token", "url", "searchArray"]
                       },
                       "level": {
                         "type": "string",
