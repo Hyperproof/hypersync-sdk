@@ -270,6 +270,11 @@
                         ]
                       }
                     }
+                  },
+                  "delaySeconds": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 1
                   }
                 },
                 "required": ["alias", "dataSet"]
