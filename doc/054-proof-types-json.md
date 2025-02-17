@@ -12,6 +12,8 @@ If a category is specified, it will be used to match the proof against the proof
 
 The label attribute is the human-readable name of the proof type. It is shown to the user in the Proof Type field.
 
+An additional optional property 'schemaCategory' is required if the Hypersync is to be used in the 'Access Reviews' module.
+
 ## Example
 
 ```
@@ -28,6 +30,10 @@ The label attribute is the human-readable name of the proof type. It is shown to
     "deviceList": {
         "label": "{{messages.PROOF_TYPE_DEVICE_LIST}}",
         "category": "devices"
-    }
+    },
+    "listOfUsersApplication": {
+        "label": "{{messages.PROOF_TYPE_USER_LIST}}",
+        "schemaCategory": "uarApplication"
+    }   
 }
 ```
