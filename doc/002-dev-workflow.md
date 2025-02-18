@@ -18,7 +18,9 @@ hp signin
 
 This command will launch a new browser window and allow you to sign in (if you are not already signed in) and then authorize CLI access to your Hyperproof organization.
 
-> NOTE: If you are a member of more than one organization, you will be asked to choose the organization on the authorization screen. Make sure you choose your development organization.
+> NOTE: If you are a member of more than one organization, you will be asked to choose the organization on the authorization screen.
+
+> NOTE: Make sure you choose your 'sandbox' organization if you have one available.
 
 ### Importing Your Hypersync App
 
@@ -57,7 +59,7 @@ The import might take a minute or two to complete. Once it is done, you are read
 
 ### Using a Your Hypersync App
 
-1. In the browser, navigate to <https://hyperproof.io> and sign into your development organization.
+1. In the browser, navigate to <https://hyperproof.io> and sign into the organization that you will use for development.
 2. Navigate to any Control or Label that you have permissions to access.
 3. Click on the **Automations** tab.
 4. Click the **+New Hypersync** button.
