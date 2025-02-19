@@ -2,7 +2,7 @@
 
 Every custom Hypersync app must have a `package.json` file that contains certain properties. Hyperproof uses these property values to properly identify and display your custom Hypersync app in the Hyperproof user interface.
 
-The `package.json` file for a custom Hypersync app must contain the values shown below.:
+The `package.json` file for a custom Hypersync app must contain the values shown below:
 
 ```
 {
@@ -25,7 +25,7 @@ The `package.json` file for a custom Hypersync app must contain the values shown
 ```
 NOTE: `schemaCategories` array is optional and only required for Hypersyncs that need to utilize the Access Review module.
 
-NOTE: When attempting to upgrade existing Hypersyncs to the `schemaCategories` for Access Review proofs, you must first delete the existing Hypersync using the CLI command `hp customapps delete`. This ensures that the new `schemaCategories` definition is added to your Hypersync.   
+NOTE: When attempting to upgrade existing Hypersyncs to the `schemaCategories` for Access Review proofs, you must first delete the existing Hypersync using the CLI command `hp customapps delete`. This ensures that the new `schemaCategories` definition is added to your Hypersync.
 
 ## name
 
