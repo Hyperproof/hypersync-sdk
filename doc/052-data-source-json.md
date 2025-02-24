@@ -37,13 +37,13 @@ Each data set object contains the following properties:
 
 It is often the case that objects returned from a REST API contain property values that need to be formatted before they are presented to the user.
 
-The `transform` property is where we define the fields that we wish to return in the dataset. The property name is the field name that will be available in the dataset.  The value of the property refers to the property in the Json returned from the API call that we will to display.
+The `transform` property is where we define the fields that we wish to return in the dataset. The property name is the field name that will be available in the dataset.  The value of the property refers to the property in the Json returned from the API call that we will display.
 
 The simplest transformation is the ability to rename the property we wish to display as described above.  In the example included in the JSONata discussion below, we can see that the dataset field `realname` is renamed from the JSON API result property `full_name`. `realname` is the name of the field to be referenced in your proof.json
 
 ## Transform with JSONata
 
-Sometimes the data returned for your API needs to be calculated in some way before it can be used in your dataset.  The Hypersync SDK makes use of  the query and transformation language JSONata. This allows the use of an extensive library of expressions to transform your data. 
+Sometimes the data returned for your API needs to be calculated in some way before it can be used in your dataset.  The Hypersync SDK makes use of the query and transformation language JSONata. This allows the use of an extensive library of expressions to transform your data. 
 
 Here are a few examples.
 
