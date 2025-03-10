@@ -14,6 +14,8 @@ If the APIs in your data sets do not share a common root, omit the `baseUrl` pro
 
 A "data set" is a named object used to identify a data object or a data collection (i.e. data array) that can be retrieved from a data source.
 
+`dataSets` can and *should* be re-used across multiple proof types, and can also be used in non-proof scenarios such as collecting user data during the `validateCredentials` process.
+
 There should be one property in the `dataSets` object for each data set that is used by your custom Hypersync app.
 
 Each data set object contains the following properties:

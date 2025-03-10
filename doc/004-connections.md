@@ -23,9 +23,15 @@ In a Hypersync app, there are two types connections: [OAuth connections](#oauth-
 > For services that use [OAuth 2.0's Client Credentials flow](https://datatracker.ietf.org/doc/html/rfc6749#section-4.4),
 > a [custom authentication connection](#custom-authentication) should be used.
 
+> **NOTE: API Permissions**
+>- Always use the minimum permissions necessary for proofs. Hypersyncs are read-only so use read-only permissions when possible.
+>- Use minimum scopes when using OAuth. The Hypersync author is going to be asked to authorize one or more scopes. You only want to ask for what you need.
+
 ## OAuth Authorization
 
 For services that use OAuth 2.0 for authorization, the Hypersync SDK includes functionality that obtains and manages the access tokens that these APIs require.
+
+This flow asks the end user to authorize Hyperproof to perform various operations on their behalf. Behind the scenes Hyperproof turns the authorization into an access token used to make API calls. The user only has to complete the authorization flow once.
 
 To configure a Hypersync app for OAuth authorization, begin by setting `authType` in `package.json` to `oauth`. See [Custom Hypersync App package.json Reference](./030-package-json-reference.md) for more information.
 
@@ -65,7 +71,7 @@ Once you've configured your `.env` file, implement the `getUserProfle` method on
 
 Finally, implement the `getUserId` and `getUserAccountName` methods. `getUserId` used to uniquely identify the user within the external service. `getUserAccountName` returns a friendly name for the connection. This value is shown in the Connected Accounts page in Hyperproof.
 
-> IMPORTANT: The user ID must be unique to the authorizing user!
+> **IMPORTANT**: The user ID must be unique to the authorizing user!
 
 ```
   public async getUserId(userProfile: IMyServiceUser) {
@@ -87,6 +93,8 @@ Finally, implement the `getUserId` and `getUserAccountName` methods. `getUserId`
 ## Custom Authentication
 
 All non-OAuth authentication/authorization schemes are classified as "Custom" in the Hyperysnc SDK. If your service does not use OAuth 2.0, you should specify `custom` as your `authType` in `package.json`. See [Custom Hypersync App package.json Reference](./030-package-json-reference.md) for more information.
+
+Custom auth covers any type of authentication where the user provides credentials to make a connection. Credentials can include user name/password, access key/secret key, and many others. Users may also need to designate the endpoint they’re connecting to - for example by providing a URL or a region.
 
 Your apps' HypersyncApp class must be modified to support custom authentication. Begin by updating the `credentialsMetadata` field in the constructor:
 

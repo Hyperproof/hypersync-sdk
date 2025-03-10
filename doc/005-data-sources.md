@@ -6,6 +6,8 @@ Data sources can retrieve different data sets from the external service. Each da
 
 Data set names are used in other components like proof types to identify the specific data element or elements needed by that component.
 
+> **NOTE**: Data sets can and *should* be re-used across multiple proof types, and can also be used in non-proof scenarios such as collecting user data during the `validateCredentials` process.
+
 ## REST Data Sources
 
 For services that expose their data through a REST API, developers are recommended to derive a data source from the RestDataSourceBase base class. This base class makes it possible to configure the data sets along with filters, sorts, and transformations in a `dataSources.json` file that is included in your package. You can configure most of your data retrieval functionality without writing any code.
