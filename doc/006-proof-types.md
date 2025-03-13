@@ -12,6 +12,16 @@ Once the user selects a proof type, they may be asked for one or more criteria v
 
 Proof types retrieve data from the app's [data source](./005-data-sources.md) by name. The proof type may also provide parameter values to the data source to ensure that the right data is returned.
 
+> **IMPORTANT: Planning Your Proof Types and Fields**  
+>>- Define different kinds of proof - Users, Groups, etc...
+>>- Define key fields of information needed in each proof type. Make sure your API calls can return these vital elements.
+>>- Define how to identify the right resource(s) - This information can be unique to each proof type and will be needed to configure `criteriafields.json` You’ll want to ask the user for these when they author the Hypersync. For example if you want to get configuration information from Azure you might need to know the tenant and subscription and resource group.
+>>
+> **Tips for finding this info**:
+>>- Look at console pages and dashboards. They usually contain all key information by default and are a great starting point.
+>>- Look at other similar proof types in other apps.
+>>- Always include proof for users and their permissions. See User Access Reviews proof for more information.
+
 ### Layouts
 
 A proof type may format the data in the following ways:
@@ -25,6 +35,10 @@ A proof type may format the data in the following ways:
 Tabular and stacked layouts can be output as PDF or Excel files. Hierarchical layouts can only be output as PDF.
 
 Tabular and stacked layouts can also be described declaratively using JSON files, while hierarchical proof types currently cannot.
+
+> **NOTE**: We strongly recommend that you don’t use nested layouts.
+
+> **NOTE**: If you use control testing or want to view proof as an Excel file, stick with the simple layouts as nested layouts are not supported. No-code proof types only support simple layouts.
 
 ## No-Code Proof Types
 
