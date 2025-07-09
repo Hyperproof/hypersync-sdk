@@ -10,11 +10,20 @@ Custom Hypersync apps are added to a Hyperproof organization using the [Hyperpro
 
 ### CLI Authorization
 
-After installing the CLI, you will first need to sign in using this command:
-
+After installing the CLI, you will first need to sign in using the 'hp signin' command:
 ```
 hp signin
 ```
+>  NOTE: For customers in the EU or GOV domain, the sign in command accepts an optional 'domain' parameter.
+>For additional information use 'hp signin -help'
+>```
+>hp signin --domain hyperproof.eu
+>```
+>or
+>```
+>hp signin --domain hyperproofgov.app
+>```
+
 
 This command will launch a new browser window and allow you to sign in (if you are not already signed in) and then authorize CLI access to your Hyperproof organization.
 
