@@ -10,6 +10,7 @@ Custom Hypersync apps are added to a Hyperproof organization using the [Hyperpro
 
 ### CLI Authorization
 
+After installing the CLI, you will first need to sign in using this command:
 
 ```
 hp signin
