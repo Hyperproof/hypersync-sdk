@@ -140,6 +140,18 @@
                   "subArraySize": {
                     "type": "integer",
                     "minimum": 1
+                  },
+                  "dataSet": {
+                    "type": "string"
+                  },
+                  "dataSetParams": {
+                    "$ref": "dataSetParams.schema.json"
+                  },
+                  "criteriaProperty": {
+                    "type": "string"
+                  },
+                  "criteriaTransformer": {
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false,
@@ -150,44 +162,34 @@
                 ]
               },
               {
-                "oneOf": [
-                  {
-                    "type": "object",
-                    "properties": {
-                      "source": {
-                        "const": "dataSet"
-                      },
-                      "dataSet": {
-                        "type": "string"
-                      },
-                      "dataSetParams": {
-                        "$ref": "dataSetParams.schema.json"
-                      }
-                    },
-                    "required": [
-                      "dataSet",
-                      "dataSetParams"
-                    ]
-                  },
-                  {
-                    "type": "object",
-                    "properties": {
-                      "source": {
-                        "const": "criteria"
-                      },
-                      "criteriaProperty": {
-                        "type": "string"
-                      },
-                      "criteriaTransformer": {
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "criteriaProperty",
-                      "criteriaTransformer"
-                    ]
+                "if": {
+                  "properties": {
+                    "source": {
+                      "const": "dataSet"
+                    }
                   }
-                ]
+                },
+                "then": {
+                  "required": [
+                    "dataSet",
+                    "dataSetParams"
+                  ]
+                }
+              },
+              {
+                "if": {
+                  "properties": {
+                    "source": {
+                      "const": "criteria"
+                    }
+                  }
+                },
+                "then": {
+                  "required": [
+                    "criteriaProperty",
+                    "criteriaTransformer"
+                  ]
+                }
               }
             ]
           }
