@@ -20,7 +20,7 @@
     "@hyperproof/hypersync-models": "5.1.0",
     "@hyperproof/integration-sdk": "1.2.0",
     "@js-joda/core": "3.2.0",
-    "@js-joda/timezone": "2.5.0",
+    "@js-joda/timezone": "2.22.0",
     "abort-controller": "3.0.0",
     "express": "4.21.0",
     "html-entities": "2.5.2",
