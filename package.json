@@ -23,7 +23,7 @@
     "@js-joda/timezone": "2.5.0",
     "abort-controller": "3.0.0",
     "express": "4.21.0",
-    "html-entities": "2.5.2",
+    "html-entities": "2.6.0",
     "http-errors": "2.0.0",
     "http-status-codes": "2.3.0",
     "jsonata": "1.8.7",
