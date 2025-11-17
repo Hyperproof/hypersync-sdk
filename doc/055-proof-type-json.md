@@ -41,6 +41,7 @@ The `proofSpec` property in a proof type file is a JSON object that specifies ho
 | fields           | Yes      | Array of fields to include in the generated proof                                                                    |
 | webPageUrl       | No       | URL shown at the bottom of generated proof                                                                           |
 | autoLayout       | No       | `true` to automatically layout the fields in the specification. Default: `false`.                                    |
+| dataSetIterator  | No       | Definition for iterating across collections of logical groupings in a single sync operation.                         |
 
 ## overrides
 
@@ -52,6 +53,60 @@ If specified, the `overrides` property must be formatted as an array of objects.
 | --------- | ------------------------------------------------------------------------------------ |
 | condition | Object which specifies the value that must be matched for the override to be applied |
 | proofSpec | The proofSpec to use if the condition is met                                         |
+
+## Multipaging with Data Set Iterators
+
+Use `dataSetIterator` to orchestrate an outer control structure beyond a standard REST API paging loop.  The iterator can be constructed from external data sets or user-provided criteria.
+
+```
+Multipaging Layer 1
+├─ Iterating over iterand foo → build URL/path params
+│  ├─ Paging: page 1 (fetch /foo/records?page=1&size=K)
+│  ├─ Paging: page 2 (fetch /foo/records?page=2&size=K)
+│  ├─ Paging: page 3 ...
+│  └─ stop when no more pages
+├─ Iterating over iterand bar → build URL/path params
+│  ├─ Paging: page 1 (fetch /bar/records?page=1&size=K)
+│  ├─ Paging: page 2 ...
+│  └─ stop when no more pages
+└─ (repeat for remaining iterands)
+```
+
+### Layer Support
+- `layer`: Only `1` is currently supported.
+
+### Iterator Types
+
+**DataSet-Sourced Iterator**
+- `source`: `dataSet`
+- `dataSet`: Name of the data set to call in order to define the data structure to iterate over.
+- `dataSetParams`: Optional parameters provided to the data source when retrieving the data set.
+- `iterandKey`: Field in each returned record used as the iterand value.
+- `subArraySize`: Optional batch size, defaults to 1.  Defines how many iterands are processed in a single job.
+
+**Criteria-Sourced Iterator**
+- `source`: `criteria`
+- `criteriaProperty`: Criteria field to read from user selection.
+- `criteriaTransformer`: Name of a transformer to shape the criteria value(s) into iterands.
+- `iterandKey`: Key name used when emitting iterands.
+- `subArraySize`: Optional batch size, defaults to 1.  Defines how many iterands are processed in a single job.
+
+### Implicit Parameters
+During a sync operation, the primary data set configured in the proof specification implicitly has access to the iterand (via iterandKey) as a token/param. This supports the reuse of individual dataSets in a single proof.
+
+### Example (`source: dataSet`)
+```json
+"dataSetIterator": [
+  {
+    "layer": 1,
+    "source": "dataSet",
+    "dataSet": "assets",
+    "dataSetParams": { "siteId": "{{criteria.site}}" },
+    "iterandKey": "assetId",
+    "subArraySize": 5
+  }
+]
+```
 
 ## Example
 
