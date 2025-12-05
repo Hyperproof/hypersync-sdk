@@ -239,11 +239,7 @@
               "type": "object",
               "patternProperties": {
                 "^[^$].*$": {
-                  "anyOf": [
-                    { "type": "string" },
-                    { "type": "number" },
-                    { "type": "boolean" }
-                  ]
+                  "type": "string"
                 }
               }
             },
