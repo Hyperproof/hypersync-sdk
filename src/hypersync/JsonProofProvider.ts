@@ -32,8 +32,8 @@ import {
   IHypersyncField,
   IProofSpec,
   IteratorSource
-} from '@hyperproof-int/hypersync-models';
-import { ILocalizable, Logger } from '@hyperproof-int/integration-sdk';
+} from '@hyperproof/hypersync-models';
+import { ILocalizable, Logger } from '@hyperproof/integration-sdk';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
 

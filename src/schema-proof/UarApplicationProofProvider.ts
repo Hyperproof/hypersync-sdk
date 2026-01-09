@@ -5,8 +5,8 @@ import {
   HypersyncDataFormat,
   HypersyncFieldType,
   SchemaCategory
-} from '@hyperproof-int/hypersync-models';
-import { ILocalizable } from '@hyperproof-int/integration-sdk';
+} from '@hyperproof/hypersync-models';
+import { ILocalizable } from '@hyperproof/integration-sdk';
 import { date, InferType, object, string } from 'yup';
 
 import { DataSourceBase } from '../hypersync';

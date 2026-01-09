@@ -7,7 +7,7 @@ import {
   IProofFile
 } from './ProofProviderBase';
 
-import { ILocalizable } from '@hyperproof-int/integration-sdk';
+import { ILocalizable } from '@hyperproof/integration-sdk';
 
 /**
  * Detailed response object that may be returned from getProofData.

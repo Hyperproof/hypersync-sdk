@@ -10,8 +10,8 @@ import {
   IProofType,
   IProofTypeMap,
   SchemaCategory
-} from '@hyperproof-int/hypersync-models';
-import { compareValues } from '@hyperproof-int/integration-sdk';
+} from '@hyperproof/hypersync-models';
+import { compareValues } from '@hyperproof/integration-sdk';
 import fs from 'fs';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';

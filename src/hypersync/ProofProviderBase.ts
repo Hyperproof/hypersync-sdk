@@ -19,8 +19,8 @@ import {
   HypersyncFieldType,
   HypersyncPageOrientation,
   SchemaCategory
-} from '@hyperproof-int/hypersync-models';
-import { ILocalizable } from '@hyperproof-int/integration-sdk';
+} from '@hyperproof/hypersync-models';
+import { ILocalizable } from '@hyperproof/integration-sdk';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
 
