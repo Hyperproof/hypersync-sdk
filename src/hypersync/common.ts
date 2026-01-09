@@ -7,14 +7,16 @@ import {
 import {
   HypersyncFieldType,
   IHypersyncField
-} from '@hyperproof/hypersync-models';
+} from '@hyperproof-int/hypersync-models';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
+import queryString from 'query-string';
 
 // Magic constants that are used to allow the user to choose All, Any or None from a set.
 export const ID_ALL = 'fbd4bc94-23b7-40fa-b3bc-b3a0e7faf173';
 export const ID_ANY = '3cc42087-3b95-4b7e-82e4-d2d8466daa8f';
 export const ID_NONE = 'deeee249-c2eb-4598-8824-3db79927c7a6';
+export const ID_UNDEFINED = 'a9e2b542-33b8-4dde-93d6-7eb97d395c08'; // Unselected optional value
 
 /**
  * Used to map one string value to another.
@@ -179,3 +181,39 @@ export class LayoutFields {
     this._fields = fields;
   }
 }
+
+/**
+ * Uses query-string library determine if query parameters exist in URL.
+ * Returns the appropriate delimiter based on resulting condition.
+ */
+export const parseUrlDelimiter = (url: string) => {
+  const parsedUrl = queryString.parseUrl(url);
+  if (Object.keys(parsedUrl.query).length > 0) {
+    return '&';
+  }
+  return '?';
+};
+
+/**
+ * Utility function to convert input to base64.
+ * @param input to convert to base64 string
+ * @returns base64 string
+ */
+export const toBase64 = (
+  input: WithImplicitCoercion<Uint8Array | readonly number[] | string>
+) => {
+  return Buffer.from(input).toString('base64');
+};
+
+/**
+ * Simple function to convert a string to a boolean value.
+ * @param value string
+ * @returns boolean
+ */
+export const stringToBoolean = (value: string | undefined | null): boolean => {
+  if (value === undefined || value === null) {
+    return false;
+  }
+  const lowerValue = value.toLowerCase();
+  return lowerValue === 'true' || lowerValue === '1';
+};

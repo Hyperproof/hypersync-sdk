@@ -4,29 +4,28 @@ import { formatHypersyncError } from './common';
 import { HypersyncStage } from './enums';
 import { ICriteriaMetadata } from './ICriteriaProvider';
 import { SyncMetadata } from './IDataSource';
-import { formatMessage, MESSAGES } from './messages';
 import { IHypersync } from './models';
 import { IHypersyncSchema } from './ProofProviderBase';
-import { IGetProofDataResponse } from './Sync';
+import { IterableObject } from './ServiceDataIterator';
+import { IGetProofDataResponse, IHypersyncSyncPlanResponse } from './Sync';
 
 import {
   HypersyncCriteria,
+  ICriteriaSearchInput,
   SchemaCategory
-} from '@hyperproof/hypersync-models';
+} from '@hyperproof-int/hypersync-models';
 import {
-  AuthorizationType,
   createConnector,
   CustomAuthCredentials,
   ExternalAPIError,
   formatUserKey,
-  HealthStatus,
   HttpHeader,
   ICheckConnectionHealthInvocationPayload,
-  IConnectionHealth,
-  IHyperproofUser,
   IHyperproofUserContext,
+  ILocalizable,
   IntegrationContext,
   IRetryResponse,
+  IValidateCredentialsResponse,
   LogContextKey,
   Logger,
   mapObjectTypesParamToType,
@@ -34,25 +33,12 @@ import {
   ObjectType,
   StorageItem,
   UserContext
-} from '@hyperproof/integration-sdk';
+} from '@hyperproof-int/integration-sdk';
 import express from 'express';
 import fs from 'fs';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
 import { ParsedQs } from 'qs';
-
-/**
- * Object returned from the validateCredentials method.
- *
- * Ideally all validateCredentials implementers would return only the vendorUserId
- * and vendorUserProfile members.  But for historical reasons we also allow connectors
- * to return other, arbitrary values which will be blended into the persisted user context.
- */
-export interface IValidateCredentialsResponse {
-  vendorUserId: string;
-  vendorUserProfile?: object;
-  [key: string]: any;
-}
 
 /**
  *
@@ -162,7 +148,10 @@ export function createHypersync(superclass: typeof OAuthConnector) {
        * that allows the user to specify proof criteria.
        */
       app.put(
-        '/organizations/:orgId/users/:userId/generatecriteriametadata',
+        [
+          '/organizations/:orgId/users/:userId/generatecriteriametadata',
+          '/organizations/:orgId/generatecriteriametadata'
+        ],
         async (req, res) => {
           try {
             const result = await this.generateCriteriaMetadata(
@@ -193,7 +182,10 @@ export function createHypersync(superclass: typeof OAuthConnector) {
        * Returns the schema of the proof that will be generated.
        */
       app.put(
-        '/organizations/:orgId/users/:userId/generateschema',
+        [
+          '/organizations/:orgId/users/:userId/generateschema',
+          '/organizations/:orgId/generateschema'
+        ],
         async (req, res) => {
           try {
             const result = await this.generateSchema(
@@ -205,6 +197,34 @@ export function createHypersync(superclass: typeof OAuthConnector) {
             res.json(result);
           } catch (err: any) {
             await Logger.error('Failed to generate schema', err);
+            res
+              .status(err.status || StatusCodes.INTERNAL_SERVER_ERROR)
+              .json({ message: err.message });
+          }
+        }
+      );
+
+      /**
+       * Returns the sync plan of the proof that will be generated.
+       */
+      app.put(
+        [
+          '/organizations/:orgId/users/:userId/generatesyncplan',
+          '/organizations/:orgId/generatesyncplan'
+        ],
+        async (req, res) => {
+          try {
+            const result = await this.generateSyncPlan(
+              req.fusebit,
+              req.params.orgId,
+              req.body.hypersync.settings.vendorUserId,
+              req.body.hypersync.settings.criteria,
+              req.body.metadata,
+              req.body.retryCount
+            );
+            res.json(result);
+          } catch (err: any) {
+            await Logger.error('Failed to generate sync plan', err);
             res
               .status(err.status || StatusCodes.INTERNAL_SERVER_ERROR)
               .json({ message: err.message });
@@ -229,10 +249,11 @@ export function createHypersync(superclass: typeof OAuthConnector) {
                   objectId,
                   req.body.hypersync,
                   req.body.syncStartDate,
-                  req.body.user,
+                  req.body.organization,
                   req.body.page,
                   req.body.metadata,
-                  req.body.retryCount
+                  req.body.retryCount,
+                  req.body.iterableSlice
                 );
                 res.json(data);
                 break;
@@ -404,88 +425,6 @@ export function createHypersync(superclass: typeof OAuthConnector) {
       throw new Error('Not implemented');
     }
 
-    override async checkConnectionHealth(
-      integrationContext: IntegrationContext,
-      orgId: string,
-      userId: string,
-      vendorUserId: string,
-      body?: ICheckConnectionHealthInvocationPayload
-    ): Promise<IConnectionHealth> {
-      try {
-        const userContext = await this.getHyperproofUserContext(
-          integrationContext,
-          vendorUserId
-        );
-
-        // we'll need to allow JiraHS to find its userContext using hostUrl
-        if (!userContext) {
-          throw createHttpError(
-            StatusCodes.NOT_FOUND,
-            this.getUserNotFoundMessage(vendorUserId)
-          );
-        }
-
-        if (this.authorizationType === AuthorizationType.CUSTOM) {
-          // NOTE: calling this will not save any token retrieved from the corresponding service to the vendor-user.
-          // In the case of AWS, the temporary token for cross-account role auth is saved in vendor-user for each sync, but not saved by validateCredentials itself.
-          // Since the token is temporary they will expire in an hour and way before AWS scheduled syncs are run and thus no reason to save it in this step.
-          await this.validateCredentials(
-            userContext.keys!,
-            integrationContext,
-            userId
-          );
-        } else {
-          const tokenResponse = await this.ensureAccessToken(
-            integrationContext,
-            userContext
-          );
-
-          await this.validateAccessToken(
-            integrationContext,
-            userContext,
-            tokenResponse.access_token,
-            body
-          );
-        }
-      } catch (e: any) {
-        // The connector can customize the health result status and message here.
-        // However custom connectors' validateCredentials may have already handled the
-        // error and threw a different error/status code.
-        const healthResult = this.handleHealthError(e);
-
-        if (healthResult.healthStatus === HealthStatus.NotImplemented) {
-          await Logger.info(
-            `Connection health check found the connector did not implement validate credentials function.`
-          );
-        } else if (healthResult.healthStatus === HealthStatus.Unhealthy) {
-          if (healthResult.statusCode === StatusCodes.NOT_FOUND) {
-            await Logger.info(
-              `Connection health check returned an unhealthy response: ${this.getUserNotFoundMessage(
-                vendorUserId
-              )}`
-            );
-          } else {
-            await Logger.info(
-              `Connection health check returned an unhealthy response: ${healthResult.message}`
-            );
-          }
-        } else if (healthResult.healthStatus === HealthStatus.Unknown) {
-          await Logger.warn(
-            `Connection health check returned an unknown error: ${healthResult.message}`
-          );
-        }
-
-        return healthResult;
-      }
-
-      return {
-        healthStatus: HealthStatus.Healthy,
-        message: undefined,
-        details: undefined,
-        statusCode: StatusCodes.OK
-      };
-    }
-
     /**
      * Validates custom auth credentials that are provided when creating a new
      * new user connection.  Designed to be overridden.
@@ -515,47 +454,6 @@ export function createHypersync(superclass: typeof OAuthConnector) {
     }
 
     /**
-     * This can be overriden by the connector in order to provide better health check result with more information or to process/filter errors.
-     */
-    handleHealthError(error: any): IConnectionHealth {
-      const errorMessage = error.message;
-      const extendedErrorMessage = error[LogContextKey.ExtendedMessage];
-      const healthResult: Readonly<IConnectionHealth> = {
-        healthStatus: HealthStatus.Unknown,
-        message: `Error: ${
-          extendedErrorMessage ? extendedErrorMessage : errorMessage
-        }`,
-        details: undefined,
-        statusCode: error.statusCode || StatusCodes.INTERNAL_SERVER_ERROR
-      };
-      switch (error.statusCode) {
-        case StatusCodes.NOT_FOUND:
-          return {
-            ...healthResult,
-            healthStatus: HealthStatus.Unhealthy,
-            message: formatMessage(MESSAGES.NoAccountFound, {
-              [MESSAGES.App]: this.connectorName
-            })
-          };
-        case StatusCodes.UNAUTHORIZED:
-        case StatusCodes.FORBIDDEN:
-          return {
-            ...healthResult,
-            healthStatus: HealthStatus.Unhealthy,
-            message: extendedErrorMessage ? extendedErrorMessage : errorMessage
-          };
-        case StatusCodes.NOT_IMPLEMENTED:
-          return {
-            ...healthResult,
-            healthStatus: HealthStatus.NotImplemented,
-            message: 'The function for validating token is not implemented.'
-          };
-      }
-
-      return healthResult;
-    }
-
-    /**
      * Returns a human readable string which identifies the vendor user's account.
      * This string is displayed in Hypersync's Connected Accounts page to help the
      * user distinguish between multiple connections that use different accounts.
@@ -577,10 +475,11 @@ export function createHypersync(superclass: typeof OAuthConnector) {
       objectId: string,
       hypersync: IHypersync,
       syncStartDate: string,
-      hyperproofUser: IHyperproofUser,
+      organization: ILocalizable,
       page?: string,
       metadata?: SyncMetadata,
-      retryCount?: number
+      retryCount?: number,
+      iterableSlice?: IterableObject[]
     ): Promise<IGetProofDataResponse | IRetryResponse> {
       throw Error('Not implemented');
     }
@@ -593,7 +492,7 @@ export function createHypersync(superclass: typeof OAuthConnector) {
       orgId: string,
       vendorUserId: string,
       criteria: HypersyncCriteria,
-      search?: string,
+      search?: string | ICriteriaSearchInput,
       schemaCategory?: SchemaCategory
     ): Promise<ICriteriaMetadata> {
       throw Error('Not implemented');
@@ -615,16 +514,29 @@ export function createHypersync(superclass: typeof OAuthConnector) {
     }
 
     /**
+     * Returns the sync plan of the proof that will be generated.
+     */
+    async generateSyncPlan(
+      integrationContext: IntegrationContext,
+      orgId: string,
+      vendorUserId: string,
+      criteria: HypersyncCriteria,
+      metadata?: SyncMetadata,
+      retryCount?: number
+    ): Promise<IHypersyncSyncPlanResponse | IRetryResponse> {
+      throw createHttpError(
+        StatusCodes.METHOD_NOT_ALLOWED,
+        'Sync plan generation is not implemented.'
+      );
+    }
+
+    /**
      * Returns the file names that constitute the app's definition
      */
     async getAppDefinitionFiles() {
       const images = fs.readdirSync('__dirname/static/images');
       const metadata = fs.readdirSync('__dirname/static');
       return [...images, ...metadata];
-    }
-
-    getUserNotFoundMessage(vendorUserId: string) {
-      return `No ${this.connectorName} account found with id ${vendorUserId}. The connection may have been deleted.`;
     }
 
     /**

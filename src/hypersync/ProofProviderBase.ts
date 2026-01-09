@@ -7,7 +7,8 @@ import {
 } from './ICriteriaProvider';
 import { SyncMetadata } from './IDataSource';
 import { IErrorInfo, IHypersync } from './models';
-import { IGetProofDataResponse } from './Sync';
+import { IterableObject } from './ServiceDataIterator';
+import { IGetProofDataResponse, IHypersyncSyncPlanResponse } from './Sync';
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {
@@ -18,11 +19,10 @@ import {
   HypersyncFieldType,
   HypersyncPageOrientation,
   SchemaCategory
-} from '@hyperproof/hypersync-models';
-import {
-  IHyperproofUser,
-  IntegrationContext
-} from '@hyperproof/integration-sdk';
+} from '@hyperproof-int/hypersync-models';
+import { ILocalizable } from '@hyperproof-int/integration-sdk';
+import createHttpError from 'http-errors';
+import { StatusCodes } from 'http-status-codes';
 
 /**
  * Field information that is used in the layout of a generated proof document.
@@ -53,6 +53,19 @@ export interface IHypersyncSchema {
   format: HypersyncDataFormat;
   isHierarchical: boolean;
   fields: IHypersyncSchemaField[];
+  throwTypeCheckingExceptions?: boolean;
+}
+
+/**
+ * Sync plan generated from a configured Hypersync.  Used by the
+ * multipaging feature.
+ */
+export interface IHypersyncSyncPlan {
+  combine?: boolean;
+  iteratorPlan?: {
+    iterableArray: IterableObject[];
+    subArraySize?: number;
+  };
 }
 
 /**
@@ -98,6 +111,7 @@ export interface IHypersyncContents {
   collector: string;
   collectedOn: string;
   errorInfo?: IErrorInfo;
+  sourceTimeZone?: string;
 }
 
 /**
@@ -164,15 +178,35 @@ export class ProofProviderBase<T = any> {
   }
 
   /**
+   * Generates the sync plan for the proof type.  This sync plan is used in the
+   * multipaging functionality.
+   *
+   * @param {*} criteriaValues Criteria values chosen by the user.
+   * @param {*} metadata Additional metadata associated with the sync.  Optional.
+   * @param {number} retryCount Current retry count of sync. Optional.
+   */
+  async generateSyncPlan(
+    criteriaValues: HypersyncCriteria,
+    metadata?: SyncMetadata,
+    retryCount?: number
+  ): Promise<IHypersyncSyncPlanResponse> {
+    throw createHttpError(
+      StatusCodes.METHOD_NOT_ALLOWED,
+      'generateSyncPlan must be implemented by derived class.'
+    );
+  }
+
+  /**
    * Retrieves the data needed to generate proof files for the proof type.
    *
    * @param {*} hypersync The Hypersync that is being synced.
-   * @param {*} hyperproofUser The Hyperproof user who created the Hypersync.
+   * @param {*} organization The localization data for the user.
    * @param {string} authorizedUser User name, email or other unique identifer for the external user.
    * @param {*} syncStartDate Date and time at which the sync started.
    * @param {*} page The current page in the sync.  Optional.
    * @param {*} metadata Additional metadata associated with the sync.  Optional.
    * @param {number} retryCount Current retry count of sync. Optional.
+   * @param {*} iterableSlice If the sync plan includes an iterator, this is the slice of the iterable.  Optional.
    *
    * @returns An array of objects which can be used to generate the actual proof
    * files.  Each element in the array corresponds to one proof file that should
@@ -182,12 +216,13 @@ export class ProofProviderBase<T = any> {
    */
   async getProofData(
     hypersync: IHypersync,
-    hyperproofUser: IHyperproofUser,
+    organization: ILocalizable,
     authorizedUser: string,
     syncStartDate: Date,
     page?: string,
     metadata?: SyncMetadata,
-    retryCount?: number
+    retryCount?: number,
+    iterableSlice?: IterableObject[]
   ): Promise<IGetProofDataResponse | IProofFile[]> {
     throw new Error('getProofData must be implemented by derived class.');
   }

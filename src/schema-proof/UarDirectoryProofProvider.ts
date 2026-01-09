@@ -5,8 +5,8 @@ import {
   HypersyncDataFormat,
   HypersyncFieldType,
   SchemaCategory
-} from '@hyperproof/hypersync-models';
-import { IHyperproofUser } from '@hyperproof/integration-sdk';
+} from '@hyperproof-int/hypersync-models';
+import { ILocalizable } from '@hyperproof-int/integration-sdk';
 import { date, InferType, object, string } from 'yup';
 
 import { DataSourceBase } from '../hypersync/DataSourceBase';
@@ -57,7 +57,7 @@ export abstract class UarDirectoryProofProvider extends ProofProviderBase {
 
   public async getProofData(
     hypersync: IHypersync,
-    hyperproofUser: IHyperproofUser,
+    organization: ILocalizable,
     authorizedUser: string,
     syncStartDate: Date
   ): Promise<IGetProofDataResponse | IProofFile[]> {
@@ -79,7 +79,7 @@ export abstract class UarDirectoryProofProvider extends ProofProviderBase {
           type: process.env.integration_type!,
           title: MESSAGES.LabelAccessReview,
           subtitle: MESSAGES.LabelAccessReview,
-          userTimeZone: hyperproofUser.timeZone,
+          userTimeZone: organization.timeZone,
           criteria: [],
           proofFormat: hypersync.settings.proofFormat,
           template: HypersyncTemplate.UNIVERSAL,
@@ -89,9 +89,9 @@ export abstract class UarDirectoryProofProvider extends ProofProviderBase {
           collector: this.connectorName,
           collectedOn: dateToLocalizedString(
             syncStartDate,
-            hyperproofUser.timeZone,
-            hyperproofUser.language,
-            hyperproofUser.locale
+            organization.timeZone,
+            organization.language,
+            organization.locale
           )!
         }
       }

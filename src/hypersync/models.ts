@@ -5,12 +5,12 @@ import {
   HypersyncCriteria,
   HypersyncPeriod,
   SchemaCategory
-} from '@hyperproof/hypersync-models';
+} from '@hyperproof-int/hypersync-models';
 import {
   IIntegration,
   IIntegrationSettingsBase,
   IntegrationSettingsClass
-} from '@hyperproof/integration-sdk';
+} from '@hyperproof-int/integration-sdk';
 
 /**
  * Settings that are saved with a Hypersync integration.
@@ -40,6 +40,11 @@ export interface IHypersyncIntegrationSettings
 export interface IHypersync
   extends IIntegration<IHypersyncIntegrationSettings> {
   schemaCategory?: SchemaCategory;
+}
+
+export interface IHypersyncSavedCriteria {
+  label: string;
+  data: string[];
 }
 
 /**
