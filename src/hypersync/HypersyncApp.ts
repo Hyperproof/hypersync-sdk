@@ -35,7 +35,7 @@ import {
   IHypersyncDefinition,
   SchemaCategory,
   ValueLookup
-} from '@hyperproof/hypersync-models';
+} from '@hyperproof-int/hypersync-models';
 import {
   AuthorizationType,
   createApp,
@@ -56,7 +56,7 @@ import {
   OAuthTokenResponse,
   ObjectType,
   UserContext
-} from '@hyperproof/integration-sdk';
+} from '@hyperproof-int/integration-sdk';
 import express from 'express';
 import fs from 'fs';
 import createHttpError from 'http-errors';

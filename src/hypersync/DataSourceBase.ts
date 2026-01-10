@@ -6,8 +6,8 @@ import {
   SyncMetadata
 } from './IDataSource';
 
-import { DataObject, DataValueMap } from '@hyperproof/hypersync-models';
-import { ILocalizable } from '@hyperproof/integration-sdk';
+import { DataObject, DataValueMap } from '@hyperproof-int/hypersync-models';
+import { ILocalizable } from '@hyperproof-int/integration-sdk';
 
 /**
  * Abstract base class for a data source object.  Provides convenient

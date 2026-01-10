@@ -23,6 +23,7 @@ The `package.json` file for a custom Hypersync app must contain the values shown
     ...
 }
 ```
+
 NOTE: `schemaCategories` array is optional and only required for Hypersyncs that need to utilize the Access Review module.
 
 NOTE: When attempting to upgrade existing Hypersyncs to the `schemaCategories` for Access Review proofs, you must first delete the existing Hypersync using the CLI command `hp customapps delete`. This ensures that the new `schemaCategories` definition is added to your Hypersync.
@@ -48,7 +49,7 @@ More information on the version attribute can be found [here](https://docs.npmjs
 The `app_hyperproof` value in `package.json` is an object that contains values that Hyperproof uses to properly expose and run your custom Hypersync app. The object must contain the values in the table below.
 
 | Attribute               | Description                                                                                                                                                                                                                                                                              |
-| ----------------------- |------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name                    | The name of your application as shown in the Hyperproof UI.                                                                                                                                                                                                                              |
 | appType                 | The type of custom app. Must be set to `hypersync`.                                                                                                                                                                                                                                      |
 | authType                | The type of authentication/authorization used by your application. Acceptable values are `custom` or `oauth`.                                                                                                                                                                            |

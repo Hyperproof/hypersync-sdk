@@ -1,6 +1,6 @@
 import { IHypersyncProofField } from './ProofProviderBase';
 
-import { HypersyncPageOrientation } from '@hyperproof/hypersync-models';
+import { HypersyncPageOrientation } from '@hyperproof-int/hypersync-models';
 
 const DEFAULT_A4_WIDTH_PIXELS = 794;
 const DEFAULT_A4_LENGTH_PIXELS = 1123;

@@ -35,199 +35,215 @@
             },
             "pagingScheme": {
               "type": "object",
-                "oneOf": [
-                  {
-                    "properties": {
-                      "type": {
-                        "type": "string",
-                        "enum": ["nextToken"]
-                      },
-                      "request": {
-                        "type": "object",
-                        "properties":{
-                          "tokenParameter": {
-                            "type": "string"
-                          },
-                          "limitParameter": {
-                            "type": "string"
-                          },
-                          "limitValue": {
-                            "type": "number"
-                          }
-                        },
-                        "required": ["limitParameter", "limitValue"],
-                        "additionalProperties": false
-                      },
-                      "response": {
-                        "type": "object",
-                        "properties":{
-                          "nextToken": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["nextToken"],
-                        "additionalProperties": false
-                      },
-                      "pageUntil": {
-                        "type": "string",
-                        "enum": ["noNextToken"]
-                      },
-                      "tokenType": {
-                        "type": "string",
-                        "enum": ["token", "url", "searchArray"]
-                      },
-                      "level": {
-                        "type": "string",
-                        "enum": ["connector", "job"]
-                      }
+              "oneOf": [
+                {
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["nextToken"]
                     },
-                    "required": ["type", "request", "response", "pageUntil", "tokenType"],
-                    "additionalProperties": false
+                    "request": {
+                      "type": "object",
+                      "properties": {
+                        "tokenParameter": {
+                          "type": "string"
+                        },
+                        "limitParameter": {
+                          "type": "string"
+                        },
+                        "limitValue": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["limitParameter", "limitValue"],
+                      "additionalProperties": false
+                    },
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "nextToken": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["nextToken"],
+                      "additionalProperties": false
+                    },
+                    "pageUntil": {
+                      "type": "string",
+                      "enum": ["noNextToken"]
+                    },
+                    "tokenType": {
+                      "type": "string",
+                      "enum": ["token", "url", "searchArray"]
+                    },
+                    "level": {
+                      "type": "string",
+                      "enum": ["connector", "job"]
+                    }
                   },
-                  {
-                    "properties": {
-                      "type": {
-                        "type": "string",
-                        "enum": ["pageBased"]
-                      },
-                      "request": {
-                        "type": "object",
-                        "properties":{
-                          "pageParameter": {
-                            "type": "string"
-                          },
-                          "pageStartingValue": {
-                            "type": "number"
-                          },
-                          "limitParameter": {
-                            "type": "string"
-                          },
-                          "limitValue": {
-                            "type": "number"
-                          }
-                        },
-                        "required": ["pageParameter", "pageStartingValue", "limitParameter", "limitValue"],
-                        "additionalProperties": false
-                      },
-                      "response": {
-                        "type": "object",
-                        "properties":{
-                          "totalCount": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["totalCount"],
-                        "additionalProperties": false
-                      },
-                      "pageUntil": {
-                        "type": "string",
-                        "enum": ["noDataLeft", "reachTotalCount"]
-                      },
-                      "level": {
-                        "type": "string",
-                        "enum": ["connector", "job"]
-                      }
+                  "required": [
+                    "type",
+                    "request",
+                    "response",
+                    "pageUntil",
+                    "tokenType"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["pageBased"]
                     },
-                    "required": ["type", "request", "pageUntil"],
-                    "additionalProperties": false
+                    "request": {
+                      "type": "object",
+                      "properties": {
+                        "pageParameter": {
+                          "type": "string"
+                        },
+                        "pageStartingValue": {
+                          "type": "number"
+                        },
+                        "limitParameter": {
+                          "type": "string"
+                        },
+                        "limitValue": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "pageParameter",
+                        "pageStartingValue",
+                        "limitParameter",
+                        "limitValue"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "totalCount": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["totalCount"],
+                      "additionalProperties": false
+                    },
+                    "pageUntil": {
+                      "type": "string",
+                      "enum": ["noDataLeft", "reachTotalCount"]
+                    },
+                    "level": {
+                      "type": "string",
+                      "enum": ["connector", "job"]
+                    }
                   },
-                  {
-                    "properties": {
-                      "type": {
-                        "type": "string",
-                        "enum": ["offsetAndLimit"]
-                      },
-                      "request": {
-                        "type": "object",
-                        "properties":{
-                          "offsetParameter": {
-                            "type": "string"
-                          },
-                          "offsetStartingValue": {
-                            "type": "number"
-                          },
-                          "limitParameter": {
-                            "type": "string"
-                          },
-                          "limitValue": {
-                            "type": "number"
-                          }
-                        },
-                        "required": ["offsetParameter", "offsetStartingValue", "limitParameter", "limitValue"],
-                        "additionalProperties": false
-                      },
-                      "response": {
-                        "type": "object",
-                        "properties":{
-                          "totalCount": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["totalCount"],
-                        "additionalProperties": false
-                      },
-                      "pageUntil": {
-                        "type": "string",
-                        "enum": ["noDataLeft", "reachTotalCount"]
-                      },
-                      "level": {
-                        "type": "string",
-                        "enum": ["connector", "job"]
-                      }
+                  "required": ["type", "request", "pageUntil"],
+                  "additionalProperties": false
+                },
+                {
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["offsetAndLimit"]
                     },
-                    "required": ["type", "request", "pageUntil"],
-                    "additionalProperties": false
+                    "request": {
+                      "type": "object",
+                      "properties": {
+                        "offsetParameter": {
+                          "type": "string"
+                        },
+                        "offsetStartingValue": {
+                          "type": "number"
+                        },
+                        "limitParameter": {
+                          "type": "string"
+                        },
+                        "limitValue": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "offsetParameter",
+                        "offsetStartingValue",
+                        "limitParameter",
+                        "limitValue"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "totalCount": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["totalCount"],
+                      "additionalProperties": false
+                    },
+                    "pageUntil": {
+                      "type": "string",
+                      "enum": ["noDataLeft", "reachTotalCount"]
+                    },
+                    "level": {
+                      "type": "string",
+                      "enum": ["connector", "job"]
+                    }
                   },
-                  {
-                    "properties": {
-                      "type": {
-                        "type": "string",
-                        "enum": ["graphqlConnections"]
-                      },
-                      "request": {
-                        "type": "object",
-                        "properties":{
-                          "limitParameter": {
-                            "anyOf": [
-                              {
-                                "type": "string",
-                                "enum": ["first"]
-                              },
-                              {
-                                "type": "string"
-                              }
-                            ]
-                          },
-                          "limitValue": {
-                            "type": "number"
-                          }
-                        },
-                        "required": ["limitParameter", "limitValue"],
-                        "additionalProperties": false
-                      },
-                      "response": {
-                        "type": "object",
-                        "properties":{
-                          "pageInfo": {
-                            "type": "string"
-                          }
-                        },
-                        "required": ["pageInfo"],
-                        "additionalProperties": false
-                      },
-                      "pageUntil": {
-                        "type": "string",
-                        "enum": ["noNextPage"]
-                      },
-                      "level": {
-                        "type": "string",
-                        "enum": ["connector", "job"]
-                      }
+                  "required": ["type", "request", "pageUntil"],
+                  "additionalProperties": false
+                },
+                {
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": ["graphqlConnections"]
                     },
-                    "required": ["type", "request", "response", "pageUntil"],
-                    "additionalProperties": false
-                  }
-                ]
+                    "request": {
+                      "type": "object",
+                      "properties": {
+                        "limitParameter": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "enum": ["first"]
+                            },
+                            {
+                              "type": "string"
+                            }
+                          ]
+                        },
+                        "limitValue": {
+                          "type": "number"
+                        }
+                      },
+                      "required": ["limitParameter", "limitValue"],
+                      "additionalProperties": false
+                    },
+                    "response": {
+                      "type": "object",
+                      "properties": {
+                        "pageInfo": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["pageInfo"],
+                      "additionalProperties": false
+                    },
+                    "pageUntil": {
+                      "type": "string",
+                      "enum": ["noNextPage"]
+                    },
+                    "level": {
+                      "type": "string",
+                      "enum": ["connector", "job"]
+                    }
+                  },
+                  "required": ["type", "request", "response", "pageUntil"],
+                  "additionalProperties": false
+                }
+              ]
             },
             "body": {
               "type": ["object", "string"]

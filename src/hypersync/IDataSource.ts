@@ -2,8 +2,8 @@ import { IErrorInfo } from './models';
 import { RestDataSourceBase } from './RestDataSourceBase';
 import { TokenContext } from './tokens';
 
-import { DataObject, DataValueMap } from '@hyperproof/hypersync-models';
-import { ILocalizable } from '@hyperproof/integration-sdk';
+import { DataObject, DataValueMap } from '@hyperproof-int/hypersync-models';
+import { ILocalizable } from '@hyperproof-int/integration-sdk';
 
 export enum DataSetResultStatus {
   Complete = 'complete',

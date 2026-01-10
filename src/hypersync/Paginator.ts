@@ -13,7 +13,7 @@ import {
   PageUntilCondition,
   PagingScheme,
   PagingType
-} from '@hyperproof/hypersync-models';
+} from '@hyperproof-int/hypersync-models';
 import jsonata from 'jsonata';
 import set from 'lodash/set';
 

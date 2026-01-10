@@ -6,7 +6,7 @@ Data sources can retrieve different data sets from the external service. Each da
 
 Data set names are used in other components like proof types to identify the specific data element or elements needed by that component.
 
-> **NOTE**: Data sets can and *should* be re-used across multiple proof types, and can also be used in non-proof scenarios such as collecting user data during the `validateCredentials` process.
+> **NOTE**: Data sets can and _should_ be re-used across multiple proof types, and can also be used in non-proof scenarios such as collecting user data during the `validateCredentials` process.
 
 ## REST Data Sources
 
@@ -66,9 +66,9 @@ For more information on configuring the data sets in your data source using `dat
 
 Many REST APIs use a paging mechanism to allow data to be retrieved in chunks. For example, some APIs take a `pageSize` and `pageNumber` argument which specify how many items to return, and the page number to start reading from, respectively.
 
-Four paging styles are supported: __Page Based__, __Offset And Limit__, __Next Token__, and __GraphQL Connections__.  As a default, query string parameters will be programatically added to an API url.  If POST is designated as the data source HTTP method, paging parameters are added to the body of the request.
+Four paging styles are supported: **Page Based**, **Offset And Limit**, **Next Token**, and **GraphQL Connections**. As a default, query string parameters will be programatically added to an API url. If POST is designated as the data source HTTP method, paging parameters are added to the body of the request.
 
-1.  __Page Based.__  Begin paging at a starting value and increment the page value by 1 after each iteration (1, 2, 3, etc).  Return at most `limitValue` items per page.
+1.  **Page Based.** Begin paging at a starting value and increment the page value by 1 after each iteration (1, 2, 3, etc). Return at most `limitValue` items per page.
 
 ```json
 "pagingScheme": {
@@ -83,9 +83,9 @@ Four paging styles are supported: __Page Based__, __Offset And Limit__, __Next T
 }
 ```
 
-The mandatory `request` property in the paging scheme constructs the paged query string.  The query string of the first API call from the above example will be: `?pageNumber=1&pageSize=100`.  Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops.  If `reachTotalCount` condition is applied, `totalCount` must be defined in the response object, which represents the path to the total combined number of items in the data returned from the external service.*
+The mandatory `request` property in the paging scheme constructs the paged query string. The query string of the first API call from the above example will be: `?pageNumber=1&pageSize=100`. Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops. If `reachTotalCount` condition is applied, `totalCount` must be defined in the response object, which represents the path to the total combined number of items in the data returned from the external service.\*
 
-2.  __Offset And Limit.__  Begin paging at a starting value and increment the offset by the number of elements in a full page (0, 100, 200, 300, etc).  Return at most `limitValue` items per page.
+2.  **Offset And Limit.** Begin paging at a starting value and increment the offset by the number of elements in a full page (0, 100, 200, 300, etc). Return at most `limitValue` items per page.
 
 ```json
 "pagingScheme": {
@@ -103,9 +103,9 @@ The mandatory `request` property in the paging scheme constructs the paged query
 }
 ```
 
-The mandatory `request` property in the paging scheme constructs the paged query string.  The query string of the first API call from the above example will be: `?offset=0&limit=100`.  Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops.  If `reachTotalCount` condition is applied, `totalCount` must be defined in the response object.  This string value represents the path to the total combined number of items in the data returned from the external service.*
+The mandatory `request` property in the paging scheme constructs the paged query string. The query string of the first API call from the above example will be: `?offset=0&limit=100`. Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops. If `reachTotalCount` condition is applied, `totalCount` must be defined in the response object. This string value represents the path to the total combined number of items in the data returned from the external service.\*
 
-3.  __Next Token.__  Begin paging and continue until `nextToken` is no longer provided.  Return at most `limitValue` items per page.  Tokens may be a unique string returned from the external service or a url.
+3.  **Next Token.** Begin paging and continue until `nextToken` is no longer provided. Return at most `limitValue` items per page. Tokens may be a unique string returned from the external service or a url.
 
 ```json
 "pagingScheme": {
@@ -123,9 +123,9 @@ The mandatory `request` property in the paging scheme constructs the paged query
 }
 ```
 
-The mandatory `request` property in the paging scheme constructs the paged query string.  The query string of the first API call from the above example will be: `?size=20`.  Each successive call will be structured in the pattern: `?size=20&token=891b629672384d04`.  Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops.  When `noNextToken` condition is applied, `nextToken` must be included in the response object.  This string value represents the path to the expected value in the data returned from the external service.*
+The mandatory `request` property in the paging scheme constructs the paged query string. The query string of the first API call from the above example will be: `?size=20`. Each successive call will be structured in the pattern: `?size=20&token=891b629672384d04`. Each paging scheme must include a `pageUntil` property which defines the point at which pagination stops. When `noNextToken` condition is applied, `nextToken` must be included in the response object. This string value represents the path to the expected value in the data returned from the external service.\*
 
-4.  __GraphQL Connections.__  Following the GraphQL [Connections](https://graphql.org/learn/pagination/#connection-specification) specification, continue paging until `hasNextPage` is false.  Return at most `limitValue` items per page.  Supports forward, non-nested pagination.
+4.  **GraphQL Connections.** Following the GraphQL [Connections](https://graphql.org/learn/pagination/#connection-specification) specification, continue paging until `hasNextPage` is false. Return at most `limitValue` items per page. Supports forward, non-nested pagination.
 
 ```json
 "body": {
@@ -149,9 +149,9 @@ The mandatory `request` property in the paging scheme constructs the paged query
 }
 ```
 
-The paging scheme dynamically adds the `first` and `after` variables to the body of a request.  The `after` variable is defined using the `endCursor` string from the preceding response.  `pageInfo` must be included in the paging scheme response object.  This string value represents the path to the `pageInfo` object in the data returned from the external service.
+The paging scheme dynamically adds the `first` and `after` variables to the body of a request. The `after` variable is defined using the `endCursor` string from the preceding response. `pageInfo` must be included in the paging scheme response object. This string value represents the path to the `pageInfo` object in the data returned from the external service.
 
-*If values are to be found in the response header, apply the `header:` prefix.
+\*If values are to be found in the response header, apply the `header:` prefix.
 
 ## Custom Data Sources
 

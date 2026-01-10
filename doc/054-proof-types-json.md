@@ -34,6 +34,6 @@ An additional optional property 'schemaCategory' is required if the Hypersync is
     "listOfUsersApplication": {
         "label": "{{messages.PROOF_TYPE_USER_LIST}}",
         "schemaCategory": "uarApplication"
-    }   
+    }
 }
 ```

@@ -30,7 +30,6 @@ Finally, we recommend cloning the [Hypersync SDK Samples GitHub repository](http
 
 For development purposes it is recommended to have a separate 'sandbox' organization in Hyperproof. This will allow you to develop and test your custom Hypersync apps in isolation without affecting the users in your production Hyperproof organization. To create a 'sandbox' organization, please contact your Hyperproof Customer Service Manager.
 
-
 ## Next Steps
 
 Once you have installed the prerequisites and determined the organization that you will use for development, you are ready to install your first custom Hypersync app. Follow the guidance in [App Development Workflow](./002-dev-workflow.md) to install, test and update one of the pre-built sample apps.

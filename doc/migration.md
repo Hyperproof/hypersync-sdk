@@ -16,7 +16,7 @@ The Hypersync SDK functionality is distributed via three Node packages:
 | @hyperproof/integration-sdk  | 1.0.2   | Common integration elements |
 
 All of the functionality needed to develop Hypersync applications is now
-exported from `@hyperproof/hypersync-sdk`.  There is no longer a need to
+exported from `@hyperproof/hypersync-sdk`. There is no longer a need to
 include dependencies to `@hyperproof/hypersync-models` or `@hyperproof/integration-sdk`.
 
 The `dependencies` section of your app's `package.json` file should be updated as follows:

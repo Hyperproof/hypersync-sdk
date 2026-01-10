@@ -24,8 +24,9 @@ In a Hypersync app, there are two types connections: [OAuth connections](#oauth-
 > a [custom authentication connection](#custom-authentication) should be used.
 
 > **NOTE: API Permissions**
->- Always use the minimum permissions necessary for proofs. Hypersyncs are read-only so use read-only permissions when possible.
->- Use minimum scopes when using OAuth. The Hypersync author is going to be asked to authorize one or more scopes. You only want to ask for what you need.
+>
+> - Always use the minimum permissions necessary for proofs. Hypersyncs are read-only so use read-only permissions when possible.
+> - Use minimum scopes when using OAuth. The Hypersync author is going to be asked to authorize one or more scopes. You only want to ask for what you need.
 
 ## OAuth Authorization
 

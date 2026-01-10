@@ -14,7 +14,7 @@ If the APIs in your data sets do not share a common root, omit the `baseUrl` pro
 
 A "data set" is a named object used to identify a data object or a data collection (i.e. data array) that can be retrieved from a data source.
 
-`dataSets` can and *should* be re-used across multiple proof types, and can also be used in non-proof scenarios such as collecting user data during the `validateCredentials` process.
+`dataSets` can and _should_ be re-used across multiple proof types, and can also be used in non-proof scenarios such as collecting user data during the `validateCredentials` process.
 
 There should be one property in the `dataSets` object for each data set that is used by your custom Hypersync app.
 
@@ -39,19 +39,19 @@ Each data set object contains the following properties:
 
 Often objects returned from a REST API contain property values that need to be formatted before they are presented to the user.
 
-The `transform` property is where we define the fields that we wish to return in the dataset. The property name is the field name that will be available in the dataset.  The value of the property refers to the property in the Json returned from the API call that we will display.
+The `transform` property is where we define the fields that we wish to return in the dataset. The property name is the field name that will be available in the dataset. The value of the property refers to the property in the Json returned from the API call that we will display.
 
-The simplest transformation is the ability to rename the property we wish to display as described above.  In the example included in the JSONata discussion below, we can see that the dataset field `realname` is renamed from the JSON API result property `full_name`. `realname` is the name of the field to be referenced in your proof.json
+The simplest transformation is the ability to rename the property we wish to display as described above. In the example included in the JSONata discussion below, we can see that the dataset field `realname` is renamed from the JSON API result property `full_name`. `realname` is the name of the field to be referenced in your proof.json
 
 ## Transform with JSONata
 
-Sometimes the data returned for your API needs to be transformed in some way before it can be used in your dataset.  The Hypersync SDK makes use of the query and transformation language JSONata. This allows the use of an extensive library of expressions to transform your data. 
+Sometimes the data returned for your API needs to be transformed in some way before it can be used in your dataset. The Hypersync SDK makes use of the query and transformation language JSONata. This allows the use of an extensive library of expressions to transform your data.
 
 Here are a few examples.
 
-- In our final dataset, we need to have a property named `owner` that contains the value of the API result property `full_name`.  If the value of `full_name` is empty, we use JSONata to replace it with the value from `username`
+- In our final dataset, we need to have a property named `owner` that contains the value of the API result property `full_name`. If the value of `full_name` is empty, we use JSONata to replace it with the value from `username`
 - For our `role` property, we use JSONata to force this value to contain a concatenated string of values from the `roles` array which is returned from the API result.
-- The API result value for `last_login_time` is a unix timestamp in seconds. We use JSONata to convert this value into milliseconds and then into a readable timestamp. 
+- The API result value for `last_login_time` is a unix timestamp in seconds. We use JSONata to convert this value into milliseconds and then into a readable timestamp.
 
 The full JSONata documentation of operators and functions can be found here.
 
@@ -82,6 +82,7 @@ https://docs.jsonata.org/overview
     }
 }
 ```
+
 ## Transform with Value Lookups
 
 Often, an API returns a value or set of values that need to be mapped to alternate values for readability, consistency, or other reasons. For example, an API that returns user information may return a `status` property with values `active` and `deactivated`. In this case it may be desirable to map these values to the strings "Active" and "Inactive" respectively. The `valueLookups` object in `dataSource.json` makes this sort of mapping possible without writing code.
