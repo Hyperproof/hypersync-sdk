@@ -16,16 +16,10 @@ After installing the CLI, you will first need to sign in using this command:
 hp signin
 ```
 
-> NOTE: For customers using Hyperproof EU or Hyperproof GOV, please use the following commands:
+> NOTE: For customers using Hyperproof EU, please use the following command:
 >
 > ```
 > hp signin --domain hyperproof.eu
-> ```
->
-> or
->
-> ```
-> hp signin --domain hyperproofgov.app
 > ```
 >
 > For additional information use 'hp signin -help'
