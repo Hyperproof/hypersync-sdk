@@ -8,8 +8,9 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ## Release Notes
 
-### 4.0.0
+### 6.0.0
 
+- Bumped version to 6 to match hypersync-models package. All packages versions will be kept in sync from now on.
 - **Breaking:** Updated to Node.js 22
 - **Breaking:** Updated to `@hyperproof/hypersync-models` 6.0.0 and `@hyperproof/integration-sdk` 2.0.0
 - Replaced `hyperproofUser` with `organization` object of type `ILocalizable` that can be used for date localization
