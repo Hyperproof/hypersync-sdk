@@ -1,6 +1,6 @@
 {
   "name": "@hyperproof/hypersync-sdk",
-  "version": "4.0.0",
+  "version": "6.0.0",
   "description": "Hypersync SDK",
   "license": "MIT",
   "repository": {
@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@hyperproof/hypersync-models": "6.0.0",
-    "@hyperproof/integration-sdk": "2.0.0",
+    "@hyperproof/integration-sdk": "6.0.0",
     "@js-joda/core": "3.2.0",
     "@js-joda/timezone": "2.5.0",
     "abort-controller": "3.0.0",
