@@ -11,8 +11,8 @@ import {
   ISelectOption,
   IValidation,
   SchemaCategory
-} from '@hyperproof-int/hypersync-models';
-import { CriteriaPageMessageLevel } from '@hyperproof-int/integration-sdk';
+} from '@hyperproof/hypersync-models';
+import { CriteriaPageMessageLevel } from '@hyperproof/integration-sdk';
 
 /**
  * Information needed to render a criteria field used in the configuration

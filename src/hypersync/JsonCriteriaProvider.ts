@@ -16,8 +16,8 @@ import {
   ICriteriaSearchInput,
   IProofCriterionRef,
   ISelectOption
-} from '@hyperproof-int/hypersync-models';
-import { compareValues, Logger } from '@hyperproof-int/integration-sdk';
+} from '@hyperproof/hypersync-models';
+import { compareValues, Logger } from '@hyperproof/integration-sdk';
 import fs from 'fs';
 import path from 'path';
 

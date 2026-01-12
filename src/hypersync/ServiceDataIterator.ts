@@ -21,8 +21,8 @@ import {
   DataValueMap,
   IProofSpec,
   IteratorSource
-} from '@hyperproof-int/hypersync-models';
-import { ILocalizable } from '@hyperproof-int/integration-sdk';
+} from '@hyperproof/hypersync-models';
+import { ILocalizable } from '@hyperproof/integration-sdk';
 
 export interface IIteratorPlanComplete {
   status: DataSetResultStatus.Complete;

@@ -3,15 +3,15 @@ import { RestDataSourceBase } from './RestDataSourceBase';
 import {
   IDataSet,
   IRestDataSourceConfig
-} from '@hyperproof-int/hypersync-models';
-import { DataSetResultStatus } from '@hyperproof-int/hypersync-sdk';
-import { ApiClient } from '@hyperproof-int/integration-sdk';
+} from '@hyperproof/hypersync-models';
+import { DataSetResultStatus } from '@hyperproof/hypersync-sdk';
+import { ApiClient } from '@hyperproof/integration-sdk';
 import { HeadersInit } from 'node-fetch';
 
 // Mock Logger
-jest.mock('@hyperproof-int/integration-sdk', () => {
+jest.mock('@hyperproof/integration-sdk', () => {
   return {
-    ...jest.requireActual('@hyperproof-int/integration-sdk'),
+    ...jest.requireActual('@hyperproof/integration-sdk'),
     Logger: {
       log: jest.fn(),
       error: jest.fn(),

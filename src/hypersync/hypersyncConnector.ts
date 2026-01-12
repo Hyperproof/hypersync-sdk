@@ -13,7 +13,7 @@ import {
   HypersyncCriteria,
   ICriteriaSearchInput,
   SchemaCategory
-} from '@hyperproof-int/hypersync-models';
+} from '@hyperproof/hypersync-models';
 import {
   createConnector,
   CustomAuthCredentials,
@@ -33,7 +33,7 @@ import {
   ObjectType,
   StorageItem,
   UserContext
-} from '@hyperproof-int/integration-sdk';
+} from '@hyperproof/integration-sdk';
 import express from 'express';
 import fs from 'fs';
 import createHttpError from 'http-errors';
