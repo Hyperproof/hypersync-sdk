@@ -14,7 +14,7 @@
     "lint": "./node_modules/eslint/bin/eslint.js src/**/*.ts"
   },
   "engines": {
-    "node": "22"
+    "node": "^22.0.0"
   },
   "dependencies": {
     "@hyperproof/hypersync-models": "6.0.0",
