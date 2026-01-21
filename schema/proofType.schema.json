@@ -99,6 +99,23 @@
         "autoLayout": {
           "type": "boolean"
         },
+        "sort": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "property": {
+                "type": "string"
+              },
+              "direction": {
+                "type": "string",
+                "enum": ["ascending", "descending"]
+              }
+            },
+            "required": ["property", "direction"]
+          }
+        },
         "dataSetIterator": {
           "type": "array",
           "items": {

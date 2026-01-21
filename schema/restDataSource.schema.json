@@ -81,13 +81,7 @@
                       "enum": ["connector", "job"]
                     }
                   },
-                  "required": [
-                    "type",
-                    "request",
-                    "response",
-                    "pageUntil",
-                    "tokenType"
-                  ],
+                  "required": ["type", "request", "response", "pageUntil", "tokenType"],
                   "additionalProperties": false
                 },
                 {
@@ -112,12 +106,7 @@
                           "type": "number"
                         }
                       },
-                      "required": [
-                        "pageParameter",
-                        "pageStartingValue",
-                        "limitParameter",
-                        "limitValue"
-                      ],
+                      "required": ["pageParameter", "pageStartingValue", "limitParameter", "limitValue"],
                       "additionalProperties": false
                     },
                     "response": {
@@ -164,12 +153,7 @@
                           "type": "number"
                         }
                       },
-                      "required": [
-                        "offsetParameter",
-                        "offsetStartingValue",
-                        "limitParameter",
-                        "limitValue"
-                      ],
+                      "required": ["offsetParameter", "offsetStartingValue", "limitParameter", "limitValue"],
                       "additionalProperties": false
                     },
                     "response": {
@@ -275,11 +259,7 @@
                     "type": "object",
                     "patternProperties": {
                       "^.*$": {
-                        "anyOf": [
-                          { "type": "string" },
-                          { "type": "number" },
-                          { "type": "boolean" }
-                        ]
+                        "anyOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }]
                       }
                     }
                   }
@@ -325,11 +305,7 @@
                     "type": "string"
                   },
                   "value": {
-                    "anyOf": [
-                      { "type": "string" },
-                      { "type": "number" },
-                      { "type": "boolean" }
-                    ]
+                    "anyOf": [{ "type": "string" }, { "type": "number" }, { "type": "boolean" }]
                   }
                 },
                 "required": ["property", "value"]
@@ -358,7 +334,7 @@
                 "additionalProperties": false,
                 "properties": {
                   "property": {
-                    "property": "string"
+                    "type": "string"
                   },
                   "direction": {
                     "type": "string",
