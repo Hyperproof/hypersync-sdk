@@ -8,19 +8,6 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ## Release Notes
 
-### 6.0.0
-
-- Bumped version to 6 to match hypersync-models package. All packages versions will be kept in sync from now on.
-- **Breaking:** Updated to Node.js 22
-- **Breaking:** Updated to `@hyperproof/hypersync-models` 6.0.0 and `@hyperproof/integration-sdk` 2.0.0
-- Replaced `hyperproofUser` with `organization` object of type `ILocalizable` that can be used for date localization
-- Added `ServiceDataIterator` class for iterative data fetching with support for dataset and criteria-sourced iteration
-- Enhanced `JsonProofProvider` with iterator support for generating proofs from iterable data
-- Improved `JsonCriteriaProvider` with saved criteria settings and search input handling
-- Enhanced `RestDataSourceBase` with improved pagination and error handling
-- Added `continueOnError` support in data set lookups
-- Plus other bug fixes and performance enhancements
-
 ### 3.2.0
 
 - Integrate latest Integration SDK which contains reliability improvements and bug fixes.
