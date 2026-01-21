@@ -13,17 +13,17 @@ import {
   HypersyncPageOrientation,
   HypersyncPeriod,
   IProofSpec
-} from '@hyperproof-int/hypersync-models';
+} from '@hyperproof/hypersync-models';
 import {
   HypersyncProofFormat,
   HypersyncTemplate,
   IHypersync
-} from '@hyperproof-int/hypersync-sdk/lib';
+} from '@hyperproof/hypersync-sdk/lib';
 import {
   ILocalizable,
   IntegrationSettingsClass,
   ObjectType
-} from '@hyperproof-int/integration-sdk';
+} from '@hyperproof/integration-sdk';
 
 const CONNECTOR_NAME = 'testConnector';
 const PROOF_TYPE = 'testProofType';

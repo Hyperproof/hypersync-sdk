@@ -3,7 +3,7 @@ import {
   DataValue,
   HypersyncCriteria,
   HypersyncCriteriaValue
-} from '@hyperproof-int/hypersync-models';
+} from '@hyperproof/hypersync-models';
 
 /**
  * Context object that is used when resolving placeholder tokens in a string.

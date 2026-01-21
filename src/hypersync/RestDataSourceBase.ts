@@ -27,14 +27,14 @@ import {
   PagingLevel,
   Transform,
   ValueLookup
-} from '@hyperproof-int/hypersync-models';
+} from '@hyperproof/hypersync-models';
 import {
   ApiClient,
   compareValues,
   IApiClientResponse,
   ILocalizable,
   Logger
-} from '@hyperproof-int/integration-sdk';
+} from '@hyperproof/integration-sdk';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
 import jsonata from 'jsonata';

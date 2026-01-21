@@ -7,7 +7,7 @@ import {
 import {
   HypersyncFieldType,
   IHypersyncField
-} from '@hyperproof-int/hypersync-models';
+} from '@hyperproof/hypersync-models';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
 import queryString from 'query-string';
