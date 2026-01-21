@@ -1,7 +1,7 @@
 import '@js-joda/timezone';
 import { formatMessage, MESSAGES } from './messages';
 
-import { HypersyncPeriod } from '@hyperproof/hypersync-models';
+import { HypersyncPeriod } from '@hyperproof-int/hypersync-models';
 import {
   ChronoUnit,
   convert,

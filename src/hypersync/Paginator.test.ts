@@ -14,8 +14,8 @@ import {
   NextTokenType,
   PageUntilCondition,
   PagingType
-} from '@hyperproof/hypersync-models';
-import { IGraphQLConnectionsScheme } from '@hyperproof/hypersync-models/src/dataSource';
+} from '@hyperproof-int/hypersync-models';
+import { IGraphQLConnectionsScheme } from '@hyperproof-int/hypersync-models/src/dataSource';
 
 describe('Paginator', () => {
   describe('createPaginator', () => {

@@ -4,7 +4,7 @@ import { IterableObject, ServiceDataIterator } from './ServiceDataIterator';
 import {
   DataSetIteratorDefinition,
   IteratorSource
-} from '@hyperproof/hypersync-models';
+} from '@hyperproof-int/hypersync-models';
 
 describe('ServiceDataIterator', () => {
   const mockRestDataSource = {

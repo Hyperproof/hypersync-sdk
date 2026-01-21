@@ -1,7 +1,7 @@
 import { uarApplicationSchema } from './UarApplicationProofProvider';
 import { uarDirectorySchema } from './UarDirectoryProofProvider';
 
-import { DataObject, SchemaCategory } from '@hyperproof/hypersync-models';
+import { DataObject, SchemaCategory } from '@hyperproof-int/hypersync-models';
 
 import { IHypersync } from '../hypersync';
 

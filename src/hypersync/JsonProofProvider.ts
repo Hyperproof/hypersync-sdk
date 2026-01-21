@@ -32,8 +32,8 @@ import {
   IHypersyncField,
   IProofSpec,
   IteratorSource
-} from '@hyperproof/hypersync-models';
-import { ILocalizable, Logger } from '@hyperproof/integration-sdk';
+} from '@hyperproof-int/hypersync-models';
+import { ILocalizable, Logger } from '@hyperproof-int/integration-sdk';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
 
@@ -140,6 +140,13 @@ export class JsonProofProvider extends ProofProviderBase {
     const tokenContext = this.initTokenContext(criteriaValues);
     const proofSpec: IProofSpec = this.buildProofSpec(definition, tokenContext);
 
+    if (proofSpec.sort?.some(s => typeof s.property !== 'string')) {
+      throw createHttpError(
+        StatusCodes.BAD_REQUEST,
+        'Sort clauses must specify a property to sort on.'
+      );
+    }
+
     if (proofSpec.dataSetIterator) {
       if (!isRestDataSourceBase(this.dataSource)) {
         throw createHttpError(
@@ -184,14 +191,16 @@ export class JsonProofProvider extends ProofProviderBase {
       return {
         syncPlan: {
           iteratorPlan,
-          combine: true
+          combine: true,
+          sort: proofSpec.sort
         }
       };
     }
 
     return {
       syncPlan: {
-        combine: true
+        combine: true,
+        sort: proofSpec.sort
       }
     };
   }

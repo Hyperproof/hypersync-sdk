@@ -4,8 +4,8 @@ import { JsonCriteriaProvider } from './JsonCriteriaProvider';
 import {
   HypersyncCriteriaFieldType,
   ValidationTypes
-} from '@hyperproof/hypersync-models';
-import { Logger } from '@hyperproof/integration-sdk';
+} from '@hyperproof-int/hypersync-models';
+import { Logger } from '@hyperproof-int/integration-sdk';
 import fs from 'fs';
 import path from 'path';
 

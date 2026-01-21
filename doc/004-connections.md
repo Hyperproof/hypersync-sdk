@@ -93,7 +93,7 @@ Finally, implement the `getUserId` and `getUserAccountName` methods. `getUserId`
 
 ## Custom Authentication
 
-All non-OAuth authentication/authorization schemes are classified as "Custom" in the Hyperysnc SDK. If your service does not use OAuth 2.0, you should specify `custom` as your `authType` in `package.json`. See [Custom Hypersync App package.json Reference](./030-package-json-reference.md) for more information.
+All non-OAuth authentication/authorization schemes are classified as "Custom" in the Hypersync SDK. If your service does not use OAuth 2.0, you should specify `custom` as your `authType` in `package.json`. See [Custom Hypersync App package.json Reference](./030-package-json-reference.md) for more information.
 
 Custom auth covers any type of authentication where the user provides credentials to make a connection. Credentials can include user name/password, access key/secret key, API Token, and many others. Users may also need to designate the endpoint they’re connecting to - for example by providing a URL or a region.
 

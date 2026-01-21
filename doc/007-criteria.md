@@ -71,7 +71,7 @@ class MyCriteriaProvider implements ICriteriaProvider{
     pages: ICriteriaPage[]
   ): Promise<ICriteriaMetadata> {
     // TODO: Generate an ICriteriaMetdata instance containing the metadata for
-    // the fields the user needs to configure, as well as defaults for the Hyperysnc
+    // the fields the user needs to configure, as well as defaults for the Hypersync
     // name, frequency of execution, and versioning behavior.
   }
 

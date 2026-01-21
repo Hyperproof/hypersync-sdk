@@ -18,9 +18,10 @@ import {
   HypersyncFieldFormat,
   HypersyncFieldType,
   HypersyncPageOrientation,
-  SchemaCategory
-} from '@hyperproof/hypersync-models';
-import { ILocalizable } from '@hyperproof/integration-sdk';
+  SchemaCategory,
+  SortClause
+} from '@hyperproof-int/hypersync-models';
+import { ILocalizable } from '@hyperproof-int/integration-sdk';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
 
@@ -66,6 +67,7 @@ export interface IHypersyncSyncPlan {
     iterableArray: IterableObject[];
     subArraySize?: number;
   };
+  sort?: SortClause[];
 }
 
 /**

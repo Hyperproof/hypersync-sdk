@@ -14,8 +14,8 @@ import {
   IntegrationContext,
   ObjectType,
   UserContext
-} from '@hyperproof/integration-sdk/lib';
-import { ILocalizable } from '@hyperproof/integration-sdk/src';
+} from '@hyperproof-int/integration-sdk/lib';
+import { ILocalizable } from '@hyperproof-int/integration-sdk/src';
 
 describe('HypersyncApp.ts', () => {
   let app: any;

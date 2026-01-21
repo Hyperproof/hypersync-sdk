@@ -32,7 +32,7 @@ This command will launch a new browser window and allow you to sign in (if you a
 
 ### Importing Your Hypersync App
 
-Once you have signed in and authorized the CLI, you are ready to import a custom Hyperysnc app.
+Once you have signed in and authorized the CLI, you are ready to import a custom Hypersync app.
 
 1. Find the `apps/open-library/` directory in your clone of the Hypersync SDK Samples repository.
 2. Make a copy of that folder somewhere else on your computer. Feel free to rename the folder if that helps.

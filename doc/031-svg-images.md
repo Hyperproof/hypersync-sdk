@@ -1,6 +1,6 @@
 # Custom Hypersync App Icons and Branding
 
-Every custom Hyperysnc app must include four SVG files which the user will see while working with the Hyperysnc app in the Hyperproof UI. These files must be `.SVG` files, and they must follow certain naming and size rules.
+Every custom Hypersync app must include four SVG files which the user will see while working with the Hypersync app in the Hyperproof UI. These files must be `.SVG` files, and they must follow certain naming and size rules.
 
 | File              | Description                                                                                       | Sizing      |
 | ----------------- | ------------------------------------------------------------------------------------------------- | ----------- |

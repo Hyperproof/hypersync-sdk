@@ -11,7 +11,7 @@ The Hypersync SDK functionality is distributed via three Node packages:
 
 | Package                      | Version | Description                 |
 | ---------------------------- | ------- | --------------------------- |
-| @hyperproof/hyperysnc-sdk    | 3.0.2   | Core Hypersync SDK          |
+| @hyperproof/hypersync-sdk    | 3.0.2   | Core Hypersync SDK          |
 | @hyperproof/hypersync-models | 5.0.0   | Supporting Hypersync models |
 | @hyperproof/integration-sdk  | 1.0.2   | Common integration elements |
 
