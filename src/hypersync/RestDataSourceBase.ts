@@ -7,12 +7,19 @@ import {
   SyncMetadata
 } from './IDataSource';
 import { IErrorInfo } from './models';
-import { Paginator } from './Paginator';
+import { Paginator, PagingState } from './Paginator';
+import {
+  IterableObject,
+  IteratorPlanDataSetResult,
+  ServiceDataIterator
+} from './ServiceDataIterator';
 import { resolveTokens, TokenContext } from './tokens';
 
 import {
   DataObject,
+  DataSetIteratorDefinition,
   DataSetMethod,
+  DataSetMethodsWithBody,
   DataValue,
   DataValueMap,
   IDataSet,
@@ -25,12 +32,13 @@ import {
   ApiClient,
   compareValues,
   IApiClientResponse,
-  IHyperproofUser,
+  ILocalizable,
   Logger
 } from '@hyperproof/integration-sdk';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
 import jsonata from 'jsonata';
+import set from 'lodash/set';
 import { HeadersInit, Response } from 'node-fetch';
 import queryString from 'query-string';
 
@@ -64,7 +72,7 @@ interface IPredicateClause {
  * file in JSON format.
  *
  * Connectors should override this class and add support for service-specific
- * functionality like paging.
+ * functionality.
  */
 export class RestDataSourceBase<
   TDataSet extends IDataSet = IDataSet
@@ -73,7 +81,9 @@ export class RestDataSourceBase<
   protected apiClient: ApiClient;
   protected messages: StringMap;
   protected headers: HeadersInit;
-  constructor(
+  protected pagingState: PagingState = PagingState.None;
+
+  public constructor(
     config: IRestDataSourceConfig<TDataSet>,
     messages: StringMap,
     headers: HeadersInit,
@@ -89,6 +99,26 @@ export class RestDataSourceBase<
     this.messages = messages;
     this.headers = headers;
     this.apiClient = apiClient;
+  }
+
+  public setPagingState(pagingState: PagingState) {
+    if (this.pagingState !== PagingState.None) {
+      throw new Error('Paging state can only be set once.');
+    }
+    this.pagingState = pagingState;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public async setBaseUrlFromHost(hostUrl?: string): Promise<void> {
+    if (!hostUrl) {
+      return;
+    }
+    this.setBaseUrl(hostUrl);
+  }
+
+  public async setBaseUrl(baseUrl: string): Promise<void> {
+    this.config.baseUrl = baseUrl;
+    this.apiClient.setBaseUrl(baseUrl);
   }
 
   /**
@@ -136,7 +166,7 @@ export class RestDataSourceBase<
     this.config.valueLookups[name] = valueLookup;
   }
 
-  public async getNonProcessedResponse(
+  public async getUnprocessedResponse(
     dataSetName: string,
     params?: DataValueMap
   ): Promise<Response> {
@@ -146,13 +176,53 @@ export class RestDataSourceBase<
     }
 
     // Resolve tokens in the URL and query string.
-    const { relativeUrl } = this.resolveUrlTokens(params, dataSet);
+    const { resolvedUrl } = this.resolveUrlTokens(params, dataSet);
 
     await Logger.info(
-      `RestDataSourceBase: Retrieving RAW response from URL '${relativeUrl}'`
+      `RestDataSourceBase: Retrieving RAW response from URL '${resolvedUrl}'`
     );
 
-    return this.apiClient.getNonProcessedResponse(relativeUrl);
+    return this.apiClient.getUnprocessedResponse(
+      resolvedUrl,
+      undefined,
+      dataSet.isAbsoluteUrl
+    );
+  }
+
+  public async generateIteratorPlan(
+    proofType: string,
+    dataSetIterator: DataSetIteratorDefinition[],
+    dataSetParams: DataValueMap,
+    iteratorParams: DataValueMap,
+    metadata?: SyncMetadata
+  ): Promise<IteratorPlanDataSetResult> {
+    const iterator = new ServiceDataIterator(this, dataSetIterator, proofType);
+    return iterator.generateIteratorPlan(
+      dataSetParams,
+      iteratorParams,
+      metadata
+    );
+  }
+
+  public async iterateDataFlow(
+    proofType: string,
+    dataSetName: string,
+    dataSetIterator: DataSetIteratorDefinition[],
+    iterableSlice: IterableObject[],
+    params?: DataValueMap,
+    page?: string,
+    metadata?: SyncMetadata,
+    organization?: ILocalizable
+  ): Promise<RestDataSetResult<DataObject[]>> {
+    const iterator = new ServiceDataIterator(this, dataSetIterator, proofType);
+    return iterator.iterateDataFlow(
+      dataSetName,
+      iterableSlice,
+      params,
+      page,
+      metadata,
+      organization
+    );
   }
 
   /**
@@ -168,7 +238,7 @@ export class RestDataSourceBase<
     params?: DataValueMap,
     page?: string,
     metadata?: SyncMetadata,
-    hyperproofUser?: IHyperproofUser
+    organization?: ILocalizable
   ): Promise<RestDataSetResult<TData>> {
     await Logger.debug(
       `RestDataSourceBase: Retrieving Hypersync service data for data set '${dataSetName}'`
@@ -179,13 +249,13 @@ export class RestDataSourceBase<
     }
 
     // Resolve tokens in the URL and query string.
-    const { relativeUrl, tokenContext } = this.resolveUrlTokens(
+    const { resolvedUrl: relativeUrl, tokenContext } = this.resolveUrlTokens(
       params,
       dataSet
     );
 
     let requestBody;
-    if (dataSet.method && ['POST', 'PATCH'].includes(dataSet.method)) {
+    if (dataSet.method && DataSetMethodsWithBody.includes(dataSet.method)) {
       requestBody = this.generateRequestBody(
         dataSetName,
         tokenContext,
@@ -207,7 +277,7 @@ export class RestDataSourceBase<
         dataSet.method,
         requestBody,
         dataSet.headers,
-        hyperproofUser
+        organization
       );
     } else {
       // Fetch the data from the service.
@@ -221,7 +291,7 @@ export class RestDataSourceBase<
         dataSet.method,
         requestBody,
         dataSet.headers,
-        hyperproofUser
+        organization
       );
     }
 
@@ -244,15 +314,30 @@ export class RestDataSourceBase<
     dataSet: TDataSet
   ) {
     const tokenContext = this.initTokenContext(params);
-    let relativeUrl = resolveTokens(dataSet.url, tokenContext);
+    let resolvedUrl = resolveTokens(dataSet.url, tokenContext);
     const query = { ...dataSet.query };
     if (Object.keys(query).length) {
       for (const key of Object.keys(query)) {
         query[key] = resolveTokens(query[key], tokenContext);
       }
-      relativeUrl = `${relativeUrl}?${queryString.stringify(query)}`;
+
+      // Only include query parameters that have a non-empty value.
+      const filteredQuery = Object.keys(query).reduce(
+        (acc: DataValueMap, key) => {
+          if (query[key] && query[key].length > 0) {
+            acc[key] = query[key];
+          }
+          return acc;
+        },
+        {}
+      );
+
+      if (Object.keys(filteredQuery).length !== 0) {
+        resolvedUrl = `${resolvedUrl}?${queryString.stringify(filteredQuery)}`;
+      }
     }
-    return { relativeUrl, tokenContext };
+
+    return { resolvedUrl, tokenContext };
   }
 
   /**
@@ -275,12 +360,8 @@ export class RestDataSourceBase<
     metadata?: SyncMetadata
   ): Promise<RestDataSetResult<TData>> {
     let data: any = response.data;
-
     // The `property` attribute can be used to select data out of the response.
-    const isConnectorPaged: boolean =
-      dataSet.pagingScheme?.level === PagingLevel.Connector;
-    if (dataSet.property && !isConnectorPaged) {
-      // Connector pagination previously applied expression from `property`
+    if (dataSet.property) {
       await Logger.info(
         `RestDataSourceBase: Extracting data from '${dataSet.property}' property.`
       );
@@ -330,12 +411,17 @@ export class RestDataSourceBase<
     if (this.isArrayResult(dataSet) !== isDataArray) {
       if (isDataArray && data.length === 1) {
         data = data[0];
-      } else if (this.isArrayResult(dataSet) && data === null) {
+      } else if (
+        this.isArrayResult(dataSet) &&
+        [null, undefined].includes(data)
+      ) {
         // Allow for offset pagination beyond end of record set
         data = [];
       } else {
         throw new Error(
-          `Data returned does not match expected ${dataSet.result} result.`
+          `Data returned from ${dataSetName} response ${
+            dataSet.property ? `'.${dataSet.property}' property` : 'body'
+          } does not match expected ${dataSet.result} result.`
         );
       }
     }
@@ -386,6 +472,55 @@ export class RestDataSourceBase<
   }
 
   /**
+   * Alias for getDataObject that only permits dataSets with PUT method
+   */
+  public async putDataObject<TData = DataObject>(
+    dataSetName: string,
+    params?: DataValueMap
+  ): Promise<IRestDataSetComplete<TData>> {
+    this.validateRequestMethod(dataSetName, DataSetMethod.PUT);
+    const response = await super.getDataObject<TData>(dataSetName, params);
+    return response as IRestDataSetComplete<TData>;
+  }
+
+  /**
+   * Alias for getDataObject that only permits dataSets with POST method
+   */
+  public async postDataObject<TData = DataObject>(
+    dataSetName: string,
+    params?: DataValueMap
+  ): Promise<IRestDataSetComplete<TData>> {
+    this.validateRequestMethod(dataSetName, DataSetMethod.POST);
+    const response = await super.getDataObject<TData>(dataSetName, params);
+    return response as IRestDataSetComplete<TData>;
+  }
+
+  /**
+   * Alias for getDataObject that only permits dataSets with PATCH method
+   */
+  public async patchDataObject<TData = DataObject>(
+    dataSetName: string,
+    params?: DataValueMap
+  ): Promise<IRestDataSetComplete<TData>> {
+    this.validateRequestMethod(dataSetName, DataSetMethod.PATCH);
+    const response = await super.getDataObject<TData>(dataSetName, params);
+    return response as IRestDataSetComplete<TData>;
+  }
+
+  private validateRequestMethod(
+    dataSetName: string,
+    method: DataSetMethod
+  ): void {
+    const dataSet = this.config.dataSets[dataSetName];
+    if (dataSet?.method !== method) {
+      throw createHttpError(
+        StatusCodes.BAD_REQUEST,
+        `Called ${method}DataObject with a dataSet that does not use ${method} method`
+      );
+    }
+  }
+
+  /**
    * Retrieves a data object collection from the service.
    *
    * @param {string} dataSetName Name of the data set to retrieve.
@@ -411,7 +546,7 @@ export class RestDataSourceBase<
    * @param {DataSetMethod} method REST HTTP Method. Optional.
    * @param {object} requestBody Request body of the HTTP request. Optional.
    * @param {object} requestHeaders Additional headers to be included in the HTTP request. Optional.
-   * @param {*} hyperproofUser The Hyperproof user who initiated the sync. Optional.
+   * @param {*} organization The localization data to be used for formatting. Optional.
    *
    * @returns RestDataSetResult
    */
@@ -429,7 +564,7 @@ export class RestDataSourceBase<
     requestBody?: any,
     requestHeaders?: { [key: string]: string },
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    hyperproofUser?: IHyperproofUser
+    organization?: ILocalizable
   ): Promise<RestDataSetResult<any>> {
     await Logger.info(
       `RestDataSourceBase: Retrieving data from URL '${relativeUrl}'`
@@ -437,21 +572,29 @@ export class RestDataSourceBase<
     let response: IApiClientResponse<any>;
 
     switch (method) {
-      case 'PATCH':
+      case DataSetMethod.PATCH:
         response = await this.apiClient.patchJson(
           relativeUrl,
           requestBody,
           requestHeaders
         );
         break;
-      case 'POST':
+      case DataSetMethod.POST:
         response = await this.apiClient.postJson(
           relativeUrl,
           requestBody,
           requestHeaders
         );
+
         break;
-      case 'GET':
+      case DataSetMethod.PUT:
+        response = await this.apiClient.putJson(
+          relativeUrl,
+          requestBody,
+          requestHeaders
+        );
+        break;
+      case DataSetMethod.GET:
       case undefined:
         response = await this.apiClient.getJson(relativeUrl, requestHeaders);
         break;
@@ -463,7 +606,6 @@ export class RestDataSourceBase<
     }
 
     const { json: data, source, headers } = response;
-
     this.validateResponse(dataSetName, data, source, headers);
 
     return {
@@ -487,11 +629,11 @@ export class RestDataSourceBase<
    * @param {DataSetMethod} method REST HTTP Method. Optional.
    * @param {object} requestBody Body of the HTTP request. Optional.
    * @param {object} requestHeaders Additional headers to be included in the HTTP request. Optional.
-   * @param {*} hyperproofUser The Hyperproof user who initiated the sync. Optional.
+   * @param {*} organization The localization data to be used for formatting. Optional.
    *
    * @returns RestDataSetResult
    */
-  protected async pageDataFromUrl(
+  private async pageDataFromUrl(
     dataSetName: string,
     dataSet: IDataSet,
     relativeUrl: string,
@@ -501,12 +643,12 @@ export class RestDataSourceBase<
     method?: DataSetMethod,
     requestBody?: any,
     requestHeaders?: { [key: string]: string },
-    hyperproofUser?: IHyperproofUser
+    organization?: ILocalizable
   ): Promise<RestDataSetResult<any>> {
     const baseUrl = this.config.baseUrl;
     const paginator = Paginator.createPaginator(dataSet.pagingScheme!, method);
 
-    if (dataSet.pagingScheme?.level === PagingLevel.Connector) {
+    if (this.isConnectorLevelPaging(dataSet)) {
       const results: any = [];
       let connectorPage: string | undefined;
       let response;
@@ -529,7 +671,7 @@ export class RestDataSourceBase<
           method,
           pagedMessageBody,
           requestHeaders,
-          hyperproofUser
+          organization
         );
 
         if (response.status !== DataSetResultStatus.Complete) {
@@ -558,7 +700,7 @@ export class RestDataSourceBase<
         source: baseUrl
           ? new URL(relativeUrl, baseUrl).toString()
           : relativeUrl,
-        data: results
+        data: dataSet.property ? set({}, dataSet.property, results) : results
       };
     } else {
       // Default to job level paging
@@ -579,7 +721,7 @@ export class RestDataSourceBase<
         method,
         pagedMessageBody,
         requestHeaders,
-        hyperproofUser
+        organization
       );
 
       if (response.status !== DataSetResultStatus.Complete) {
@@ -698,6 +840,12 @@ export class RestDataSourceBase<
     const result = Array.isArray(data) ? data : [data];
     for (const lookup of lookups) {
       for (const dataObject of result) {
+        if (!dataObject || typeof dataObject !== 'object') {
+          await Logger.warn(
+            `RestDataSourceBase: Skipping invalid data object in lookup of type: ${typeof dataObject}`
+          );
+          continue;
+        }
         const params = { ...lookup.dataSetParams };
         if (params) {
           tokenContext['source'] = dataObject;
@@ -708,19 +856,41 @@ export class RestDataSourceBase<
             }
           }
         }
-
-        const response = await this.getData<any>(
-          lookup.dataSet,
-          params,
-          undefined, // Paging is not supported for lookups
-          metadata
-        );
-        if (response.status !== DataSetResultStatus.Complete) {
-          throw new Error(
-            `Invalid response received for data set: ${dataSetName}`
+        if (lookup.delaySeconds) {
+          const { delaySeconds } = lookup;
+          if (isNaN(delaySeconds) || delaySeconds < 0 || delaySeconds > 1) {
+            throw new Error(
+              `Invalid delay seconds number: ${delaySeconds} for data set: ${dataSetName}.  Must be less than or equal to 1.`
+            );
+          }
+          await new Promise(resolve =>
+            setTimeout(resolve, delaySeconds * 1000)
           );
         }
-        dataObject[lookup.alias] = response.data;
+
+        try {
+          const response = await this.getData<any>(
+            lookup.dataSet,
+            params,
+            undefined, // Paging is not supported for lookups
+            metadata
+          );
+          if (response.status !== DataSetResultStatus.Complete) {
+            throw new Error(
+              `Invalid response received for data set: ${dataSetName}`
+            );
+          }
+          dataObject[lookup.alias] = response.data;
+        } catch (error) {
+          if (lookup.continueOnError === true) {
+            await Logger.warn(
+              `Continuing upon error performing lookup for data set: ${lookup.dataSet}`,
+              JSON.stringify(error)
+            );
+            continue;
+          }
+          throw error;
+        }
       }
     }
 
@@ -1022,10 +1192,10 @@ export class RestDataSourceBase<
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     params?: DataValueMap
   ): string | object | undefined {
-    if (body) {
-      return resolveTokens(body as object | string, tokenContext);
+    if (!body) {
+      return body;
     }
-    return body;
+    return resolveTokens(body as object | string, tokenContext);
   }
 
   /**
@@ -1048,5 +1218,19 @@ export class RestDataSourceBase<
     headers: { [name: string]: string[] }
   ): void {
     // No validation applied by default
+  }
+
+  protected isConnectorLevelPaging(dataSet: IDataSet): boolean {
+    if (dataSet.pagingScheme?.level === PagingLevel.Connector) {
+      return true;
+    } else if (
+      dataSet.pagingScheme &&
+      [PagingState.IterationPlan, PagingState.BatchedIteration].includes(
+        this.pagingState
+      )
+    ) {
+      return true;
+    }
+    return false;
   }
 }

@@ -1,8 +1,9 @@
 import { IErrorInfo } from './models';
+import { RestDataSourceBase } from './RestDataSourceBase';
 import { TokenContext } from './tokens';
 
 import { DataObject, DataValueMap } from '@hyperproof/hypersync-models';
-import { IHyperproofUser } from '@hyperproof/integration-sdk';
+import { ILocalizable } from '@hyperproof/integration-sdk';
 
 export enum DataSetResultStatus {
   Complete = 'complete',
@@ -55,6 +56,12 @@ export interface IDataSource {
     params?: DataValueMap,
     page?: string,
     metadata?: SyncMetadata,
-    hyperproofUser?: IHyperproofUser
+    organization?: ILocalizable
   ): Promise<DataSetResult<DataObject | DataObject[]>>;
+}
+
+export function isRestDataSourceBase(
+  dataSource: IDataSource
+): dataSource is RestDataSourceBase {
+  return (dataSource as RestDataSourceBase).getConfig() !== undefined;
 }

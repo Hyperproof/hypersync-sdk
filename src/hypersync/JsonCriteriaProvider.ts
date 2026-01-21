@@ -8,10 +8,12 @@ import { DataSetResultStatus, IDataSource } from './IDataSource';
 import { resolveTokens, TokenContext } from './tokens';
 
 import {
+  DataValueMap,
   HypersyncCriteria,
   HypersyncCriteriaFieldType,
   ICriteriaConfig,
   ICriteriaFieldConfig,
+  ICriteriaSearchInput,
   IProofCriterionRef,
   ISelectOption
 } from '@hyperproof/hypersync-models';
@@ -78,7 +80,8 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
     proofCriteria: IProofCriterionRef[],
     criteriaValues: HypersyncCriteria,
     tokenContext: TokenContext,
-    pages: ICriteriaPage[]
+    pages: ICriteriaPage[],
+    search?: string | ICriteriaSearchInput
   ) {
     let lastConfig;
     let pageNumber: number;
@@ -88,20 +91,37 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
       return;
     }
 
+    let hasSearchField = false;
     for (const criterion of proofCriteria) {
       // Look up the criterion in the set of all criteria for the connector..
-      const config = this.criteriaFields[criterion.name];
+      const config: ICriteriaFieldConfig = this.criteriaFields[criterion.name];
       if (!config) {
         throw new Error(`Unable to find criterion named ${criterion.name}`);
       }
 
       if (
         config.type !== HypersyncCriteriaFieldType.Select &&
-        config.type !== HypersyncCriteriaFieldType.Text
+        config.type !== HypersyncCriteriaFieldType.Text &&
+        config.type !== HypersyncCriteriaFieldType.SelectSavedCriteria &&
+        config.type !== HypersyncCriteriaFieldType.Search
       ) {
         throw new Error(
           `Unrecognized or unsupported criteria field type: ${config.type}`
         );
+      }
+
+      if (config.type === HypersyncCriteriaFieldType.Search) {
+        if (hasSearchField) {
+          throw new Error(
+            `Only one search criteria field is supported per proof`
+          );
+        }
+        hasSearchField = true;
+        if (config.isMulti) {
+          throw new Error(
+            `Multi-select is not allowed for search criteria fields`
+          );
+        }
       }
 
       // If the previous criteria field config doesn't have a value, then
@@ -121,7 +141,8 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
           config,
           criteriaValues,
           tokenContext,
-          isDisabled
+          isDisabled,
+          search
         )
       );
 
@@ -160,10 +181,11 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
         });
         continue;
       }
-
       // Otherwise behavior differs based on the type of field
       switch (field.type) {
         case HypersyncCriteriaFieldType.Select:
+        case HypersyncCriteriaFieldType.SelectSavedCriteria:
+        case HypersyncCriteriaFieldType.Search:
           {
             const options = await this.getCriteriaFieldOptions(
               field,
@@ -181,11 +203,20 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
                 o => o.value === criteriaValue
               )?.label;
             }
-            criteria.push({
-              name: field.property,
-              label: resolveTokens(field.label, tokenContext),
-              value: displayedValue
-            });
+            if (field.type === HypersyncCriteriaFieldType.SelectSavedCriteria) {
+              criteria.push({
+                name: field.property,
+                label: resolveTokens(field.label, tokenContext),
+                value: displayedValue,
+                savedCriteriaSettings: field.savedCriteriaSettings
+              });
+            } else {
+              criteria.push({
+                name: field.property,
+                label: resolveTokens(field.label, tokenContext),
+                value: displayedValue
+              });
+            }
           }
           break;
 
@@ -198,7 +229,6 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
             });
           }
           break;
-
         default:
           throw new Error(
             `Unrecognized or unsupported criteria field type: ${field.type}`
@@ -216,20 +246,31 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
     config: ICriteriaFieldConfig,
     criteriaValues: HypersyncCriteria,
     tokenContext: TokenContext,
-    isDisabled?: boolean
+    isDisabled?: boolean,
+    search?: string | ICriteriaSearchInput
   ): Promise<ICriteriaField> {
     return {
       name: config.property,
       type: config.type,
       label: resolveTokens(config.label, tokenContext),
       isRequired: config.isRequired,
+      savedCriteriaSettings:
+        config.type === HypersyncCriteriaFieldType.SelectSavedCriteria
+          ? config.savedCriteriaSettings
+          : undefined,
       options:
-        isDisabled || config.type !== HypersyncCriteriaFieldType.Select
+        isDisabled ||
+        ![
+          HypersyncCriteriaFieldType.Select,
+          HypersyncCriteriaFieldType.SelectSavedCriteria,
+          HypersyncCriteriaFieldType.Search
+        ].includes(config.type)
           ? []
           : await this.getCriteriaFieldOptions(
               config,
               criteriaValues,
-              tokenContext
+              tokenContext,
+              search
             ),
       value: criteriaValues[config.property] as string | number,
       placeholder: config.placeholder
@@ -248,18 +289,50 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
   }
 
   /**
+   * Merges search input values from a criteria search field into the parameters map.
+   * Extracts the 'value' property from each search field and adds it to the params.
+   * Does not handle offset or lazy loading.
+   */
+  private mergeSearchWithParams(
+    search: string | ICriteriaSearchInput,
+    params?: DataValueMap
+  ) {
+    const mergedParams = { ...params };
+    if (typeof search !== 'object') {
+      throw new Error(
+        'Invalid search input. Search must be provided as an object.'
+      );
+    }
+    for (const key in search) {
+      if (
+        search[key] !== null &&
+        typeof search[key] === 'object' &&
+        'value' in search[key]
+      ) {
+        mergedParams[key] = search[key].value;
+      } else {
+        throw new Error(
+          `Error encountered parsing search input: ${JSON.stringify(search)}`
+        );
+      }
+    }
+    return mergedParams;
+  }
+
+  /**
    * Helper method that adds the select control options to a criteria metadata field.
    */
   private async getCriteriaFieldOptions(
     config: ICriteriaFieldConfig,
     criteria: HypersyncCriteria,
-    tokenContext: TokenContext
+    tokenContext: TokenContext,
+    search?: string | ICriteriaSearchInput
   ) {
     let data: ISelectOption[] = [];
 
     if (config.dataSet && config.valueProperty && config.labelProperty) {
       // If there are parameters, resolve any embedded tokens.
-      const params = config.dataSetParams;
+      let params = config.dataSetParams;
       if (params) {
         for (const key of Object.keys(params)) {
           const value = params[key];
@@ -271,6 +344,9 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
         }
       }
       let nextPage = undefined;
+      if (search) {
+        params = this.mergeSearchWithParams(search, params);
+      }
       do {
         // Fetch the data from the service.
         const result: any = await this.dataSource.getData(
@@ -281,7 +357,7 @@ export class JsonCriteriaProvider implements ICriteriaProvider {
 
         if (result.status !== DataSetResultStatus.Complete) {
           throw new Error(
-            `Pending response received for critiera field data set: ${config.dataSet}`
+            `Pending response received for critera field data set: ${config.dataSet}`
           );
         }
 

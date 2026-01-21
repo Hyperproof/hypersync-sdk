@@ -55,11 +55,7 @@
       }
     }
   },
-  "required": [
-    "description",
-    "criteria",
-    "proofSpec"
-  ],
+  "required": ["description", "criteria", "proofSpec"],
   "$defs": {
     "overrideSpec": {
       "$schema": "https://json-schema.org/draft/2020-12/schema#",
@@ -69,13 +65,7 @@
       "properties": {
         "period": {
           "type": "string",
-          "enum": [
-            "daily",
-            "weekly",
-            "monthly",
-            "quarterly",
-            "yearly"
-          ]
+          "enum": ["daily", "weekly", "monthly", "quarterly", "yearly"]
         },
         "useVersioning": {
           "type": "boolean"
@@ -85,18 +75,11 @@
         },
         "format": {
           "type": "string",
-          "enum": [
-            "stacked",
-            "tabular",
-            "custom"
-          ]
+          "enum": ["stacked", "tabular", "custom"]
         },
         "orientation": {
           "type": "string",
-          "enum": [
-            "portrait",
-            "landscape"
-          ]
+          "enum": ["portrait", "landscape"]
         },
         "title": {
           "type": "string"
@@ -116,6 +99,23 @@
         "autoLayout": {
           "type": "boolean"
         },
+        "sort": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "property": {
+                "type": "string"
+              },
+              "direction": {
+                "type": "string",
+                "enum": ["ascending", "descending"]
+              }
+            },
+            "required": ["property", "direction"]
+          }
+        },
         "dataSetIterator": {
           "type": "array",
           "items": {
@@ -129,10 +129,7 @@
                   },
                   "source": {
                     "type": "string",
-                    "enum": [
-                      "dataSet",
-                      "criteria"
-                    ]
+                    "enum": ["dataSet", "criteria"]
                   },
                   "iterandKey": {
                     "type": "string"
@@ -155,11 +152,7 @@
                   }
                 },
                 "additionalProperties": false,
-                "required": [
-                  "layer",
-                  "source",
-                  "iterandKey"
-                ]
+                "required": ["layer", "source", "iterandKey"]
               },
               {
                 "if": {
@@ -170,10 +163,7 @@
                   }
                 },
                 "then": {
-                  "required": [
-                    "dataSet",
-                    "dataSetParams"
-                  ]
+                  "required": ["dataSet", "dataSetParams"]
                 }
               },
               {
@@ -185,10 +175,7 @@
                   }
                 },
                 "then": {
-                  "required": [
-                    "criteriaProperty",
-                    "criteriaTransformer"
-                  ]
+                  "required": ["criteriaProperty", "criteriaTransformer"]
                 }
               }
             ]
@@ -211,18 +198,10 @@
               },
               "type": {
                 "type": "string",
-                "enum": [
-                  "text",
-                  "number",
-                  "date",
-                  "boolean"
-                ]
+                "enum": ["text", "number", "date", "boolean"]
               }
             },
-            "required": [
-              "property",
-              "label"
-            ]
+            "required": ["property", "label"]
           }
         },
         "lookups": {
@@ -241,10 +220,7 @@
                 "$ref": "dataSetParams.schema.json"
               }
             },
-            "required": [
-              "name",
-              "dataSet"
-            ]
+            "required": ["name", "dataSet"]
           }
         },
         "webPageUrl": {

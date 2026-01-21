@@ -42,6 +42,11 @@ export interface IHypersync
   schemaCategory?: SchemaCategory;
 }
 
+export interface IHypersyncSavedCriteria {
+  label: string;
+  data: string[];
+}
+
 /**
  * Information about errors encountered during proof generation.
  */

@@ -1,9 +1,13 @@
 import { HypersyncResult } from './enums';
 import { SyncMetadata } from './IDataSource';
 import { IHypersync } from './models';
-import { IHypersyncContents, IProofFile } from './ProofProviderBase';
+import {
+  IHypersyncContents,
+  IHypersyncSyncPlan,
+  IProofFile
+} from './ProofProviderBase';
 
-import { IHyperproofUser } from '@hyperproof/integration-sdk';
+import { ILocalizable } from '@hyperproof/integration-sdk';
 
 /**
  * Detailed response object that may be returned from getProofData.
@@ -11,7 +15,17 @@ import { IHyperproofUser } from '@hyperproof/integration-sdk';
 export interface IGetProofDataResponse {
   data: IProofFile[];
   nextPage?: string;
-  combine?: boolean;
+  metadata?: SyncMetadata;
+  delay?: number;
+  retry?: boolean;
+  maxRetry?: number;
+  publishResult?: boolean;
+  syncResult?: HypersyncResult;
+  failureMessage?: string;
+}
+
+export interface IHypersyncSyncPlanResponse {
+  syncPlan: IHypersyncSyncPlan;
   metadata?: SyncMetadata;
   delay?: number;
   retry?: boolean;
@@ -25,7 +39,7 @@ export class Sync {
   public userContext: object;
   public hypersync: IHypersync;
   public syncStartDate: Date;
-  public hyperproofUser: IHyperproofUser;
+  public organization: ILocalizable;
   public page?: number;
   public metadata?: SyncMetadata;
 
@@ -41,14 +55,14 @@ export class Sync {
     userContext: object,
     hypersync: IHypersync,
     syncStartDate: string,
-    hyperproofUser: IHyperproofUser,
+    organization: ILocalizable,
     page?: number,
     metadata?: SyncMetadata
   ) {
     this.userContext = userContext;
     this.hypersync = hypersync;
     this.syncStartDate = syncStartDate ? new Date(syncStartDate) : new Date();
-    this.hyperproofUser = hyperproofUser;
+    this.organization = organization;
     this.page = page;
     this.metadata = metadata;
   }

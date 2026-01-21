@@ -1,14 +1,16 @@
 import { formatHypersyncError, StringMap } from './common';
-import {
-  createHypersync,
-  IValidateCredentialsResponse
-} from './hypersyncConnector';
+import { createHypersync } from './hypersyncConnector';
 import {
   ICriteriaMetadata,
   ICriteriaPage,
   ICriteriaProvider
 } from './ICriteriaProvider';
-import { DataSetResultStatus, IDataSource, SyncMetadata } from './IDataSource';
+import {
+  DataSetResultStatus,
+  IDataSource,
+  isRestDataSourceBase,
+  SyncMetadata
+} from './IDataSource';
 import { JsonCriteriaProvider } from './JsonCriteriaProvider';
 import { MESSAGES } from './messages';
 import { IHypersync } from './models';
@@ -19,7 +21,8 @@ import {
 } from './ProofProviderBase';
 import { IProofTypeConfig, ProofProviderFactory } from './ProofProviderFactory';
 import { RestDataSourceBase } from './RestDataSourceBase';
-import { IGetProofDataResponse } from './Sync';
+import { IterableObject } from './ServiceDataIterator';
+import { IGetProofDataResponse, IHypersyncSyncPlanResponse } from './Sync';
 
 import {
   DataValueMap,
@@ -27,6 +30,7 @@ import {
   HypersyncCriteriaFieldType,
   HypersyncPeriod,
   ICriteriaFieldConfig,
+  ICriteriaSearchInput,
   IDataSet,
   IHypersyncDefinition,
   SchemaCategory,
@@ -38,18 +42,19 @@ import {
   createOAuthConnector,
   CustomAuthCredentials,
   ExternalAPIError,
+  getAgent,
   IAuthorizationConfigBase,
   ICheckConnectionHealthInvocationPayload,
   ICredentialsMetadata,
-  IHyperproofUser,
   IHyperproofUserContext,
+  ILocalizable,
   IntegrationContext,
+  IValidateCredentialsResponse,
   ListStorageResult,
   Logger,
   OAuthConnector,
   OAuthTokenResponse,
   ObjectType,
-  RecordingManager,
   UserContext
 } from '@hyperproof/integration-sdk';
 import express from 'express';
@@ -93,7 +98,7 @@ interface ICustomProofType extends IProofTypeConfig {
  */
 type CustomProofTypeMap = { [proofType: string]: ICustomProofType };
 
-class HypersyncAppConnector extends createHypersync(OAuthConnector) {
+export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   private credentialsMetadata?: ICredentialsMetadata;
   private hypersyncApp: HypersyncApp<any>;
 
@@ -679,7 +684,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     orgId: string,
     vendorUserId: string,
     criteria: HypersyncCriteria,
-    search?: string,
+    search?: string | ICriteriaSearchInput,
     schemaCategory?: SchemaCategory
   ) {
     const { messages, dataSource, criteriaProvider, proofProviderFactory } =
@@ -712,6 +717,33 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     );
   }
 
+  public async generateSyncPlan(
+    integrationContext: IntegrationContext,
+    orgId: string,
+    vendorUserId: string,
+    criteria: HypersyncCriteria,
+    metadata?: SyncMetadata,
+    retryCount?: number
+  ) {
+    const userContext = await this.getUser(integrationContext, vendorUserId);
+    if (!userContext) {
+      throw createHttpError(
+        StatusCodes.UNAUTHORIZED,
+        this.getUserNotFoundMessage(vendorUserId)
+      );
+    }
+    const { dataSource, criteriaProvider, proofProviderFactory } =
+      await this.createResources(integrationContext, orgId, vendorUserId);
+    return this.hypersyncApp.generateSyncPlan(
+      dataSource,
+      criteriaProvider,
+      proofProviderFactory,
+      criteria,
+      metadata,
+      retryCount
+    );
+  }
+
   public async syncNow(
     integrationContext: IntegrationContext,
     orgId: string,
@@ -719,10 +751,11 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     objectId: string,
     hypersync: IHypersync,
     syncStartDate: string,
-    hyperproofUser: IHyperproofUser,
+    organization: ILocalizable,
     page?: string,
     metadata?: SyncMetadata,
-    retryCount?: number
+    retryCount?: number,
+    iterableSlice?: IterableObject[]
   ) {
     const vendorUserId = hypersync.settings.vendorUserId;
     const userContext = await this.getUser(integrationContext, vendorUserId);
@@ -740,29 +773,26 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
         this.getUserNotFoundMessage(vendorUserId)
       );
     }
-    const recordingManager = new RecordingManager(integrationContext);
-    recordingManager.start();
     try {
       const data = await this.hypersyncApp.getProofData(
         dataSource,
         criteriaProvider,
         proofProviderFactory,
         hypersync,
-        hyperproofUser,
+        organization,
         userContext.vendorUserProfile,
         syncStartDate,
         page,
         metadata,
-        retryCount
+        retryCount,
+        iterableSlice
       );
-      await recordingManager.stop();
       return Array.isArray(data)
         ? {
             data
           }
         : data;
     } catch (err) {
-      await recordingManager.stop();
       if (
         err instanceof ExternalAPIError &&
         err?.computeRetry &&
@@ -953,7 +983,7 @@ class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       orgId,
       vendorUserId
     );
-    if (!(dataSource instanceof RestDataSourceBase)) {
+    if (!isRestDataSourceBase(dataSource)) {
       throw createHttpError(
         StatusCodes.BAD_REQUEST,
         'Hypersync does not support customization.'
@@ -1537,6 +1567,7 @@ export class HypersyncApp<TUserProfile = object> {
   ): Promise<OAuthTokenResponse> {
     await Logger.debug('Retrieving OAuth access token.');
     const response = await Superagent.post(configuration.oauth_token_url)
+      .agent(getAgent(configuration.oauth_token_url))
       .type('form')
       .send({
         grant_type: 'authorization_code',
@@ -1564,6 +1595,7 @@ export class HypersyncApp<TUserProfile = object> {
     await Logger.debug('Refreshing OAuth access token.');
     const currentRefreshToken = tokenContext.refresh_token;
     const response = await Superagent.post(configuration.oauth_token_url)
+      .agent(getAgent(configuration.oauth_token_url))
       .type('form')
       .send({
         grant_type: 'refresh_token',
@@ -1617,7 +1649,7 @@ export class HypersyncApp<TUserProfile = object> {
    * Refreshes credentials provided by the user in a custom auth application.
    * Returns updated credentials or undefined if unneeded
    *
-   * @param {CustomAuthCredentails} credentials User's current credentials.
+   * @param {CustomAuthCredentials} credentials User's current credentials.
    */
   public async refreshCredentials(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -1727,8 +1759,7 @@ export class HypersyncApp<TUserProfile = object> {
     proofProviderFactory: ProofProviderFactory,
     criteria: HypersyncCriteria,
     pages: ICriteriaPage[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    search?: string,
+    search?: string | ICriteriaSearchInput,
     schemaCategory?: SchemaCategory
   ): Promise<ICriteriaMetadata> {
     await Logger.debug('Generating criteria metadata.');
@@ -1823,7 +1854,7 @@ export class HypersyncApp<TUserProfile = object> {
       criteriaProvider
     );
 
-    return provider.generateCriteriaMetadata(criteria, pages);
+    return provider.generateCriteriaMetadata(criteria, pages, search);
   }
 
   /**
@@ -1853,13 +1884,38 @@ export class HypersyncApp<TUserProfile = object> {
   }
 
   /**
+   * Returns the sync plan of the proof that will be generated.
+   *
+   * @param dataSource IDataSource instance used to retrieve data.
+   * @param criteriaProvider ICriteriaProvider instance used to generate criteria metadata.
+   * @param proofProviderFactory Factory object that provides ProofProviderBase objects.
+   * @param criteria Set of proof criterion selected by the user.
+   * @param metadata Arbitrary synchronization state associated with the sync.  Optional.
+   * @param retryCount Current retry count of sync. Optional.
+   */
+  public async generateSyncPlan(
+    dataSource: IDataSource,
+    criteriaProvider: ICriteriaProvider,
+    proofProviderFactory: ProofProviderFactory,
+    criteria: HypersyncCriteria,
+    metadata?: SyncMetadata,
+    retryCount?: number
+  ): Promise<IHypersyncSyncPlanResponse> {
+    const provider = proofProviderFactory.createProofProvider(
+      criteria.proofType!,
+      dataSource,
+      criteriaProvider
+    );
+    return provider.generateSyncPlan(criteria, metadata, retryCount);
+  }
+
+  /**
    * Retrieves data from the external source and formats it for rendering.
    *
    * @param dataSource IDataSource instance used to retrieve data.
    * @param criteriaProvider ICriteriaProvider instance used to generate criteria metadata.
    * @param proofProviderFactory Factory object that provides ProofProviderBase objects.
    * @param hypersync The Hypersync that is synchronizing.
-   * @param hyperproofUser The Hyperproof user who initiated the sync.
    * @param userProfile Profile object returned by getUserProfile.
    * @param syncStartDate Date and time at which the sync operation was initiated.
    * @param page Current proof page number being synchronized.  Optional.
@@ -1871,12 +1927,13 @@ export class HypersyncApp<TUserProfile = object> {
     criteriaProvider: ICriteriaProvider,
     proofProviderFactory: ProofProviderFactory,
     hypersync: IHypersync,
-    hyperproofUser: IHyperproofUser,
+    organization: ILocalizable,
     userProfile: TUserProfile,
     syncStartDate: string,
     page?: string,
     metadata?: SyncMetadata,
-    retryCount?: number
+    retryCount?: number,
+    iterableSlice?: IterableObject[]
   ): Promise<IProofFile[] | IGetProofDataResponse> {
     await Logger.debug(
       `Retrieving data for proof type '${hypersync.settings.criteria.proofType}'.`
@@ -1888,12 +1945,13 @@ export class HypersyncApp<TUserProfile = object> {
     );
     return provider.getProofData(
       hypersync,
-      hyperproofUser,
+      organization,
       this.getUserAccountName(userProfile),
       new Date(syncStartDate),
       page,
       metadata,
-      retryCount
+      retryCount,
+      iterableSlice
     );
   }
 
@@ -1922,7 +1980,7 @@ export class HypersyncApp<TUserProfile = object> {
     messages: StringMap
   ): Promise<ProofProviderFactory> {
     const providersPath = path.resolve(this.appRootDir, 'proof-providers');
-    let providers: typeof ProofProviderBase[] = [];
+    let providers: (typeof ProofProviderBase)[] = [];
     if (fs.existsSync(providersPath)) {
       const exportedProviders = await import(
         path.resolve(this.appRootDir, 'proof-providers')

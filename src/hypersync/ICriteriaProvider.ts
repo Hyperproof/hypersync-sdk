@@ -1,10 +1,12 @@
 import { TokenContext } from './tokens';
 
 import {
+  DataValueMap,
   HypersyncCriteria,
   HypersyncCriteriaFieldType,
   HypersyncCriteriaValue,
   HypersyncPeriod,
+  ICriteriaSearchInput,
   IProofCriterionRef,
   ISelectOption,
   IValidation,
@@ -28,6 +30,7 @@ export interface ICriteriaField {
   noOptionsMessage?: string;
   isMulti?: boolean;
   validation?: IValidation;
+  savedCriteriaSettings?: DataValueMap;
 }
 
 /**
@@ -65,6 +68,7 @@ export interface IProofCriterionValue {
   label: string;
   value: HypersyncCriteriaValue;
   validation?: IValidation;
+  savedCriteriaSettings?: DataValueMap;
 }
 
 /**
@@ -100,7 +104,8 @@ export interface ICriteriaProvider {
     proofCriteria: IProofCriterionRef[],
     criteriaValues: HypersyncCriteria,
     tokenContext: TokenContext,
-    pages: ICriteriaPage[]
+    pages: ICriteriaPage[],
+    search?: string | ICriteriaSearchInput
   ): Promise<void>;
 
   /**

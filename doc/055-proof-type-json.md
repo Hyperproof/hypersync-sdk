@@ -41,6 +41,7 @@ The `proofSpec` property in a proof type file is a JSON object that specifies ho
 | fields           | Yes      | Array of fields to include in the generated proof                                                                    |
 | webPageUrl       | No       | URL shown at the bottom of generated proof                                                                           |
 | autoLayout       | No       | `true` to automatically layout the fields in the specification. Default: `false`.                                    |
+| sort             | No       | Sort applied after all data processing is complete                                                                   |
 
 ## overrides
 
@@ -72,6 +73,12 @@ If specified, the `overrides` property must be formatted as an array of objects.
       "group": "{{criteria.group}}"
     },
     "noResultsMessage": "{{messages.NO_USERS}}",
+    "sort": [
+      {
+        "property": "lastName",
+        "direction": "ascending"
+      }
+    ],
     "fields": [
       {
         "property": "firstName",

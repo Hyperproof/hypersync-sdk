@@ -1,5 +1,8 @@
 export const MESSAGES = {
   App: 'App',
+  Default: {
+    NoResultsMessage: 'This Hypersync returned no results.'
+  },
   FormatBooleanYesNo: 'Yes;No',
   FormatBooleanTrueFalse: 'True;False',
   ImportTimeLessThan1Hour: 'This import will take {minutes} minutes',
@@ -29,6 +32,12 @@ export const MESSAGES = {
     LabelOwner: 'Owner',
     LabelRole: 'Role',
     LabelUserName: 'Username'
+  },
+  AgeString: {
+    Years: '{years} years ',
+    Days: '{days} days ',
+    Hours: '{hours} hours ',
+    Minutes: '{minutes} minutes'
   }
 };
 
@@ -45,7 +54,7 @@ const MESSAGE_KEYS = {
 export const formatMessage = (
   messageKey: string,
   messageVals: { [key: string]: string },
-  messageKeysOverride?: { [key: string]: string }
+  messageKeysOverride?: { [key: string]: object }
 ) => {
   let message = messageKey;
 

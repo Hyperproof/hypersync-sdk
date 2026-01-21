@@ -17,14 +17,6 @@ export type TokenContext = {
     | TokenContext;
 };
 
-export const resolveTokensWithUndefinedDefault = (
-  value: string,
-  context: TokenContext,
-  suppressErrors = false
-): string | undefined => {
-  return executeResolveTokens(value, context, suppressErrors, undefined);
-};
-
 /**
  * Replaces tokens found in strings at all levels in a JSON object according
  * to `executeResolveTokens`. Returns a new object, leaving the original
@@ -35,21 +27,24 @@ export const resolveTokensWithUndefinedDefault = (
  *
  * @param value A valid JSON value, potentially containing strings at arbitrary depth with tokens.
  * @param context Dictionary of values to use in place of tokens.
- * @param suppressErrors Whether or not to supress errors when they are detected.
+ * @param suppressErrors Whether or not to suppress errors when they are detected. Default false
  * @param missingDefaultValue The value to use when a token resolves to a falsy value
  */
 export const resolveTokens = <T extends object | string>(
   value: T,
   context: TokenContext,
-  suppressErrors = false
+  suppressErrors = false,
+  undefinedOnMissingValue = false
 ): T => {
   return executeResolveTokensInJsonValue(
     value,
     context,
     suppressErrors,
-    ''
+    undefinedOnMissingValue
   ) as T;
 };
+
+const tokenRegEx = /\{\{.*?\}\}/g;
 
 /**
  * Replaces tokens in a string value by looking up the token value
@@ -58,26 +53,22 @@ export const resolveTokens = <T extends object | string>(
  *
  * @param value Tokenized string.
  * @param context Dictionary of values to use in place of tokens.
- * @param suppressErrors Whether or not to supress errors when they are detected.
- * @param missingDefaultValue The value to use when a token resolves to a falsy value
+ * @param suppressErrors Whether or not to suppress errors when they are detected.
+ * @param undefinedOnMissingValue If true, set the value to undefined if the token resolves to a falsy value. Otherwise, defaults to an empty string
  */
 const executeResolveTokens = (
   value: string,
   context: TokenContext,
   suppressErrors = false,
-  missingDefaultValue: '' | undefined
+  undefinedOnMissingValue = false
 ): string | undefined => {
   let output: string | undefined = value;
-  const regEx = /\{\{.*?\}\}/g;
-  let tokens = output.match(regEx);
+  let tokens = output.match(tokenRegEx);
   let foundError = false;
+
   while (tokens && !foundError) {
     for (const token of tokens) {
-      const variable = token.substring(2, token.length - 2).trim();
-      if (!variable || variable.length === 0) {
-        throw new Error(`Invalid token: ${token}`);
-      }
-      const parts = variable.split('.');
+      const parts = splitToken(token);
       let value:
         | DataValue
         | DataObject
@@ -117,6 +108,7 @@ const executeResolveTokens = (
       }
 
       // For multiselect fields, we need to join the values together.
+      // HYP-47577: We should use a more flexible method of resolving multiselect field values
       if (Array.isArray(value)) {
         value = value.join(',');
       }
@@ -138,31 +130,40 @@ const executeResolveTokens = (
       }
 
       if (value === undefined || value === null) {
-        output = missingDefaultValue;
+        output = undefinedOnMissingValue ? undefined : '';
       } else {
         output = output!.replace(token, value.toString());
       }
     }
 
     // Resolving tokens may have introduced more tokens.
-    tokens = output?.match(regEx) ?? null;
+    tokens = output?.match(tokenRegEx) ?? null;
   }
 
   return output;
+};
+
+const splitToken = (token: string): string[] => {
+  const variable = token.substring(2, token.length - 2).trim();
+  if (!variable || variable.length === 0) {
+    throw new Error(`Invalid token: ${token}`);
+  }
+  const parts = variable.split('.');
+  return parts;
 };
 
 const executeResolveTokensInJsonValue = (
   value: object | string,
   context: TokenContext,
   suppressErrors = false,
-  missingDefaultValue: '' | undefined
+  undefinedOnMissingValue = false
 ): object | string | undefined => {
   if (typeof value === 'string') {
     return executeResolveTokens(
       value,
       context,
       suppressErrors,
-      missingDefaultValue
+      undefinedOnMissingValue
     );
   } else {
     const out = JSON.parse(JSON.stringify(value)); // deep clone the original object
@@ -170,7 +171,7 @@ const executeResolveTokensInJsonValue = (
       out,
       context,
       suppressErrors,
-      missingDefaultValue
+      undefinedOnMissingValue
     );
     return out;
   }
@@ -180,7 +181,7 @@ const innerResolveTokensInJsonValue = (
   value: { [key: string]: any },
   context: TokenContext,
   suppressErrors = false,
-  missingDefaultValue: '' | undefined
+  undefinedOnMissingValue = false
 ) => {
   if (value === null) {
     return;
@@ -191,14 +192,14 @@ const innerResolveTokensInJsonValue = (
         value[key],
         context,
         suppressErrors,
-        missingDefaultValue
+        undefinedOnMissingValue
       );
     } else if (typeof value[key] === 'object') {
       innerResolveTokensInJsonValue(
         value[key],
         context,
         suppressErrors,
-        missingDefaultValue
+        undefinedOnMissingValue
       );
     }
   }

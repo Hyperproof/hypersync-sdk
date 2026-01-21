@@ -15,16 +15,14 @@ After installing the CLI, you will first need to sign in using this command:
 ```
 hp signin
 ```
->  NOTE: For customers using Hyperproof EU or Hyperproof GOV, please use the following commands:
+
+> NOTE: For customers using Hyperproof EU, please use the following command:
 >
->```
->hp signin --domain hyperproof.eu
->```
->or
->```
->hp signin --domain hyperproofgov.app
->```
->For additional information use 'hp signin -help'
+> ```
+> hp signin --domain hyperproof.eu
+> ```
+>
+> For additional information use 'hp signin -help'
 
 This command will launch a new browser window and allow you to sign in (if you are not already signed in) and then authorize CLI access to your Hyperproof organization.
 
@@ -34,7 +32,7 @@ This command will launch a new browser window and allow you to sign in (if you a
 
 ### Importing Your Hypersync App
 
-Once you have signed in and authorized the CLI, you are ready to import a custom Hyperysnc app.
+Once you have signed in and authorized the CLI, you are ready to import a custom Hypersync app.
 
 1. Find the `apps/open-library/` directory in your clone of the Hypersync SDK Samples repository.
 2. Make a copy of that folder somewhere else on your computer. Feel free to rename the folder if that helps.

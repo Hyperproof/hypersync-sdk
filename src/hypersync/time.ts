@@ -1,4 +1,5 @@
 import '@js-joda/timezone';
+import { formatMessage, MESSAGES } from './messages';
 
 import { HypersyncPeriod } from '@hyperproof/hypersync-models';
 import {
@@ -6,6 +7,7 @@ import {
   convert,
   DateTimeFormatter,
   DayOfWeek,
+  Duration,
   Instant,
   LocalDateTime,
   TemporalAdjusters,
@@ -16,7 +18,12 @@ import {
 
 const fallbackLocale = 'en-US';
 const fallbackTimeZone = 'UTC';
-
+const MESSAGE_KEYS = {
+  [MESSAGES.AgeString.Years]: { years: 'years' },
+  [MESSAGES.AgeString.Days]: { days: 'days' },
+  [MESSAGES.AgeString.Hours]: { hours: 'hours' },
+  [MESSAGES.AgeString.Minutes]: { minutes: 'minutes' }
+};
 /**
  * @typedef {Object} PeriodRange
  * @property {ZonedDateTime} from
@@ -164,6 +171,35 @@ export const dateToLocalizedString = (
 };
 
 /**
+ * Convert ISO Date to formatted Date String using caller's prefrences, without the time component
+ *
+ * @param {Date | string} date The date to convert.
+ * @param {string} timeZone  The time zone to use for conversion, defaults to UTC
+ * @param {string} lang  The language used for string formatting, defaults to 'en'
+ * @param {string} locale  The locale used for string formatting, defaults to 'US'
+ */
+export const dateToLocalizedDateString = (
+  date: Date | string,
+  timeZone: string,
+  lang: string,
+  locale: string
+) => {
+  if (!date) {
+    return undefined;
+  }
+
+  const localDate = new Date(date);
+  const locales = combineLangLocale(lang, locale);
+
+  return localDate.toLocaleString(locales, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    timeZone: timeZone ? timeZone : fallbackTimeZone
+  });
+};
+
+/**
  * Convert JsJoda LocalDateTime object and HypersyncPeriod to a user-friendly date string
  *
  * Day:   Jan 01, 2021
@@ -216,4 +252,69 @@ export const zonedDateTimeToISOString = (zdt: ZonedDateTime) => {
  */
 const combineLangLocale = (lang: string, locale: string) => {
   return lang ? (locale ? `${lang}-${locale}` : lang) : fallbackLocale;
+};
+
+/**
+ * Implements time delay
+ * @param secondsToWait duration to sleep in seconds
+ */
+export const sleepDuration = async (secondsToWait: number) => {
+  await new Promise(res => setTimeout(res, Math.max(secondsToWait * 1000, 0)));
+};
+
+// build readable string from js-joda Duration object
+export const buildAgeString = (age: Duration): string => {
+  let milliseconds = age.toMillis();
+
+  const secondsInMs = 1000;
+  const minutesInMs = secondsInMs * 60;
+  const hoursInMs = minutesInMs * 60;
+  const daysInMs = hoursInMs * 24;
+  const yearsInMs = daysInMs * 365.25;
+
+  const years = Math.floor(milliseconds / yearsInMs);
+  milliseconds -= years * yearsInMs;
+
+  const days = Math.floor(milliseconds / daysInMs);
+  milliseconds -= days * daysInMs;
+
+  const hours = Math.floor(milliseconds / hoursInMs);
+  milliseconds -= hours * hoursInMs;
+
+  const minutes = Math.floor(milliseconds / minutesInMs);
+  milliseconds -= minutes * minutesInMs;
+
+  const ageYearsString =
+    years === 0
+      ? ''
+      : formatMessage(
+          MESSAGES.AgeString.Years,
+          { years: years.toString() },
+          MESSAGE_KEYS
+        );
+  const ageDaysString =
+    days === 0
+      ? ''
+      : formatMessage(
+          MESSAGES.AgeString.Days,
+          { days: days.toString() },
+          MESSAGE_KEYS
+        );
+  const ageHoursString =
+    hours === 0
+      ? ''
+      : formatMessage(
+          MESSAGES.AgeString.Hours,
+          { hours: hours.toString() },
+          MESSAGE_KEYS
+        );
+  const ageMinutesString =
+    minutes === 0
+      ? ''
+      : formatMessage(
+          MESSAGES.AgeString.Minutes,
+          { minutes: minutes.toString() },
+          MESSAGE_KEYS
+        );
+  return `${ageYearsString}${ageDaysString}${ageHoursString}${ageMinutesString}`;
 };

@@ -15,9 +15,17 @@ import {
   PagingType
 } from '@hyperproof/hypersync-models';
 import jsonata from 'jsonata';
+import set from 'lodash/set';
 
 const HEADER_PREFIX = 'header:'; // Prefix indicating property found in response header
 const PROPERTY_ACCESSORS = ['@odata.nextLink']; // Do not evaluate as jsonata expression
+
+export enum PagingState {
+  IterationPlan = 'iterationPlan',
+  SingleIteration = 'singleIteration',
+  BatchedIteration = 'batchedIteration',
+  None = 'none'
+}
 
 export abstract class Paginator {
   currentPage?: number | string;
@@ -208,7 +216,7 @@ export abstract class Paginator {
    * @param dataSet Data set for which data has been retrieved.
    */
   protected ensureDataSetArray(dataSet: IDataSet): void {
-    if (dataSet.result !== 'array') {
+    if (dataSet.result !== 'array' && !dataSet.filter) {
       throw new Error(
         `Paginator: Expected result for paginated requests must be of type array.`
       );
@@ -221,8 +229,8 @@ export abstract class Paginator {
  * until token is no longer found in response.
  */
 export class NextTokenPaginator extends Paginator {
-  private limitParameter: string;
-  private limitValue: number;
+  private limitParameter?: string;
+  private limitValue?: number;
   private tokenType: NextTokenType;
   private tokenParameter?: string;
 
@@ -236,7 +244,9 @@ export class NextTokenPaginator extends Paginator {
     this.tokenType = pagingScheme.tokenType;
     const request = pagingScheme.request as NextTokenRequest;
     this.limitParameter = request.limitParameter;
-    this.limitValue = Number(request.limitValue);
+    this.limitValue = request.limitValue
+      ? Number(request.limitValue)
+      : undefined;
     this.tokenParameter = request.tokenParameter;
   }
 
@@ -248,6 +258,9 @@ export class NextTokenPaginator extends Paginator {
     this.currentPage = page;
     const delimiter = this.calcUrlDelimiter(relativeUrl, baseUrl);
     if (this.isFirstPage(page)) {
+      if (!this.limitParameter) {
+        return `${relativeUrl}`;
+      }
       return `${relativeUrl}${delimiter}${this.limitParameter}=${this.limitValue}`;
     }
 
@@ -255,6 +268,10 @@ export class NextTokenPaginator extends Paginator {
       case NextTokenType.Url:
         return page as string;
       case NextTokenType.Token:
+        page = encodeURIComponent(page as string);
+        if (!this.limitParameter) {
+          return `${relativeUrl}${delimiter}${this.tokenParameter!}=${page}`;
+        }
         return `${relativeUrl}${delimiter}${this.limitParameter}=${
           this.limitValue
         }&${this.tokenParameter!}=${page}`;
@@ -282,17 +299,19 @@ export class NextTokenPaginator extends Paginator {
         `Paginator: POST method pagination does not support ${this.tokenType}.  Type must be token or search array.`
       );
     }
-    const pagedMessageBody = {
-      ...messageBody,
-      [this.limitParameter]: this.limitValue
-    };
+    if (this.limitParameter) {
+      set(messageBody, this.limitParameter, this.limitValue);
+    }
     if (!this.isFirstPage(page)) {
-      pagedMessageBody[this.tokenParameter!] =
+      set(
+        messageBody,
+        this.tokenParameter!,
         this.tokenType === NextTokenType.SearchArray
           ? this.formatSearchArrayToken(page!)
-          : page;
+          : page
+      );
     }
-    return pagedMessageBody;
+    return messageBody;
   }
 
   public getNextPage(
@@ -338,12 +357,21 @@ export class NextTokenPaginator extends Paginator {
     pagingScheme: INextTokenScheme
   ): string | undefined {
     const request = pagingScheme.request as NextTokenRequest;
-    if (!request['limitParameter']) {
-      return `Request parameters must be defined for ${pagingScheme.type} schemes.`;
-    }
-    if (isNaN(+request.limitValue) || +request.limitValue <= 0) {
-      // Guard against a non-incrementing loop
-      return `Limit value ${this.limitValue} must be a positive integer for ${pagingScheme.type} schemes.`;
+    if (request['limitParameter'] || request['limitValue']) {
+      // if either is defined, then
+      if (!request['limitParameter']) {
+        // limit parameter cannot be undefined if limit value is defined
+        return `Request parameters must be defined for ${pagingScheme.type} schemes.`;
+      }
+      if (!request['limitValue']) {
+        // limit value cannot be undefined if limit parameter is defined
+        return `Limit value must be defined if request parameters are defined for ${pagingScheme.type} schemes.`;
+      }
+      if (isNaN(+request.limitValue) || +request.limitValue <= 0) {
+        // limit value must be be a positive integer
+        // Guard against a non-incrementing loop
+        return `Limit value ${this.limitValue} must be a positive integer for ${pagingScheme.type} schemes.`;
+      }
     }
     if (
       pagingScheme.pageUntil === PageUntilCondition.NoNextToken &&
@@ -442,11 +470,9 @@ export class PageBasedPaginator extends Paginator {
         `Paginator: Invalid POST request body: ${JSON.stringify(messageBody)}`
       );
     }
-    return {
-      ...messageBody,
-      [this.pageParameter]: this.currentPage,
-      [this.limitParameter]: this.limitValue
-    };
+    set(messageBody, this.pageParameter, this.currentPage);
+    set(messageBody, this.limitParameter, this.limitValue);
+    return messageBody;
   }
 
   public getNextPage(
@@ -573,11 +599,9 @@ export class OffsetAndLimitPaginator extends Paginator {
         `Paginator: Invalid POST request body: ${JSON.stringify(messageBody)}`
       );
     }
-    return {
-      ...messageBody,
-      [this.offsetParameter]: this.currentPage,
-      [this.limitParameter]: this.limitValue
-    };
+    set(messageBody, this.offsetParameter, this.currentPage);
+    set(messageBody, this.limitParameter, this.limitValue);
+    return messageBody;
   }
 
   public getNextPage(

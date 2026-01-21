@@ -2,6 +2,7 @@ export * from './DataSourceBase';
 export * from './HypersyncApp';
 export * from './ICriteriaProvider';
 export * from './IDataSource';
+export * from './ServiceDataIterator';
 export * from './JsonCriteriaProvider';
 export * from './JsonProofProvider';
 export * from './ProofProviderBase';

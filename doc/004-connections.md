@@ -24,8 +24,9 @@ In a Hypersync app, there are two types connections: [OAuth connections](#oauth-
 > a [custom authentication connection](#custom-authentication) should be used.
 
 > **NOTE: API Permissions**
->- Always use the minimum permissions necessary for proofs. Hypersyncs are read-only so use read-only permissions when possible.
->- Use minimum scopes when using OAuth. The Hypersync author is going to be asked to authorize one or more scopes. You only want to ask for what you need.
+>
+> - Always use the minimum permissions necessary for proofs. Hypersyncs are read-only so use read-only permissions when possible.
+> - Use minimum scopes when using OAuth. The Hypersync author is going to be asked to authorize one or more scopes. You only want to ask for what you need.
 
 ## OAuth Authorization
 
@@ -92,7 +93,7 @@ Finally, implement the `getUserId` and `getUserAccountName` methods. `getUserId`
 
 ## Custom Authentication
 
-All non-OAuth authentication/authorization schemes are classified as "Custom" in the Hyperysnc SDK. If your service does not use OAuth 2.0, you should specify `custom` as your `authType` in `package.json`. See [Custom Hypersync App package.json Reference](./030-package-json-reference.md) for more information.
+All non-OAuth authentication/authorization schemes are classified as "Custom" in the Hypersync SDK. If your service does not use OAuth 2.0, you should specify `custom` as your `authType` in `package.json`. See [Custom Hypersync App package.json Reference](./030-package-json-reference.md) for more information.
 
 Custom auth covers any type of authentication where the user provides credentials to make a connection. Credentials can include user name/password, access key/secret key, API Token, and many others. Users may also need to designate the endpoint they’re connecting to - for example by providing a URL or a region.
 
