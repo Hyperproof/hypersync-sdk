@@ -17,8 +17,8 @@
     "node": "^22.0.0"
   },
   "dependencies": {
-    "@hyperproof/hypersync-models": "6.0.0",
-    "@hyperproof/integration-sdk": "6.0.0",
+    "@hyperproof/hypersync-models": "6.0.0-beta",
+    "@hyperproof/integration-sdk": "6.0.0-beta",
     "@js-joda/core": "3.2.0",
     "@js-joda/timezone": "2.5.0",
     "abort-controller": "3.0.0",
