@@ -1,6 +1,6 @@
 {
   "name": "@hyperproof/hypersync-sdk",
-  "version": "6.0.0-beta",
+  "version": "6.0.0-beta.1",
   "description": "Hypersync SDK",
   "license": "MIT",
   "repository": {
@@ -17,8 +17,8 @@
     "node": "^22.0.0"
   },
   "dependencies": {
-    "@hyperproof/hypersync-models": "6.0.0-beta",
-    "@hyperproof/integration-sdk": "6.0.0-beta",
+    "@hyperproof/hypersync-models": "6.0.0-beta.1",
+    "@hyperproof/integration-sdk": "6.0.0-beta.1",
     "@js-joda/core": "3.2.0",
     "@js-joda/timezone": "2.5.0",
     "abort-controller": "3.0.0",
@@ -43,6 +43,7 @@
     "@types/jsonwebtoken": "^9.0.0",
     "@types/lodash": "^4.14.202",
     "@types/mime": "^3.0.4",
+    "@types/node": "22.10.10",
     "@types/node-fetch": "^2.6.13",
     "@types/superagent": "^8.1.9",
     "@typescript-eslint/eslint-plugin": "8.7.0",
