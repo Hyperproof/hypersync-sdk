@@ -1,5 +1,29 @@
 # Hypersync SDK Migration Guide
 
+## Version 6
+
+### Package Versions
+Update package.json imports to the following versions:
+
+```json
+  "dependencies": {
+      "@hyperproof/hypersync-models": "^6.0.0",
+      "@hyperproof/hypersync-sdk": "^6.0.0",
+      "@hyperproof/integration-sdk": "^6.0.0"
+  }
+```
+
+Update the package.json devDependencies accordingly:
+
+```json
+  "devDependencies": {
+      "@types/node": "22.10.10"
+  }
+```
+Due to specific type dependencies, the types.node package needs to be updated to a specific version. Note there is no wildcard caret ^ in the version number.
+
+If your code imported classes, types, interfaces, or enums from one of the other packages, those imports need to be updated after making this change.
+
 ## Version 2.X to Version 3.0
 
 Version 3.0 of the Hypersync SDK includes a number of new capabilities that
