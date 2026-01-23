@@ -114,10 +114,10 @@
   resolved "https://registry.yarnpkg.com/@js-joda/core/-/core-3.2.0.tgz#3e61e21b7b2b8a6be746df1335cf91d70db2a273"
   integrity sha512-PMqgJ0sw5B7FKb2d5bWYIoxjri+QlW/Pys7+Rw82jSH0QN3rB05jZ/VrrsUdh1w4+i2kw9JOejXGq/KhDOX7Kg==
 
-"@js-joda/timezone@2.5.0":
-  version "2.5.0"
-  resolved "https://registry.yarnpkg.com/@js-joda/timezone/-/timezone-2.5.0.tgz#b422ff400c25ae311384239c62724eecee2e442b"
-  integrity sha512-HHFVhGUKIOtITiT+sbQRdYuO5Q+a8FDj/vQSGUSxe6+5w2in5JsavfRsAN2tU/NCdBeFx/6q8evHMtOrXfdn2g==
+"@js-joda/timezone@2.22.0":
+  version "2.22.0"
+  resolved "https://registry.yarnpkg.com/@js-joda/timezone/-/timezone-2.22.0.tgz#dc0eea2b33c6bac4404240ce91095573543f5d3e"
+  integrity sha512-9UNXxEztbcofD6XvV7xPrbzB2nE/AWaHr/XfugRZgVqg2vCZOVPnD8QI7GW164EFIWMw0c97Gs6STJ5dh0J99Q==
 
 "@noble/hashes@^1.1.5":
   version "1.8.0"
