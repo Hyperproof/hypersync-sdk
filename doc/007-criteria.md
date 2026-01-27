@@ -70,7 +70,7 @@ class MyCriteriaProvider implements ICriteriaProvider{
     tokenContext: TokenContext,
     pages: ICriteriaPage[]
   ): Promise<ICriteriaMetadata> {
-    // TODO: Generate an ICriteriaMetdata instance containing the metadata for
+    // TODO: Generate an ICriteriaMetadata instance containing the metadata for
     // the fields the user needs to configure, as well as defaults for the Hypersync
     // name, frequency of execution, and versioning behavior.
   }
