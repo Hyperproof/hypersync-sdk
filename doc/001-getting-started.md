@@ -22,7 +22,7 @@ The Hyperproof CLI is needed to publish and manage your custom Hypersyncs:
 
 Finally, we recommend cloning the [Hypersync SDK Samples GitHub repository](https://github.com/Hyperproof/hypersync-sdk-samples). This is a public repository available on GitHub.com.
 
-- The samples repository contains several complete Hypersync apps that can be used to bring data from an external service into Hyperproof. Using the Hypersync SDK you can customize these samples to meet your needs. The hypersync-sdk-samples repository contains samples for MySQL, Zoho and other services. Your will find the these Hypersync apps in the `/apps` directory.
+- The samples repository contains several complete Hypersync apps that can be used to bring data from an external service into Hyperproof. Using the Hypersync SDK you can customize these samples to meet your needs. The hypersync-sdk-samples repository contains samples for MySQL, Zoho and other services. You will find these Hypersync apps in the `/apps` directory.
 
 - The samples repository also includes a handful of templates to get you started building your own Hypersyncs from scatch. Templates can be found in the `/templates` directory. See the `README.md` files in each template directory for more information on using the templates.
 
