@@ -41,13 +41,13 @@ https://api.us-west-1.fusebit.hyperproof.app/v1/run/sub-f63bb714ec30473e/org-{or
 The new URL template is:
 
 ```
-https://accounts.hyperproof.app/oauth/v1/run/hpprod/connectors/org-{orgId}/{customAppId}/callback
+https://hpip.hyperproof.app/v1/run/hpprod/org-{orgId}/{customAppId}/callback
 ```
 
 It is a known issue that Hypersync SDK version 1.2.4 generates incomplete, only relative URLs. Use the following base URLs for your Hyperproof instance:
 
-- Hyperproof US: `https://accounts.hyperproof.app/oauth/v1/run/hpprod/connectors/`
-- Hyperproof EU: `https://accounts.hyperproof.eu/oauth/v1/run/hpprodeu/connectors/`
+- Hyperproof US: `https://hpip.hyperproof.app/v1/run/hpprod`
+- Hyperproof EU: `https://hpip.hyperproof.eu/v1/run/hpprodeu`
 
 Update your oauth client's callback URL with this new value.
 
