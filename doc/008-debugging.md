@@ -43,6 +43,6 @@ To exit the `logs` command, press escape or Ctrl-C.
 
 ## Browser Network Tab
 
-All supported browsers have a Developer Tools feature that can also be helpful when diagnoting problems with your app.
+All supported browsers have a Developer Tools feature that can also be helpful when diagnosing problems with your app.
 
-When you encounter an unexpectd problem using your app, open the Developer Tools and navigate to the Network tab. Once you've done that, repeat the operation and look for network calls that are flagged as errors (shown in red in Google Chrome for example). You can inspect the response bodies of these requests to learn more about what failed.
+When you encounter an unexpected problem using your app, open the Developer Tools and navigate to the Network tab. Once you've done that, repeat the operation and look for network calls that are flagged as errors (shown in red in Google Chrome for example). You can inspect the response bodies of these requests to learn more about what failed.

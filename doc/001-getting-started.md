@@ -24,7 +24,7 @@ Finally, we recommend cloning the [Hypersync SDK Samples GitHub repository](http
 
 - The samples repository contains several complete Hypersync apps that can be used to bring data from an external service into Hyperproof. Using the Hypersync SDK you can customize these samples to meet your needs. The hypersync-sdk-samples repository contains samples for MySQL, Zoho and other services. You will find these Hypersync apps in the `/apps` directory.
 
-- The samples repository also includes a handful of templates to get you started building your own Hypersyncs from scatch. Templates can be found in the `/templates` directory. See the `README.md` files in each template directory for more information on using the templates.
+- The samples repository also includes a handful of templates to get you started building your own Hypersyncs from scratch. Templates can be found in the `/templates` directory. See the `README.md` files in each template directory for more information on using the templates.
 
 ## Sandbox Organization (optional)
 

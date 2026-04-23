@@ -8,7 +8,7 @@ Hypersync apps expose the data in an external service in the form of proof types
 
 Each one of these proof types selects the appropriate data from the external service and formats it as appropriate for the type of data. Data can be formatted in tabular, stacked and hierarchical layouts.
 
-Once the user selects a proof type, they may be asked for one or more criteria values. The Group Membership proof type, for example, will likely reuqire that the user specify the name of the group that they are interested in. This information is then used to filter the group membership data. The metadata for these criteria values (e.g. whether the group name is shown as a select control or a text field) comes from the [criteria provider](./007-criteria.md).
+Once the user selects a proof type, they may be asked for one or more criteria values. The Group Membership proof type, for example, will likely require that the user specify the name of the group that they are interested in. This information is then used to filter the group membership data. The metadata for these criteria values (e.g. whether the group name is shown as a select control or a text field) comes from the [criteria provider](./007-criteria.md).
 
 Proof types retrieve data from the app's [data source](./005-data-sources.md) by name. The proof type may also provide parameter values to the data source to ensure that the right data is returned.
 
@@ -28,11 +28,11 @@ Proof types retrieve data from the app's [data source](./005-data-sources.md) by
 
 A proof type may format the data in the following ways:
 
-| Layout       | Description                                                                                                      |
-| ------------ | ---------------------------------------------------------------------------------------------------------------- |
-| Tabular      | Data is arranged in a table where each row is an item in the data set.                                           |
-| Stacked      | Fields in an item are arranged verticially, and that vertical stack is repeated for every row in the result set. |
-| Hierarchical | A combination of tabular and/or stacked layouts where some layouts are nested.                                   |
+| Layout       | Description                                                                                                     |
+| ------------ | --------------------------------------------------------------------------------------------------------------- |
+| Tabular      | Data is arranged in a table where each row is an item in the data set.                                          |
+| Stacked      | Fields in an item are arranged vertically, and that vertical stack is repeated for every row in the result set. |
+| Hierarchical | A combination of tabular and/or stacked layouts where some layouts are nested.                                  |
 
 Tabular and stacked layouts can be output as PDF or Excel files. Hierarchical layouts can only be output as PDF.
 

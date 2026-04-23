@@ -50,7 +50,7 @@ The `ICriteriaProvider` interface has three methods: `generateProofCategoryField
 
 `generateProofCategoryField` returns a proof category criteria field that can be used to filter proof types by category. For apps with a small number of proof types where a category is not required, this method should return `null`.
 
-`generateCriteriaFields` is invoked as the user is creating or editing a Hypersync. This method returns criteria metadata to Hyperproof in the form of an `ICriteraMetadata` object. This object contains the fields that the user needs to configure for the proof type, as well as some default values for the Hypersync name, frequency of execution, and versioning benavior. As mentioned above this method is called iteratively as the user configures the Hypersync.
+`generateCriteriaFields` is invoked as the user is creating or editing a Hypersync. This method returns criteria metadata to Hyperproof in the form of an `ICriteriaMetadata` object. This object contains the fields that the user needs to configure for the proof type, as well as some default values for the Hypersync name, frequency of execution, and versioning behavior. As mentioned above this method is called iteratively as the user configures the Hypersync.
 
 `generateProofCriteria` is called at sync time. This method is responsible for formatting the configured criteria so that they can be included in a the generated proof. `generateProofCriteria` will generally apply transforms and perform lookups in order to properly format the criteria.
 

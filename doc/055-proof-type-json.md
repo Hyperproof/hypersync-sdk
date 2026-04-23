@@ -7,7 +7,7 @@ Each proof type file exposes a JSON object with these properties:
 | Property    | Required | Description                                                            |
 | ----------- | -------- | ---------------------------------------------------------------------- |
 | description | Yes      | Description of the proof type                                          |
-| criteria    | Yes      | Array of criteria fields that are requried by the proof type           |
+| criteria    | Yes      | Array of criteria fields that are required by the proof type           |
 | proofSpec   | Yes      | Object that specifies how the proof type should be rendered            |
 | overrides   | No       | Proof specs which override the base proof spec based on some condition |
 
