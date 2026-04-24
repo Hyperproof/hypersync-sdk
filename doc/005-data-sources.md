@@ -66,7 +66,7 @@ For more information on configuring the data sets in your data source using `dat
 
 Many REST APIs use a paging mechanism to allow data to be retrieved in chunks. For example, some APIs take a `pageSize` and `pageNumber` argument which specify how many items to return, and the page number to start reading from, respectively.
 
-Four paging styles are supported: **Page Based**, **Offset And Limit**, **Next Token**, and **GraphQL Connections**. As a default, query string parameters will be programatically added to an API url. If POST is designated as the data source HTTP method, paging parameters are added to the body of the request.
+Four paging styles are supported: **Page Based**, **Offset And Limit**, **Next Token**, and **GraphQL Connections**. As a default, query string parameters will be programmatically added to an API url. If POST is designated as the data source HTTP method, paging parameters are added to the body of the request.
 
 1.  **Page Based.** Begin paging at a starting value and increment the page value by 1 after each iteration (1, 2, 3, etc). Return at most `limitValue` items per page.
 

@@ -2,7 +2,7 @@
 
 For Hypersync apps that retrieve data from a REST data source, the [RestDataSourceBase](./005-data-sources.md) class makes it possible to extract, transform and sort multiple data sets without writing code. The `/json/dataSource.json` file is used to define these datasets.
 
-At the top level, a `dataSource.json` file should expose an oject with three properties: `baseUrl`, `dataSets` and `messages`. Note that only `dataSets` is required--`baseUrl` and `messages` are both optional.
+At the top level, a `dataSource.json` file should expose an object with three properties: `baseUrl`, `dataSets` and `messages`. Note that only `dataSets` is required--`baseUrl` and `messages` are both optional.
 
 ## baseUrl
 
