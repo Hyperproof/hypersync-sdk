@@ -1,10 +1,7 @@
 import { DataSetResultStatus } from './IDataSource';
 import { IterableObject, ServiceDataIterator } from './ServiceDataIterator';
 
-import {
-  DataSetIteratorDefinition,
-  IteratorSource
-} from '@hyperproof/hypersync-models';
+import { DataSetIteratorDefinition, IteratorSource } from '@hyperproof/hypersync-models';
 
 describe('ServiceDataIterator', () => {
   const mockRestDataSource = {
@@ -31,28 +28,17 @@ describe('ServiceDataIterator', () => {
 
   it('should throw if iterator definition is invalid', () => {
     const badDef = { ...iteratorDef, subArraySize: 0 };
-    expect(
-      () =>
-        new ServiceDataIterator(
-          mockRestDataSource,
-          [{ ...badDef }],
-          'testProof'
-        )
-    ).toThrow();
+    expect(() => new ServiceDataIterator(mockRestDataSource, [{ ...badDef }], 'testProof')).toThrow();
   });
 
   it('extractIteratorLayer returns correct layer', () => {
-    expect(
-      ServiceDataIterator.extractIteratorLayer(dataSetIterator, 1)
-    ).toEqual(iteratorDef);
+    expect(ServiceDataIterator.extractIteratorLayer(dataSetIterator, 1)).toEqual(iteratorDef);
   });
 
   it('mergeIterandWithParams merges params and iterand', () => {
     const iterand = { id: 123 };
     const params = { hyper: 'proof', foo: 'bar' };
-    expect(
-      ServiceDataIterator.mergeIterandWithParams(iterand, 'id', params)
-    ).toEqual({
+    expect(ServiceDataIterator.mergeIterandWithParams(iterand, 'id', params)).toEqual({
       hyper: 'proof',
       foo: 'bar',
       id: 123
@@ -65,14 +51,8 @@ describe('ServiceDataIterator', () => {
       data: { id: 1, name: 'Mercury' },
       source: 'test'
     });
-    const iterator = new ServiceDataIterator(
-      mockRestDataSource,
-      dataSetIterator,
-      'testProof'
-    );
-    await expect(iterator.generateIteratorPlan({}, {})).rejects.toThrow(
-      /must be an array/
-    );
+    const iterator = new ServiceDataIterator(mockRestDataSource, dataSetIterator, 'testProof');
+    await expect(iterator.generateIteratorPlan({}, {})).rejects.toThrow(/must be an array/);
   });
 
   it('validateIterableArray returns undefined for valid array', () => {
@@ -81,13 +61,7 @@ describe('ServiceDataIterator', () => {
         return this.validateIterableArray(iterableArray);
       }
     }
-    const iterator = new TestIterator(
-      mockRestDataSource,
-      dataSetIterator,
-      'testProof'
-    );
-    expect(
-      iterator.callValidateIterableArray([{ id: 1 }, { id: 2 }, { id: 3 }])
-    ).toBeUndefined();
+    const iterator = new TestIterator(mockRestDataSource, dataSetIterator, 'testProof');
+    expect(iterator.callValidateIterableArray([{ id: 1 }, { id: 2 }, { id: 3 }])).toBeUndefined();
   });
 });

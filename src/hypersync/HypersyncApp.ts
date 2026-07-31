@@ -1,28 +1,17 @@
 import { formatHypersyncError, StringMap } from './common';
 import { createHypersync } from './hypersyncConnector';
-import {
-  ICriteriaMetadata,
-  ICriteriaPage,
-  ICriteriaProvider
-} from './ICriteriaProvider';
-import {
-  DataSetResultStatus,
-  IDataSource,
-  isRestDataSourceBase,
-  SyncMetadata
-} from './IDataSource';
+import { ICriteriaMetadata, ICriteriaPage, ICriteriaProvider } from './ICriteriaProvider';
+import { DataSetResultStatus, IDataSource, isRestDataSourceBase, SyncMetadata } from './IDataSource';
 import { JsonCriteriaProvider } from './JsonCriteriaProvider';
+import { applyProofLayout } from './layout';
 import { MESSAGES } from './messages';
 import { IHypersync } from './models';
-import {
-  IHypersyncSchema,
-  IProofFile,
-  ProofProviderBase
-} from './ProofProviderBase';
+import { IHypersyncSchema, IProofFile, ProofProviderBase } from './ProofProviderBase';
 import { IProofTypeConfig, ProofProviderFactory } from './ProofProviderFactory';
 import { RestDataSourceBase } from './RestDataSourceBase';
 import { IterableObject } from './ServiceDataIterator';
 import { IGetProofDataResponse, IHypersyncSyncPlanResponse } from './Sync';
+import { resolveTokens } from './tokens';
 
 import {
   DataValueMap,
@@ -33,6 +22,9 @@ import {
   ICriteriaSearchInput,
   IDataSet,
   IHypersyncDefinition,
+  IHypersyncField,
+  IProofCriterionRef,
+  IProofTypeCatalogEntry,
   SchemaCategory,
   ValueLookup
 } from '@hyperproof/hypersync-models';
@@ -49,13 +41,15 @@ import {
   IHyperproofUserContext,
   ILocalizable,
   IntegrationContext,
+  IOAuthVariant,
   IValidateCredentialsResponse,
   ListStorageResult,
   Logger,
   OAuthConnector,
   OAuthTokenResponse,
   ObjectType,
-  UserContext
+  UserContext,
+  validateCredentialFields
 } from '@hyperproof/integration-sdk';
 import express from 'express';
 import fs from 'fs';
@@ -101,25 +95,65 @@ type CustomProofTypeMap = { [proofType: string]: ICustomProofType };
 export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   private credentialsMetadata?: ICredentialsMetadata;
   private hypersyncApp: HypersyncApp<any>;
+  private _baseIntegrationType: string;
 
-  constructor(
-    connectorName: string,
-    hypersyncApp: HypersyncApp<any>,
-    credentialsMetadata?: ICredentialsMetadata
-  ) {
+  constructor(connectorName: string, hypersyncApp: HypersyncApp<any>, credentialsMetadata?: ICredentialsMetadata) {
     super(connectorName);
+    this._baseIntegrationType = this.integrationType;
     this.hypersyncApp = hypersyncApp;
     this.credentialsMetadata = credentialsMetadata;
+
+    // ============================================================================
+    // Dynamic integrationType Override
+    // ============================================================================
+    //
+    // WHY OBJECT.DEFINEPROPERTY?
+    // --------------------------
+    // TypeScript error TS2611 prevents overriding a property with an accessor
+    // (getter/setter) when the base class defines it as a simple property.
+    // The inheritance chain is:
+    //   OAuthConnector -> createConnector() -> createHypersync() -> this class
+    //
+    // In createConnector() (sharedConnector.ts:184-193), integrationType is
+    // defined as a property with getter/setter backed by _integrationType.
+    // TypeScript sees this as a "property" not an "accessor" at compile time,
+    // so we can't use `override get integrationType()` here.
+    //
+    // WHAT THIS DOES:
+    // ---------------
+    // Creates a cascading lookup for integrationType:
+    //   1. First checks if hypersyncApp has integrationType (e.g., MergeIntegrationApp
+    //      defines this to return the specific sub-integration type like 'bambooHrMerge')
+    //   2. Falls back to _baseIntegrationType (captured from parent at construction)
+    //
+    // This enables a single HypersyncAppConnector instance to dynamically report
+    // different integration types based on which HypersyncApp subclass it wraps.
+    //
+    // TYPE ASSERTION:
+    // ---------------
+    // The cast to { integrationType?: string } is intentional - HypersyncApp<T>
+    // doesn't declare integrationType in its interface, but subclasses like
+    // MergeIntegrationApp can define it as a public property.
+    // ============================================================================
+    Object.defineProperty(this, 'integrationType', {
+      get: () => {
+        const appType = (this.hypersyncApp as { integrationType?: string }).integrationType;
+        return appType ?? this._baseIntegrationType;
+      },
+      set: (value: string) => {
+        this._baseIntegrationType = value;
+      },
+      enumerable: true,
+      configurable: true
+    });
   }
 
   public onCreate(app: express.Router) {
     super.onCreate(app);
 
     const errorHandler = async (res: express.Response, err: any) => {
-      await Logger.error(err);
-      res
-        .status(err.status || StatusCodes.INTERNAL_SERVER_ERROR)
-        .json({ message: err.message });
+      Logger.error(err);
+      res.status(err.status || StatusCodes.INTERNAL_SERVER_ERROR).json({ message: err.message });
     };
 
     app.get(
@@ -127,13 +161,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
-          res.json(
-            await this.getDataSourceConfig(
-              req.fusebit,
-              req.params.orgId,
-              req.query.vendorUserId as string
-            )
-          );
+          res.json(await this.getDataSourceConfig(req.fusebit, req.params.orgId, req.query.vendorUserId as string));
         } catch (err: any) {
           errorHandler(res, err);
         }
@@ -195,13 +223,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
-          res.json(
-            await this.deleteDataSet(
-              req.fusebit,
-              req.params.orgId,
-              req.params.dataSetName
-            )
-          );
+          res.json(await this.deleteDataSet(req.fusebit, req.params.orgId, req.params.dataSetName));
         } catch (err: any) {
           errorHandler(res, err);
         }
@@ -213,18 +235,9 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
-          const {
-            dataSet,
-            params
-          }: { dataSet: IDataSet; params: DataValueMap } = req.body;
+          const { dataSet, params }: { dataSet: IDataSet; params: DataValueMap } = req.body;
           res.json(
-            await this.runDataSet(
-              req.fusebit,
-              req.params.orgId,
-              req.query.vendorUserId as string,
-              dataSet,
-              params
-            )
+            await this.runDataSet(req.fusebit, req.params.orgId, req.query.vendorUserId as string, dataSet, params)
           );
         } catch (err: any) {
           errorHandler(res, err);
@@ -287,13 +300,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
-          res.json(
-            await this.deleteValueLookup(
-              req.fusebit,
-              req.params.orgId,
-              req.params.valueLookupName
-            )
-          );
+          res.json(await this.deleteValueLookup(req.fusebit, req.params.orgId, req.params.valueLookupName));
         } catch (err: any) {
           errorHandler(res, err);
         }
@@ -305,13 +312,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
-          res.json(
-            await this.getCriteriaConfig(
-              req.fusebit,
-              req.params.orgId,
-              req.query.vendorUserId as string
-            )
-          );
+          res.json(await this.getCriteriaConfig(req.fusebit, req.params.orgId, req.query.vendorUserId as string));
         } catch (err: any) {
           errorHandler(res, err);
         }
@@ -374,13 +375,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
-          res.json(
-            await this.deleteCriteriaField(
-              req.fusebit,
-              req.params.orgId,
-              req.params.criteriaFieldName
-            )
-          );
+          res.json(await this.deleteCriteriaField(req.fusebit, req.params.orgId, req.params.criteriaFieldName));
         } catch (err: any) {
           errorHandler(res, err);
         }
@@ -392,9 +387,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
-          res.json(
-            await this.getProofTypesConfig(req.fusebit, req.params.orgId)
-          );
+          res.json(await this.getProofTypesConfig(req.fusebit, req.params.orgId));
         } catch (err: any) {
           errorHandler(res, err);
         }
@@ -406,14 +399,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
-          if (
-            !(await this.doesOrgStorageItemExist(
-              req.fusebit,
-              req.params.orgId,
-              'proof',
-              req.params.proofType
-            ))
-          ) {
+          if (!(await this.doesOrgStorageItemExist(req.fusebit, req.params.orgId, 'proof', req.params.proofType))) {
             res.status(StatusCodes.NOT_FOUND);
           }
           res.send();
@@ -428,13 +414,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
-          res.json(
-            await this.getProofTypeDefinition(
-              req.fusebit,
-              req.params.orgId,
-              req.params.proofType
-            )
-          );
+          res.json(await this.getProofTypeDefinition(req.fusebit, req.params.orgId, req.params.proofType));
         } catch (err: any) {
           errorHandler(res, err);
         }
@@ -480,13 +460,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
-          res.json(
-            await this.deleteProofType(
-              req.fusebit,
-              req.params.orgId,
-              req.params.proofType
-            )
-          );
+          res.json(await this.deleteProofType(req.fusebit, req.params.orgId, req.params.proofType));
         } catch (err: any) {
           errorHandler(res, err);
         }
@@ -498,10 +472,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
-          const messages = await this.createMessageMap(
-            req.fusebit,
-            req.params.orgId
-          );
+          const messages = await this.createMessageMap(req.fusebit, req.params.orgId);
           if (!messages[req.params.messageName]) {
             res.status(StatusCodes.NOT_FOUND);
           }
@@ -557,13 +528,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
       this.checkAuthorized(),
       async (req: express.Request, res: express.Response) => {
         try {
-          res.json(
-            await this.deleteMessage(
-              req.fusebit,
-              req.params.orgId,
-              req.params.messageName
-            )
-          );
+          res.json(await this.deleteMessage(req.fusebit, req.params.orgId, req.params.messageName));
         } catch (err: any) {
           errorHandler(res, err);
         }
@@ -575,28 +540,12 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     return this.hypersyncApp.resolveImagePath(imageName);
   }
 
-  public async getAuthorizationUrl(
-    { configuration }: IntegrationContext,
-    state: string,
-    redirectUri: string
-  ) {
-    return this.hypersyncApp.getAuthorizationUrl(
-      configuration,
-      state,
-      redirectUri
-    );
+  public async getAuthorizationUrl({ configuration }: IntegrationContext, state: string, redirectUri: string) {
+    return this.hypersyncApp.getAuthorizationUrl(configuration, state, redirectUri);
   }
 
-  public async getAccessToken(
-    { configuration }: IntegrationContext,
-    authorizationCode: string,
-    redirectUri: string
-  ) {
-    return this.hypersyncApp.getAccessToken(
-      configuration,
-      authorizationCode,
-      redirectUri
-    );
+  public async getAccessToken({ configuration }: IntegrationContext, authorizationCode: string, redirectUri: string) {
+    return this.hypersyncApp.getAccessToken(configuration, authorizationCode, redirectUri);
   }
 
   public async refreshAccessToken(
@@ -604,20 +553,22 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     tokenContext: OAuthTokenResponse,
     redirectUri: string
   ) {
-    return this.hypersyncApp.refreshAccessToken(
-      configuration,
-      tokenContext,
-      redirectUri || `${baseUrl}/callback`
-    );
+    return this.hypersyncApp.refreshAccessToken(configuration, tokenContext, redirectUri || `${baseUrl}/callback`);
   }
 
-  public applyAdditionalAuthorizationConfig(
+  override resolveVariant(variant?: string): string | undefined {
+    return this.hypersyncApp.resolveVariant(variant);
+  }
+
+  public async applyAdditionalAuthorizationConfig(
     config: IAuthorizationConfigBase,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    meta: ParsedQs
-  ) {
+    meta: ParsedQs,
+    ctx?: IntegrationContext
+  ): Promise<void> {
     (config as any).credentialsMetadata = this.credentialsMetadata;
-    return config;
+    const externalUserId = meta.externalUserId as string | undefined;
+    const userContext = ctx && externalUserId ? await this.getUser(ctx, externalUserId) : undefined;
+    await this.hypersyncApp.applyAdditionalAuthorizationConfig(config, meta, userContext, ctx?.configuration);
   }
 
   async validateAccessToken(
@@ -626,12 +577,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     accessToken: string,
     body?: ICheckConnectionHealthInvocationPayload
   ): Promise<void> {
-    await this.hypersyncApp.validateAccessToken(
-      integrationContext,
-      userContext,
-      accessToken,
-      body
-    );
+    await this.hypersyncApp.validateAccessToken(integrationContext, userContext, accessToken, body);
   }
 
   public async validateCredentials(
@@ -639,25 +585,22 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     integrationContext: IntegrationContext,
     hyperproofUserId: string
   ): Promise<IValidateCredentialsResponse> {
-    const response: IValidatedUser =
-      await this.hypersyncApp.validateCredentials(
-        credentials,
-        integrationContext.configuration,
-        hyperproofUserId
-      );
+    // Enforce the connector's declared field constraints server-side before the values are used or stored. The
+    // schema is otherwise UI-only, so this is what stops off-menu values from breaking out of vendor-URL templates.
+    validateCredentialFields(credentials, this.credentialsMetadata);
+
+    const response: IValidatedUser = await this.hypersyncApp.validateCredentials(
+      credentials,
+      integrationContext.configuration,
+      hyperproofUserId
+    );
 
     if (response.userIdPattern) {
       const { userIdPattern, userId } = response;
       if (!userIdPattern.test(userId)) {
-        throw createHttpError(
-          StatusCodes.FORBIDDEN,
-          'External user failed expected pattern validation.',
-          {
-            extendedMessage: `externalUserId ${userId} fails expected regex pattern test: ${String(
-              userIdPattern
-            )}`
-          }
-        );
+        throw createHttpError(StatusCodes.FORBIDDEN, 'External user failed expected pattern validation.', {
+          extendedMessage: `externalUserId ${userId} fails expected regex pattern test: ${String(userIdPattern)}`
+        });
       }
     }
     return {
@@ -679,6 +622,20 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     return this.hypersyncApp.getUserAccountName(userContext.vendorUserProfile);
   }
 
+  /**
+   * Override this method in specific connectors to filter proof fields
+   * Default implementation returns fields unchanged
+   */
+  public filterProofFields(
+    fields: IHypersyncField[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    proofType: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    criteriaValues: HypersyncCriteria
+  ): IHypersyncField[] {
+    return fields;
+  }
+
   public async generateCriteriaMetadata(
     integrationContext: IntegrationContext,
     orgId: string,
@@ -687,8 +644,11 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     search?: string | ICriteriaSearchInput,
     schemaCategory?: SchemaCategory
   ) {
-    const { messages, dataSource, criteriaProvider, proofProviderFactory } =
-      await this.createResources(integrationContext, orgId, vendorUserId);
+    const { messages, dataSource, criteriaProvider, proofProviderFactory } = await this.createResources(
+      integrationContext,
+      orgId,
+      vendorUserId
+    );
     return this.hypersyncApp.generateCriteriaMetadata(
       messages,
       dataSource,
@@ -707,14 +667,12 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     vendorUserId: string,
     criteria: HypersyncCriteria
   ) {
-    const { dataSource, criteriaProvider, proofProviderFactory } =
-      await this.createResources(integrationContext, orgId, vendorUserId);
-    return this.hypersyncApp.generateSchema(
-      dataSource,
-      criteriaProvider,
-      proofProviderFactory,
-      criteria
+    const { dataSource, criteriaProvider, proofProviderFactory } = await this.createResources(
+      integrationContext,
+      orgId,
+      vendorUserId
     );
+    return this.hypersyncApp.generateSchema(dataSource, criteriaProvider, proofProviderFactory, criteria);
   }
 
   public async generateSyncPlan(
@@ -727,13 +685,13 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   ) {
     const userContext = await this.getUser(integrationContext, vendorUserId);
     if (!userContext) {
-      throw createHttpError(
-        StatusCodes.UNAUTHORIZED,
-        this.getUserNotFoundMessage(vendorUserId)
-      );
+      throw createHttpError(StatusCodes.UNAUTHORIZED, this.getUserNotFoundMessage(vendorUserId));
     }
-    const { dataSource, criteriaProvider, proofProviderFactory } =
-      await this.createResources(integrationContext, orgId, vendorUserId);
+    const { dataSource, criteriaProvider, proofProviderFactory } = await this.createResources(
+      integrationContext,
+      orgId,
+      vendorUserId
+    );
     return this.hypersyncApp.generateSyncPlan(
       dataSource,
       criteriaProvider,
@@ -759,19 +717,15 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   ) {
     const vendorUserId = hypersync.settings.vendorUserId;
     const userContext = await this.getUser(integrationContext, vendorUserId);
-    const { dataSource, criteriaProvider, proofProviderFactory } =
-      await this.createResources(
-        integrationContext,
-        orgId,
-        vendorUserId,
-        retryCount
-      );
+    const { dataSource, criteriaProvider, proofProviderFactory } = await this.createResources(
+      integrationContext,
+      orgId,
+      vendorUserId,
+      retryCount
+    );
 
     if (!userContext) {
-      throw createHttpError(
-        StatusCodes.UNAUTHORIZED,
-        this.getUserNotFoundMessage(vendorUserId)
-      );
+      throw createHttpError(StatusCodes.UNAUTHORIZED, this.getUserNotFoundMessage(vendorUserId));
     }
     try {
       const data = await this.hypersyncApp.getProofData(
@@ -793,14 +747,10 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
           }
         : data;
     } catch (err) {
-      if (
-        err instanceof ExternalAPIError &&
-        err?.computeRetry &&
-        err.throttleManager
-      ) {
+      if (err instanceof ExternalAPIError && err?.computeRetry && err.throttleManager) {
         return err.computeRetry();
       }
-      await Logger.error(
+      Logger.error(
         `Hypersync Sync Error: ${process.env.vendor_name}`,
         formatHypersyncError(err, hypersync?.id, 'Sync failure')
       );
@@ -808,47 +758,26 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     }
   }
 
-  public async keepTokenAlive(
-    integrationContext: IntegrationContext,
-    userContext: UserContext
-  ): Promise<boolean> {
+  public async keepTokenAlive(integrationContext: IntegrationContext, userContext: UserContext): Promise<boolean> {
     if (this.authorizationType === AuthorizationType.OAUTH) {
-      const { access_token: accessToken } = await this.ensureAccessToken(
-        integrationContext,
-        userContext
-      );
+      const { access_token: accessToken } = await this.ensureAccessToken(integrationContext, userContext);
       return this.hypersyncApp.keepTokenAlive(accessToken);
     } else {
-      return this.hypersyncApp.keepTokenAlive(
-        (userContext as IHyperproofUserContext).keys!
-      );
+      return this.hypersyncApp.keepTokenAlive((userContext as IHyperproofUserContext).keys!);
     }
   }
 
-  public override async deleteUser(
-    integrationContext: IntegrationContext,
-    vendorUserId: string
-  ): Promise<void> {
+  public override async deleteUser(integrationContext: IntegrationContext, vendorUserId: string): Promise<void> {
     const userContext = await this.getUser(integrationContext, vendorUserId);
     if (userContext) {
       // We also need to call the Finch's /disconnect API if there are no more users authenticated to the provider company
-      const prefixPath = await this.hypersyncApp.getRelatedTokenPath(
-        userContext.vendorUserProfile
-      );
-      const listResponse = await integrationContext.storage.list(
-        `vendor-user/${prefixPath}`
-      );
+      const prefixPath = await this.hypersyncApp.getRelatedTokenPath(userContext.vendorUserProfile);
+      const listResponse = await integrationContext.storage.list(`vendor-user/${prefixPath}`);
       // If we are the last user in the company, disconnect. This invalidates all access_tokens
       // for the company-provider pair for the env client
       if (listResponse.items.length === 1) {
-        const tokens = await this.ensureAccessToken(
-          integrationContext,
-          userContext
-        );
-        await this.hypersyncApp.onLastUserDeleted(
-          userContext.vendorUserProfile,
-          tokens.access_token
-        );
+        const credentials = await this.getDataSourceAccessToken(integrationContext, userContext);
+        await this.hypersyncApp.onLastUserDeleted(userContext.vendorUserProfile, credentials);
       }
     }
     return super.deleteUser(integrationContext, vendorUserId);
@@ -861,36 +790,18 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     retryCount?: number
   ) {
     const messages = await this.createMessageMap(integrationContext, orgId);
-    const dataSource = await this.createDataSource(
-      integrationContext,
-      orgId,
-      vendorUserId,
-      retryCount
-    );
-    const criteriaProvider = await this.createCriteriaProvider(
-      integrationContext,
-      orgId,
-      dataSource
-    );
-    const proofProviderFactory = await this.createProofProviderFactory(
-      integrationContext,
-      orgId,
-      messages
-    );
+    const dataSource = await this.createDataSource(integrationContext, orgId, vendorUserId, retryCount);
+    const criteriaProvider = await this.createCriteriaProvider(integrationContext, orgId, dataSource);
+    const proofProviderFactory = await this.createProofProviderFactory(integrationContext, orgId, messages);
 
     return { messages, dataSource, criteriaProvider, proofProviderFactory };
   }
 
-  private async createMessageMap(
-    integrationContext: IntegrationContext,
-    orgId: string
-  ): Promise<StringMap> {
+  private async createMessageMap(integrationContext: IntegrationContext, orgId: string): Promise<StringMap> {
     let messages = this.hypersyncApp.getMessages();
-    await Logger.info('Creating message map.');
+    Logger.info('Creating message map.');
     // Add organization customizations if there are any.
-    const { items } = await integrationContext.storage.list(
-      this.createOrgStorageKey(orgId, 'messages')
-    );
+    const { items } = await integrationContext.storage.list(this.createOrgStorageKey(orgId, 'messages'));
     if (items && items.length > 0) {
       messages = { ...messages };
       for (const item of items) {
@@ -904,6 +815,33 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     return messages;
   }
 
+  public async getDataSourceAccessToken(
+    integrationContext: IntegrationContext,
+    userContext: UserContext
+  ): Promise<string | CustomAuthCredentials> {
+    if (this.authorizationType === AuthorizationType.OAUTH) {
+      const { access_token: accessToken } = await this.ensureAccessToken(integrationContext, userContext);
+      return accessToken;
+    } else {
+      const credentials = (userContext as IHyperproofUserContext).keys!;
+      const newCredentials = await this.hypersyncApp.refreshCredentials(credentials);
+      if (newCredentials) {
+        await this.saveUser(integrationContext, {
+          ...userContext,
+          keys: credentials
+        } as IHyperproofUserContext);
+      }
+      return newCredentials ?? credentials;
+    }
+  }
+
+  public override async getProofTypeCatalog(): Promise<IProofTypeCatalogEntry[]> {
+    const messages = this.hypersyncApp.getMessages();
+    const factory = await this.hypersyncApp.getProofProviderFactory(messages);
+    const categoryLabels = this.hypersyncApp.getProofCategoryLabels(messages);
+    return factory.getProofTypeCatalog(categoryLabels);
+  }
+
   private async createDataSource(
     integrationContext: IntegrationContext,
     orgId: string,
@@ -912,55 +850,27 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   ): Promise<IDataSource> {
     const userContext = await this.getUser(integrationContext, vendorUserId);
     if (!userContext) {
-      throw createHttpError(
-        StatusCodes.UNAUTHORIZED,
-        this.getUserNotFoundMessage(vendorUserId)
-      );
+      throw createHttpError(StatusCodes.UNAUTHORIZED, this.getUserNotFoundMessage(vendorUserId));
     }
 
-    await Logger.info(`Retrieving access token to create data source`);
-    let dataSource: IDataSource;
-    if (this.authorizationType === AuthorizationType.OAUTH) {
-      const { access_token: accessToken } = await this.ensureAccessToken(
-        integrationContext,
-        userContext
-      );
-      dataSource = await this.hypersyncApp.createDataSource(accessToken);
-    } else {
-      const credentials = (userContext as IHyperproofUserContext).keys!;
-      const newCredentials = await this.hypersyncApp.refreshCredentials(
-        credentials
-      );
-      if (newCredentials) {
-        await this.saveUser(integrationContext, {
-          ...userContext,
-          keys: credentials
-        } as IHyperproofUserContext);
-      }
-      dataSource = await this.hypersyncApp.createDataSource(
-        newCredentials ?? credentials
-      );
-    }
+    Logger.info(`Retrieving access token to create data source`);
+    const dataSourceAccessToken = await this.getDataSourceAccessToken(integrationContext, userContext);
+
+    const dataSource = await this.hypersyncApp.createDataSource(dataSourceAccessToken, userContext.variant);
 
     // Add organization customizations if there are any.
     if (dataSource instanceof RestDataSourceBase) {
       let result: ListStorageResult;
-      result = await integrationContext.storage.list(
-        this.createOrgStorageKey(orgId, 'datasource/datasets')
-      );
+      result = await integrationContext.storage.list(this.createOrgStorageKey(orgId, 'datasource/datasets'));
       for (const item of result.items) {
-        const { orgStorageKey: dataSetKey, itemName: dataSetName } =
-          this.parseOrgStorageKey(item.storageId);
+        const { orgStorageKey: dataSetKey, itemName: dataSetName } = this.parseOrgStorageKey(item.storageId);
         const { data } = await integrationContext.storage.get(dataSetKey);
         dataSource.addDataSet(dataSetName, data);
       }
 
-      result = await integrationContext.storage.list(
-        this.createOrgStorageKey(orgId, 'datasource/valuelookups')
-      );
+      result = await integrationContext.storage.list(this.createOrgStorageKey(orgId, 'datasource/valuelookups'));
       for (const item of result.items) {
-        const { orgStorageKey: valueLookupKey, itemName: valueLookupName } =
-          this.parseOrgStorageKey(item.storageId);
+        const { orgStorageKey: valueLookupKey, itemName: valueLookupName } = this.parseOrgStorageKey(item.storageId);
         const { data } = await integrationContext.storage.get(valueLookupKey);
         dataSource.addValueLookup(valueLookupName, data);
       }
@@ -973,76 +883,35 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     return dataSource;
   }
 
-  private async getDataSourceConfig(
-    integrationContext: IntegrationContext,
-    orgId: string,
-    vendorUserId: string
-  ) {
-    const dataSource = await this.createDataSource(
-      integrationContext,
-      orgId,
-      vendorUserId
-    );
+  private async getDataSourceConfig(integrationContext: IntegrationContext, orgId: string, vendorUserId: string) {
+    const dataSource = await this.createDataSource(integrationContext, orgId, vendorUserId);
     if (!isRestDataSourceBase(dataSource)) {
-      throw createHttpError(
-        StatusCodes.BAD_REQUEST,
-        'Hypersync does not support customization.'
-      );
+      throw createHttpError(StatusCodes.BAD_REQUEST, 'Hypersync does not support customization.');
     }
     return dataSource.getConfig();
   }
 
-  private async getCriteriaConfig(
-    integrationContext: IntegrationContext,
-    orgId: string,
-    vendorUserId: string
-  ) {
-    const dataSource = await this.createDataSource(
-      integrationContext,
-      orgId,
-      vendorUserId
-    );
-    const criteriaProvider = await this.createCriteriaProvider(
-      integrationContext,
-      orgId,
-      dataSource
-    );
+  private async getCriteriaConfig(integrationContext: IntegrationContext, orgId: string, vendorUserId: string) {
+    const dataSource = await this.createDataSource(integrationContext, orgId, vendorUserId);
+    const criteriaProvider = await this.createCriteriaProvider(integrationContext, orgId, dataSource);
     if (!(criteriaProvider instanceof JsonCriteriaProvider)) {
-      throw createHttpError(
-        StatusCodes.BAD_REQUEST,
-        'Hypersync does not support customization.'
-      );
+      throw createHttpError(StatusCodes.BAD_REQUEST, 'Hypersync does not support customization.');
     }
     return criteriaProvider.getConfig();
   }
 
-  private async getProofTypesConfig(
-    integrationContext: IntegrationContext,
-    orgId: string
-  ) {
+  private async getProofTypesConfig(integrationContext: IntegrationContext, orgId: string) {
     const messages = await this.createMessageMap(integrationContext, orgId);
-    const proofProviderFactory = await this.createProofProviderFactory(
-      integrationContext,
-      orgId,
-      messages
-    );
+    const proofProviderFactory = await this.createProofProviderFactory(integrationContext, orgId, messages);
     return proofProviderFactory.getConfig();
   }
 
-  private async createCriteriaProvider(
-    integrationContext: IntegrationContext,
-    orgId: string,
-    dataSource: IDataSource
-  ) {
-    await Logger.info('Creating criteria provider.');
-    const criteriaProvider = await this.hypersyncApp.createCriteriaProvider(
-      dataSource
-    );
+  private async createCriteriaProvider(integrationContext: IntegrationContext, orgId: string, dataSource: IDataSource) {
+    Logger.info('Creating criteria provider.');
+    const criteriaProvider = await this.hypersyncApp.createCriteriaProvider(dataSource);
     // Add organization customizations if there are any.
     if (criteriaProvider instanceof JsonCriteriaProvider) {
-      const { items } = await integrationContext.storage.list(
-        this.createOrgStorageKey(orgId, 'criteriafields')
-      );
+      const { items } = await integrationContext.storage.list(this.createOrgStorageKey(orgId, 'criteriafields'));
       for (const item of items) {
         const criteriaFieldKey = item.storageId.split('/root/')[1];
         const criteriaFieldName = criteriaFieldKey.split('/')[3];
@@ -1061,14 +930,11 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     orgId: string,
     messages: StringMap
   ) {
-    await Logger.info('Creating proof provider factory.');
+    Logger.info('Creating proof provider factory.');
     const factory = await this.hypersyncApp.getProofProviderFactory(messages);
 
     // Load the list of custom org proof types out of storage.
-    const customProofTypeMap = await this.getOrgProofTypes(
-      integrationContext,
-      orgId
-    );
+    const customProofTypeMap = await this.getOrgProofTypes(integrationContext, orgId);
 
     // Add each of the org proof types to the factory.
     for (const [proofType, config] of Object.entries(customProofTypeMap)) {
@@ -1078,11 +944,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     return factory;
   }
 
-  private createOrgStorageKey(
-    orgId: string,
-    subPath: string,
-    itemName?: string
-  ) {
+  private createOrgStorageKey(orgId: string, subPath: string, itemName?: string) {
     let key = `organizations/${orgId}/${subPath}`;
     if (itemName) {
       key = `${key}/${encodeURIComponent(itemName)}`;
@@ -1109,14 +971,10 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     subPath: string,
     itemName: string
   ) {
-    const result = await integrationContext.storage.list(
-      this.createOrgStorageKey(orgId, subPath)
-    );
+    const result = await integrationContext.storage.list(this.createOrgStorageKey(orgId, subPath));
 
     for (const item of result.items) {
-      const { itemName: storedItemName } = this.parseOrgStorageKey(
-        item.storageId
-      );
+      const { itemName: storedItemName } = this.parseOrgStorageKey(item.storageId);
       if (storedItemName === itemName) {
         return true;
       }
@@ -1134,10 +992,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   ) {
     // Make sure the data set name does not conflict with a built-in data set.
     if (this.isBuiltInObject(dataSetName)) {
-      throw createHttpError(
-        StatusCodes.BAD_REQUEST,
-        `Invalid data set name: ${dataSetName}`
-      );
+      throw createHttpError(StatusCodes.BAD_REQUEST, `Invalid data set name: ${dataSetName}`);
     }
 
     // Save the data set to org storage.
@@ -1149,24 +1004,14 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     // If the object is being renamed, the old name should be passed in
     // as a query string param so that we can clean it up.
     if (oldDataSetName) {
-      await integrationContext.storage.delete(
-        this.createOrgStorageKey(orgId, 'datasource/datasets', oldDataSetName)
-      );
+      await integrationContext.storage.delete(this.createOrgStorageKey(orgId, 'datasource/datasets', oldDataSetName));
     }
 
     return { dataSetName, dataSet };
   }
 
-  private async deleteDataSet(
-    integrationContext: IntegrationContext,
-    orgId: string,
-    dataSetName: string
-  ) {
-    const key = this.createOrgStorageKey(
-      orgId,
-      'datasource/datasets',
-      dataSetName
-    );
+  private async deleteDataSet(integrationContext: IntegrationContext, orgId: string, dataSetName: string) {
+    const key = this.createOrgStorageKey(orgId, 'datasource/datasets', dataSetName);
 
     const { data: dataSet } = await integrationContext.storage.get(key);
     await integrationContext.storage.delete(key);
@@ -1180,17 +1025,10 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     dataSet: IDataSet,
     params: DataValueMap
   ) {
-    const dataSource = await this.createDataSource(
-      integrationContext,
-      orgId,
-      vendorUserId
-    );
+    const dataSource = await this.createDataSource(integrationContext, orgId, vendorUserId);
 
     if (!(dataSource instanceof RestDataSourceBase)) {
-      throw createHttpError(
-        StatusCodes.BAD_REQUEST,
-        'Hypersync does not support data set testing.'
-      );
+      throw createHttpError(StatusCodes.BAD_REQUEST, 'Hypersync does not support data set testing.');
     }
 
     const dataSetName = '__test__';
@@ -1198,10 +1036,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     const results = await dataSource.getData(dataSetName, params);
 
     if (results.status !== DataSetResultStatus.Complete) {
-      throw createHttpError(
-        StatusCodes.BAD_REQUEST,
-        'Dataset did not complete.'
-      );
+      throw createHttpError(StatusCodes.BAD_REQUEST, 'Dataset did not complete.');
     }
 
     return results.data;
@@ -1216,47 +1051,28 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   ) {
     // Make sure the value lookup name does not conflict with a built-in value lookup.
     if (this.isBuiltInObject(valueLookupName)) {
-      throw createHttpError(
-        StatusCodes.BAD_REQUEST,
-        `Invalid value lookup name: ${valueLookupName}`
-      );
+      throw createHttpError(StatusCodes.BAD_REQUEST, `Invalid value lookup name: ${valueLookupName}`);
     }
 
     // Save the value lookup to org storage.
     await integrationContext.storage.put(
       { data: valueLookup },
-      this.createOrgStorageKey(
-        orgId,
-        'datasource/valuelookups',
-        valueLookupName
-      )
+      this.createOrgStorageKey(orgId, 'datasource/valuelookups', valueLookupName)
     );
 
     // If the object is being renamed, the old name should be passed in
     // as a query string param so that we can clean it up.
     if (oldMessageLookupName) {
       await integrationContext.storage.delete(
-        this.createOrgStorageKey(
-          orgId,
-          'datasource/valuelookups',
-          oldMessageLookupName
-        )
+        this.createOrgStorageKey(orgId, 'datasource/valuelookups', oldMessageLookupName)
       );
     }
 
     return { valueLookupName, valueLookup };
   }
 
-  private async deleteValueLookup(
-    integrationContext: IntegrationContext,
-    orgId: string,
-    messageLookupName: string
-  ) {
-    const key = this.createOrgStorageKey(
-      orgId,
-      'datasource/valuelookups',
-      messageLookupName
-    );
+  private async deleteValueLookup(integrationContext: IntegrationContext, orgId: string, messageLookupName: string) {
+    const key = this.createOrgStorageKey(orgId, 'datasource/valuelookups', messageLookupName);
 
     const { data: valueLookup } = await integrationContext.storage.get(key);
     await integrationContext.storage.delete(key);
@@ -1272,10 +1088,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     oldCriteriaFieldName?: string
   ) {
     if (this.isBuiltInObject(criteriaFieldName)) {
-      throw createHttpError(
-        StatusCodes.BAD_REQUEST,
-        `Invalid criteria field name: ${criteriaField}`
-      );
+      throw createHttpError(StatusCodes.BAD_REQUEST, `Invalid criteria field name: ${criteriaField}`);
     }
 
     // Save the criteria field to org storage.
@@ -1287,41 +1100,23 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     // If the object is being renamed, the old name should be passed in
     // as a query string param so that we can clean it up.
     if (oldCriteriaFieldName) {
-      await integrationContext.storage.delete(
-        this.createOrgStorageKey(orgId, 'criteriafields', oldCriteriaFieldName)
-      );
+      await integrationContext.storage.delete(this.createOrgStorageKey(orgId, 'criteriafields', oldCriteriaFieldName));
     }
 
     return { criteriaFieldName, criteriaField };
   }
 
-  private async deleteCriteriaField(
-    integrationContext: IntegrationContext,
-    orgId: string,
-    criteriaFieldName: string
-  ) {
-    const key = this.createOrgStorageKey(
-      orgId,
-      'criteriafields',
-      criteriaFieldName
-    );
+  private async deleteCriteriaField(integrationContext: IntegrationContext, orgId: string, criteriaFieldName: string) {
+    const key = this.createOrgStorageKey(orgId, 'criteriafields', criteriaFieldName);
 
     const { data: criteriaField } = await integrationContext.storage.get(key);
     await integrationContext.storage.delete(key);
     return { criteriaFieldName, criteriaField };
   }
 
-  private async getProofTypeDefinition(
-    integrationContext: IntegrationContext,
-    orgId: string,
-    proofType: string
-  ) {
+  private async getProofTypeDefinition(integrationContext: IntegrationContext, orgId: string, proofType: string) {
     const messages = await this.createMessageMap(integrationContext, orgId);
-    const proofProviderFactory = await this.createProofProviderFactory(
-      integrationContext,
-      orgId,
-      messages
-    );
+    const proofProviderFactory = await this.createProofProviderFactory(integrationContext, orgId, messages);
     return proofProviderFactory.getProofTypeDefinition(proofType);
   }
 
@@ -1336,10 +1131,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   ) {
     // Make sure the data set name does not conflict with a built-in data set.
     if (this.isBuiltInObject(proofType)) {
-      throw createHttpError(
-        StatusCodes.BAD_REQUEST,
-        `Invalid proof type name: ${proofType}`
-      );
+      throw createHttpError(StatusCodes.BAD_REQUEST, `Invalid proof type name: ${proofType}`);
     }
 
     const customProofType: ICustomProofType = {
@@ -1357,9 +1149,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     // Is the proof type is being renamed?
     if (oldProofType) {
       // Delete the old proofs definition.
-      await integrationContext.storage.delete(
-        this.createOrgStorageKey(orgId, 'proof', oldProofType)
-      );
+      await integrationContext.storage.delete(this.createOrgStorageKey(orgId, 'proof', oldProofType));
     }
 
     return {
@@ -1367,28 +1157,16 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
     };
   }
 
-  private async deleteProofType(
-    integrationContext: IntegrationContext,
-    orgId: string,
-    proofType: string
-  ) {
-    const customProofTypeMap = await this.getOrgProofTypes(
-      integrationContext,
-      orgId
-    );
+  private async deleteProofType(integrationContext: IntegrationContext, orgId: string, proofType: string) {
+    const customProofTypeMap = await this.getOrgProofTypes(integrationContext, orgId);
 
     const proofTypeConfig = customProofTypeMap[proofType];
     if (!proofTypeConfig) {
-      throw createHttpError(
-        StatusCodes.NOT_FOUND,
-        `Proof type ${proofType} not found.`
-      );
+      throw createHttpError(StatusCodes.NOT_FOUND, `Proof type ${proofType} not found.`);
     }
 
     // Delete the custom proof type from org storage.
-    await integrationContext.storage.delete(
-      this.createOrgStorageKey(orgId, 'proof', proofType)
-    );
+    await integrationContext.storage.delete(this.createOrgStorageKey(orgId, 'proof', proofType));
 
     return {
       [proofType]: { ...proofTypeConfig, isJson: true }
@@ -1398,19 +1176,14 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   /**
    * Loads the list of org proof types out of storage.
    */
-  private async getOrgProofTypes(
-    integrationContext: IntegrationContext,
-    orgId: string
-  ) {
+  private async getOrgProofTypes(integrationContext: IntegrationContext, orgId: string) {
     const customProofTypes: CustomProofTypeMap = {};
 
     // Look for all custom proof types for the given org and add them to customProofTypes.
     const proofTypesKey = this.createOrgStorageKey(orgId, 'proof');
     const storageKeys = await integrationContext.storage.list(proofTypesKey);
     for (const storageKey of storageKeys.items) {
-      const customProofTypeEntry = await integrationContext.storage.get(
-        storageKey.storageId.split('root/')[1]
-      );
+      const customProofTypeEntry = await integrationContext.storage.get(storageKey.storageId.split('root/')[1]);
 
       const proofType = storageKey.storageId.split('/').at(-1);
       customProofTypes[proofType!] = customProofTypeEntry.data;
@@ -1428,40 +1201,25 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   ) {
     // Make sure the name does not conflict with a built-in message.
     if (this.isBuiltInObject(messageName)) {
-      throw createHttpError(
-        StatusCodes.BAD_REQUEST,
-        `Invalid message field name: ${messageName}`
-      );
+      throw createHttpError(StatusCodes.BAD_REQUEST, `Invalid message field name: ${messageName}`);
     }
 
     // Save the message to org storage.
-    await integrationContext.storage.put(
-      { data: message },
-      this.createOrgStorageKey(orgId, 'messages', messageName)
-    );
+    await integrationContext.storage.put({ data: message }, this.createOrgStorageKey(orgId, 'messages', messageName));
 
     // If the object is being renamed, the old name should be passed in
     // as a query string param so that we can clean it up.
     if (oldMessageName) {
-      await integrationContext.storage.delete(
-        this.createOrgStorageKey(orgId, 'messages', oldMessageName)
-      );
+      await integrationContext.storage.delete(this.createOrgStorageKey(orgId, 'messages', oldMessageName));
     }
 
     return { messageName, message };
   }
 
-  private async deleteMessage(
-    integrationContext: IntegrationContext,
-    orgId: string,
-    messageName: string
-  ) {
+  private async deleteMessage(integrationContext: IntegrationContext, orgId: string, messageName: string) {
     // It is not possible to delete a built-in message.
     if (this.isBuiltInObject(messageName)) {
-      throw createHttpError(
-        StatusCodes.BAD_REQUEST,
-        `Invalid message field name: ${messageName}`
-      );
+      throw createHttpError(StatusCodes.BAD_REQUEST, `Invalid message field name: ${messageName}`);
     }
 
     const key = this.createOrgStorageKey(orgId, 'messages', messageName);
@@ -1471,7 +1229,7 @@ export class HypersyncAppConnector extends createHypersync(OAuthConnector) {
   }
 
   /**
-   * Retruns true if the provided name references a built-in object
+   * Returns true if the provided name references a built-in object
    * in a Hypersync app that supports the Hypersync Designer.
    */
   private isBuiltInObject(objectName: string) {
@@ -1489,11 +1247,7 @@ export class HypersyncApp<TUserProfile = object> {
 
   constructor(config: IHypersyncAppConfig) {
     this.appRootDir = config.appRootDir;
-    this.connector = new HypersyncAppConnector(
-      config.connectorName,
-      this,
-      config.credentialsMetadata
-    );
+    this.connector = new HypersyncAppConnector(config.connectorName, this, config.credentialsMetadata);
     this.messages = config.messages;
   }
 
@@ -1531,12 +1285,8 @@ export class HypersyncApp<TUserProfile = object> {
    * @param {string} state The value of the OAuth state parameter.
    * @param {string} redirectUri The callback URL to redirect to after the authorization flow.
    */
-  public async getAuthorizationUrl(
-    configuration: StringMap,
-    state: string,
-    redirectUri: string
-  ) {
-    await Logger.debug('Retrieving OAuth authorization URL.');
+  public async getAuthorizationUrl(configuration: StringMap, state: string, redirectUri: string) {
+    Logger.debug('Retrieving OAuth authorization URL.');
     return [
       configuration.oauth_authorization_url,
       `?response_type=code`,
@@ -1544,12 +1294,8 @@ export class HypersyncApp<TUserProfile = object> {
       `&state=${state}`,
       `&client_id=${configuration.oauth_client_id}`,
       `&redirect_uri=${encodeURIComponent(redirectUri)}`,
-      configuration.oauth_audience
-        ? `&audience=${encodeURIComponent(configuration.oauth_audience)}`
-        : undefined,
-      configuration.oauth_extra_params
-        ? `&${configuration.oauth_extra_params}`
-        : undefined
+      configuration.oauth_audience ? `&audience=${encodeURIComponent(configuration.oauth_audience)}` : undefined,
+      configuration.oauth_extra_params ? `&${configuration.oauth_extra_params}` : undefined
     ].join('');
   }
 
@@ -1565,7 +1311,7 @@ export class HypersyncApp<TUserProfile = object> {
     authorizationCode: string,
     redirectUri: string
   ): Promise<OAuthTokenResponse> {
-    await Logger.debug('Retrieving OAuth access token.');
+    Logger.debug('Retrieving OAuth access token.');
     const response = await Superagent.post(configuration.oauth_token_url)
       .agent(getAgent(configuration.oauth_token_url))
       .type('form')
@@ -1592,7 +1338,7 @@ export class HypersyncApp<TUserProfile = object> {
     tokenContext: OAuthTokenResponse,
     redirectUri: string
   ): Promise<OAuthTokenResponse> {
-    await Logger.debug('Refreshing OAuth access token.');
+    Logger.debug('Refreshing OAuth access token.');
     const currentRefreshToken = tokenContext.refresh_token;
     const response = await Superagent.post(configuration.oauth_token_url)
       .agent(getAgent(configuration.oauth_token_url))
@@ -1610,12 +1356,50 @@ export class HypersyncApp<TUserProfile = object> {
     return response.body;
   }
 
+  public async applyAdditionalAuthorizationConfig(
+    config: IAuthorizationConfigBase,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    meta: ParsedQs,
+    userContext?: UserContext,
+    configuration?: StringMap
+  ): Promise<void> {
+    const variants = this.getVariants(configuration);
+    if (variants.length > 1) {
+      const narrowed = userContext?.variant ? variants.filter(v => v.id === userContext.variant) : variants;
+      config.oauthVariants = narrowed.length ? narrowed : variants;
+    }
+  }
+
+  /**
+   * Resolves the variant to use for a request. Base implementation is an identity passthrough;
+   * connectors that support variants (e.g. commercial/gov) override this to supply a default
+   * when variant is undefined (for backward compatibility with pre-existing connections) and/or
+   * to validate the value.
+   * @param {string} variant The variant identifier supplied by the caller, if any.
+   */
+  resolveVariant(variant?: string): string | undefined {
+    return variant;
+  }
+
+  /**
+   * Returns the list of OAuth variants this connector supports (e.g. commercial/gov), with
+   * user-facing title/description. Base implementation returns an empty list; connectors that
+   * support variants override this to enable the variant picker and reconnect-narrowing behavior
+   * in applyAdditionalAuthorizationConfig. The configuration is provided so overrides can hide a
+   * variant whose environment configuration isn't set up yet (e.g. a placeholder client id).
+   * @param {StringMap} configuration Configuration values from the environment, if available.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  protected getVariants(configuration?: StringMap): IOAuthVariant[] {
+    return [];
+  }
+
   /**
    * Validates the credentials provided by the user in a custom auth application.
    *
    * Returns a user profile object for the user in the external system.
    *
-   * @param {CustomAuthCredentails} credentials Login credentials provided by the user.
+   * @param {CustomAuthCredentials} credentials Login credentials provided by the user.
    * @param {StringMap} configuration App configuration values.
    * @param {string} hyperproofUserId ID of the Hyperproof user creating the connection.
    */
@@ -1627,11 +1411,15 @@ export class HypersyncApp<TUserProfile = object> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     hyperproofUserId: string
   ): Promise<IValidatedUser<TUserProfile>> {
-    throw new Error(
-      'Custom auth Hypersync apps must implement validateCredentials.'
-    );
+    throw new Error('Custom auth Hypersync apps must implement validateCredentials.');
   }
 
+  /**
+   * Validates the OAuth access token for the connection.
+   *
+   * Connector implementations should make an API call to the external service that validates
+   * a connection is working and valid, beyond the "ensureAccessToken" token refresh.
+   */
   public async validateAccessToken(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     integrationContext: IntegrationContext,
@@ -1642,7 +1430,7 @@ export class HypersyncApp<TUserProfile = object> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     body?: ICheckConnectionHealthInvocationPayload
   ): Promise<void> {
-    throw createHttpError(StatusCodes.NOT_IMPLEMENTED, 'Not Implemented');
+    // No-op by default
   }
 
   /**
@@ -1655,7 +1443,7 @@ export class HypersyncApp<TUserProfile = object> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     credentials: CustomAuthCredentials
   ): Promise<CustomAuthCredentials | undefined> {
-    await Logger.debug('Refreshing custom authentication credentials.');
+    Logger.debug('Refreshing custom authentication credentials.');
     return undefined;
   }
 
@@ -1723,20 +1511,21 @@ export class HypersyncApp<TUserProfile = object> {
    * Creates a data source that can be used to retrieve data.
    *
    * @param tokenOrCreds For OAuth apps, an OAuth access token.  For custom auth apps, an object containing user credentials.
+   * @param variant Optional variant identifier (e.g., 'gov', 'commercial') for multi-cloud connectors.
    */
   public async createDataSource(
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    tokenOrCreds: string | CustomAuthCredentials
+    tokenOrCreds: string | CustomAuthCredentials,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    variant?: string
   ): Promise<IDataSource> {
     throw new Error('Please implement createDataSource in the derived class.');
   }
 
   /**
-   * Creates a critieria provider that can be used to generate criteria metadata.
+   * Creates a criteria provider that can be used to generate criteria metadata.
    */
-  public async createCriteriaProvider(
-    dataSource: IDataSource
-  ): Promise<ICriteriaProvider> {
+  public async createCriteriaProvider(dataSource: IDataSource): Promise<ICriteriaProvider> {
     return new JsonCriteriaProvider(this.appRootDir, dataSource);
   }
 
@@ -1744,7 +1533,7 @@ export class HypersyncApp<TUserProfile = object> {
    * Returns the metadata that is used to generate the user interface
    * that allows the user to specify proof criteria.
    *
-   * @param messages Messages assocaited with the app.
+   * @param messages Messages associated with the app.
    * @param dataSource IDataSource instance used to retrieve data.
    * @param criteriaProvider ICriteriaProvider instance used to generate criteria metadata.
    * @param proofProviderFactory Factory object that provides ProofProviderBase objects.
@@ -1762,16 +1551,13 @@ export class HypersyncApp<TUserProfile = object> {
     search?: string | ICriteriaSearchInput,
     schemaCategory?: SchemaCategory
   ): Promise<ICriteriaMetadata> {
-    await Logger.debug('Generating criteria metadata.');
+    Logger.debug('Generating criteria metadata.');
 
     // Is there a proof category field?  If so add it before the proof type.
-    const categoryField = await criteriaProvider.generateProofCategoryField(
+    const categoryField = await criteriaProvider.generateProofCategoryField(criteria, {
       criteria,
-      {
-        criteria,
-        messages
-      }
-    );
+      messages
+    });
     if (categoryField) {
       // Make sure we have a well formed proof category field.
       if (
@@ -1788,8 +1574,7 @@ export class HypersyncApp<TUserProfile = object> {
       // category dropdown.  We don't ship any "Other" proof types out
       // of the box so this is special case code to make custom proof
       // type development a little nicer.
-      const customProofTypeCategories =
-        proofProviderFactory.getCustomProofTypeCategories();
+      const customProofTypeCategories = proofProviderFactory.getCustomProofTypeCategories();
       if (customProofTypeCategories.has('other')) {
         categoryField.options!.push({
           value: 'other',
@@ -1809,11 +1594,7 @@ export class HypersyncApp<TUserProfile = object> {
     // If the previously selected proof type is not found in the set of
     // proof types for the default criteria, then we clear out the proof type
     // value because it seems the user is going a different direction.
-    if (
-      criteria.proofType &&
-      proofTypes &&
-      !proofTypes.find(t => t.value === criteria.proofType)
-    ) {
+    if (criteria.proofType && proofTypes && !proofTypes.find(t => t.value === criteria.proofType)) {
       delete criteria.proofType;
     }
 
@@ -1848,11 +1629,7 @@ export class HypersyncApp<TUserProfile = object> {
 
     // Create a proof provider for the type and let it provide any remaining
     // criteria fields.
-    const provider = proofProviderFactory.createProofProvider(
-      criteria.proofType!,
-      dataSource,
-      criteriaProvider
-    );
+    const provider = proofProviderFactory.createProofProvider(criteria.proofType!, dataSource, criteriaProvider);
 
     return provider.generateCriteriaMetadata(criteria, pages, search);
   }
@@ -1872,14 +1649,8 @@ export class HypersyncApp<TUserProfile = object> {
     proofProviderFactory: ProofProviderFactory,
     criteria: HypersyncCriteria
   ): Promise<IHypersyncSchema> {
-    await Logger.debug(
-      `Generating schema for proof type '${criteria.proofType}'.`
-    );
-    const provider = proofProviderFactory.createProofProvider(
-      criteria.proofType!,
-      dataSource,
-      criteriaProvider
-    );
+    Logger.debug(`Generating schema for proof type '${criteria.proofType}'.`);
+    const provider = proofProviderFactory.createProofProvider(criteria.proofType!, dataSource, criteriaProvider);
     return provider.generateSchema(criteria);
   }
 
@@ -1901,11 +1672,7 @@ export class HypersyncApp<TUserProfile = object> {
     metadata?: SyncMetadata,
     retryCount?: number
   ): Promise<IHypersyncSyncPlanResponse> {
-    const provider = proofProviderFactory.createProofProvider(
-      criteria.proofType!,
-      dataSource,
-      criteriaProvider
-    );
+    const provider = proofProviderFactory.createProofProvider(criteria.proofType!, dataSource, criteriaProvider);
     return provider.generateSyncPlan(criteria, metadata, retryCount);
   }
 
@@ -1935,15 +1702,13 @@ export class HypersyncApp<TUserProfile = object> {
     retryCount?: number,
     iterableSlice?: IterableObject[]
   ): Promise<IProofFile[] | IGetProofDataResponse> {
-    await Logger.debug(
-      `Retrieving data for proof type '${hypersync.settings.criteria.proofType}'.`
-    );
+    Logger.debug(`Retrieving data for proof type '${hypersync.settings.criteria.proofType}'.`);
     const provider = proofProviderFactory.createProofProvider(
       hypersync.settings.criteria.proofType!,
       dataSource,
       criteriaProvider
     );
-    return provider.getProofData(
+    const result = await provider.getProofData(
       hypersync,
       organization,
       this.getUserAccountName(userProfile),
@@ -1953,6 +1718,16 @@ export class HypersyncApp<TUserProfile = object> {
       retryCount,
       iterableSlice
     );
+    // Central layout pass: every provider (declarative or programmatic) gets
+    // computed widths / orientation / zoom here, so connectors that never call
+    // calcLayoutInfo themselves still produce a sized, correctly-oriented proof.
+    const proofFiles = Array.isArray(result) ? result : result?.data ?? [];
+    for (const file of proofFiles) {
+      if (file?.contents) {
+        applyProofLayout(file.contents);
+      }
+    }
+    return result;
   }
 
   public async getRelatedTokenPath(
@@ -1966,9 +1741,42 @@ export class HypersyncApp<TUserProfile = object> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     user: TUserProfile,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    accessToken: string
+    credentials?: string | CustomAuthCredentials
   ): Promise<void> {
     // Does nothing by default
+  }
+
+  /**
+   * Override this method in specific connectors to filter or modify proof fields
+   * @param fields The original fields from the proof specification
+   * @param proofType The proof type being generated
+   * @param criteriaValues The criteria values for context
+   * @returns Filtered/modified fields array
+   */
+  public filterProofFields(
+    fields: IHypersyncField[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    proofType: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    criteriaValues: HypersyncCriteria
+  ): IHypersyncField[] {
+    // Default implementation returns all fields unchanged
+    return fields;
+  }
+
+  /**
+   * Override this method in specific connectors to filter or modify proof criteria.
+   * @param criteria The original criteria from the proof specification
+   * @param proofType The proof type being generated
+   * @returns Filtered/modified criteria array
+   */
+  public filterProofCriteria(
+    criteria: IProofCriterionRef[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    proofType: string
+  ): IProofCriterionRef[] {
+    // Default implementation returns all criteria unchanged
+    return criteria;
   }
 
   /**
@@ -1976,22 +1784,46 @@ export class HypersyncApp<TUserProfile = object> {
    *
    * @param messages Messages associated with the app.
    */
-  public async getProofProviderFactory(
-    messages: StringMap
-  ): Promise<ProofProviderFactory> {
+  public async getProofProviderFactory(messages: StringMap): Promise<ProofProviderFactory> {
     const providersPath = path.resolve(this.appRootDir, 'proof-providers');
     let providers: (typeof ProofProviderBase)[] = [];
     if (fs.existsSync(providersPath)) {
-      const exportedProviders = await import(
-        path.resolve(this.appRootDir, 'proof-providers')
-      );
+      const exportedProviders = await import(path.resolve(this.appRootDir, 'proof-providers'));
       providers = Object.values(exportedProviders);
     }
     return new ProofProviderFactory(
       this.connector.connectorName,
       this.appRootDir,
       messages,
-      providers
+      providers,
+      (fields, proofType, criteriaValues) => this.filterProofFields(fields, proofType, criteriaValues),
+      this.connector.integrationType,
+      (criteria, proofType) => this.filterProofCriteria(criteria, proofType)
     );
+  }
+
+  /**
+   * Returns proof category IDs mapped to their resolved display names.
+   * Built from the hp_proofCategory (or proofCategory) criteria field's fixedValues.
+   * Returns an empty object for connectors that don't use proof categories.
+   */
+  public getProofCategoryLabels(messages: StringMap): Record<string, string> {
+    const labels: Record<string, string> = {};
+    const configFile = path.resolve(this.appRootDir, 'json/criteriaFields.json');
+    if (!fs.existsSync(configFile)) {
+      return labels;
+    }
+
+    const criteriaFields = JSON.parse(fs.readFileSync(configFile, 'utf8'));
+    const categoryConfig = criteriaFields['hp_proofCategory'] || criteriaFields['proofCategory'];
+    if (!categoryConfig?.fixedValues) {
+      return labels;
+    }
+
+    for (const option of categoryConfig.fixedValues) {
+      labels[String(option.value)] = resolveTokens(String(option.label), { messages });
+    }
+
+    return labels;
   }
 }

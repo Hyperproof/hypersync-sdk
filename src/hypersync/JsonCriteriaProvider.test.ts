@@ -1,8 +1,12 @@
+import { ICriteriaPage } from './ICriteriaProvider';
 import { DataSetResultStatus, IDataSource } from './IDataSource';
 import { JsonCriteriaProvider } from './JsonCriteriaProvider';
 
 import {
   HypersyncCriteriaFieldType,
+  ICriteriaFieldConfig,
+  IProofCriterionRef,
+  ISelectOption,
   ValidationTypes
 } from '@hyperproof/hypersync-models';
 import { Logger } from '@hyperproof/integration-sdk';
@@ -143,9 +147,9 @@ describe('JsonCriteriaProvider', () => {
         };
 
         // Act
-        expect(() =>
-          provider.addCriteriaField(initialFieldName, newFieldValue)
-        ).toThrow('A criteria field with that name already exists.');
+        expect(() => provider.addCriteriaField(initialFieldName, newFieldValue)).toThrow(
+          'A criteria field with that name already exists.'
+        );
 
         // Assert
         const config = provider.getConfig();
@@ -173,9 +177,7 @@ describe('JsonCriteriaProvider', () => {
           type: initialField.type,
           label: initialField.label
         };
-        provider['buildCriteriaField'] = jest
-          .fn()
-          .mockResolvedValue(criteraFieldReturn);
+        provider['buildCriteriaField'] = jest.fn().mockResolvedValue(criteraFieldReturn);
 
         const expectedField = {
           name: criteraFieldReturn.name,
@@ -184,10 +186,7 @@ describe('JsonCriteriaProvider', () => {
         };
 
         // Act
-        const field = await provider.generateProofCategoryField(
-          criteriaValues,
-          tokenContext
-        );
+        const field = await provider.generateProofCategoryField(criteriaValues, tokenContext);
 
         expect(field).not.toBeNull();
         expect(field).toEqual(expectedField);
@@ -210,9 +209,7 @@ describe('JsonCriteriaProvider', () => {
           type: initialField.type,
           label: initialField.label
         };
-        provider['buildCriteriaField'] = jest
-          .fn()
-          .mockResolvedValue(criteraFieldReturn);
+        provider['buildCriteriaField'] = jest.fn().mockResolvedValue(criteraFieldReturn);
 
         const expectedField = {
           name: initialField.property,
@@ -221,10 +218,7 @@ describe('JsonCriteriaProvider', () => {
         };
 
         // Act
-        const field = await provider.generateProofCategoryField(
-          criteriaValues,
-          tokenContext
-        );
+        const field = await provider.generateProofCategoryField(criteriaValues, tokenContext);
 
         expect(field).not.toBeNull();
         expect(field).toEqual(expectedField);
@@ -236,10 +230,7 @@ describe('JsonCriteriaProvider', () => {
         const tokenContext = {};
 
         // Act
-        const field = await provider.generateProofCategoryField(
-          criteriaValues,
-          tokenContext
-        );
+        const field = await provider.generateProofCategoryField(criteriaValues, tokenContext);
 
         // Assert
         expect(field).toBeNull();
@@ -249,10 +240,10 @@ describe('JsonCriteriaProvider', () => {
     describe('generateCriteriaFields', () => {
       test('returns valid last page when no proofCriteria is passed in', async () => {
         // Arrange
-        const proofCriteria = [];
+        const proofCriteria: IProofCriterionRef[] = [];
         const criteriaValues = {};
         const tokenContext = {};
-        const pages = [
+        const pages: ICriteriaPage[] = [
           {
             fields: [],
             isValid: false
@@ -262,12 +253,7 @@ describe('JsonCriteriaProvider', () => {
         const pageFields = pages[0].fields;
 
         // Act
-        await provider.generateCriteriaFields(
-          proofCriteria,
-          criteriaValues,
-          tokenContext,
-          pages
-        );
+        await provider.generateCriteriaFields(proofCriteria, criteriaValues, tokenContext, pages);
 
         // Assert
         expect(pages.length).toBe(pagesLength);
@@ -278,7 +264,7 @@ describe('JsonCriteriaProvider', () => {
 
       test('throws error when proofCriteria is not in criteriaFields', async () => {
         // Arrange
-        const proofCriteria = [
+        const proofCriteria: IProofCriterionRef[] = [
           {
             name: 'criteriaName',
             page: 0
@@ -286,24 +272,17 @@ describe('JsonCriteriaProvider', () => {
         ];
         const criteriaValues = {};
         const tokenContext = {};
-        const pages = [];
+        const pages: ICriteriaPage[] = [];
         const pagesLength = pages.length;
 
         // Act
         // Due to async function throwing error, can't just use expect().toThrow()
         try {
-          await provider.generateCriteriaFields(
-            proofCriteria,
-            criteriaValues,
-            tokenContext,
-            pages
-          );
+          await provider.generateCriteriaFields(proofCriteria, criteriaValues, tokenContext, pages);
           // We shouldn't reach here
           expect(false).toBeTruthy();
-        } catch (error) {
-          expect(error.message).toBe(
-            `Unable to find criterion named ${proofCriteria[0].name}`
-          );
+        } catch (error: any) {
+          expect(error.message).toBe(`Unable to find criterion named ${proofCriteria[0].name}`);
         }
 
         // Assert
@@ -312,7 +291,7 @@ describe('JsonCriteriaProvider', () => {
 
       test('throws error if criteriaField is not appropriate type', async () => {
         // Arrange
-        const initialField = {
+        const initialField: ICriteriaFieldConfig = {
           type: HypersyncCriteriaFieldType.Radio,
           property: 'initialProperty',
           label: 'initialLabel',
@@ -325,7 +304,7 @@ describe('JsonCriteriaProvider', () => {
         fs.readFileSync = jest.fn().mockReturnValue(fileJson);
         const provider = new JsonCriteriaProvider(appRootDir, dataSource);
 
-        const proofCriteria = [
+        const proofCriteria: IProofCriterionRef[] = [
           {
             name: initialFieldName,
             page: 0
@@ -333,23 +312,16 @@ describe('JsonCriteriaProvider', () => {
         ];
         const criteriaValues = {};
         const tokenContext = {};
-        const pages = [];
+        const pages: ICriteriaPage[] = [];
         const pagesLength = pages.length;
 
         // Act
         // Due to async function throwing error, can't just use expect().toThrow()
         try {
-          await provider.generateCriteriaFields(
-            proofCriteria,
-            criteriaValues,
-            tokenContext,
-            pages
-          );
+          await provider.generateCriteriaFields(proofCriteria, criteriaValues, tokenContext, pages);
           expect(false).toBeTruthy();
-        } catch (error) {
-          expect(error.message).toBe(
-            `Unrecognized or unsupported criteria field type: ${initialField.type}`
-          );
+        } catch (error: any) {
+          expect(error.message).toBe(`Unrecognized or unsupported criteria field type: ${initialField.type}`);
         }
 
         // Assert
@@ -358,7 +330,7 @@ describe('JsonCriteriaProvider', () => {
 
       test('returns appropriate field values', async () => {
         // Arrange
-        const proofCriteria = [
+        const proofCriteria: IProofCriterionRef[] = [
           {
             name: initialFieldName,
             page: 0
@@ -366,7 +338,7 @@ describe('JsonCriteriaProvider', () => {
         ];
         const criteriaValues = {};
         const tokenContext = {};
-        const pages = [];
+        const pages: ICriteriaPage[] = [];
         const pagesLength = pages.length;
 
         const expectedCriteriaFieldReturn = {
@@ -376,9 +348,7 @@ describe('JsonCriteriaProvider', () => {
           isRequired: initialField.isRequired,
           options: []
         };
-        provider['buildCriteriaField'] = jest
-          .fn()
-          .mockResolvedValue(expectedCriteriaFieldReturn);
+        provider['buildCriteriaField'] = jest.fn().mockResolvedValue(expectedCriteriaFieldReturn);
 
         const expectedPages = [
           {
@@ -388,12 +358,7 @@ describe('JsonCriteriaProvider', () => {
         ];
 
         // Act
-        await provider.generateCriteriaFields(
-          proofCriteria,
-          criteriaValues,
-          tokenContext,
-          pages
-        );
+        await provider.generateCriteriaFields(proofCriteria, criteriaValues, tokenContext, pages);
 
         // Assert
         expect(pages.length).toBe(pagesLength + 1);
@@ -402,7 +367,7 @@ describe('JsonCriteriaProvider', () => {
 
       test('returns appropriate fields with empty fields if extra pages', async () => {
         // Arrange
-        const proofCriteria = [
+        const proofCriteria: IProofCriterionRef[] = [
           {
             name: initialFieldName,
             page: 1
@@ -410,7 +375,7 @@ describe('JsonCriteriaProvider', () => {
         ];
         const criteriaValues = {};
         const tokenContext = {};
-        const pages = [];
+        const pages: ICriteriaPage[] = [];
         const pagesLength = pages.length;
 
         const expectedCriteriaFieldReturn = {
@@ -420,9 +385,7 @@ describe('JsonCriteriaProvider', () => {
           isReadable: initialField.isRequired,
           options: []
         };
-        provider['buildCriteriaField'] = jest
-          .fn()
-          .mockResolvedValue(expectedCriteriaFieldReturn);
+        provider['buildCriteriaField'] = jest.fn().mockResolvedValue(expectedCriteriaFieldReturn);
 
         const expectedPages = [
           // Add blank page to cover missing page 0
@@ -434,12 +397,7 @@ describe('JsonCriteriaProvider', () => {
         ];
 
         // Act
-        await provider.generateCriteriaFields(
-          proofCriteria,
-          criteriaValues,
-          tokenContext,
-          pages
-        );
+        await provider.generateCriteriaFields(proofCriteria, criteriaValues, tokenContext, pages);
 
         // Assert
         expect(pages.length).toBe(pagesLength + 2);
@@ -450,16 +408,12 @@ describe('JsonCriteriaProvider', () => {
     describe('generateProofCriteria', () => {
       test('with no proofCriteria returns emptpy array', async () => {
         // Arrange
-        const proofCriteria = [];
+        const proofCriteria: IProofCriterionRef[] = [];
         const criteriaValues = {};
         const tokenContext = {};
 
         // Act
-        const criteria = await provider.generateProofCriteria(
-          proofCriteria,
-          criteriaValues,
-          tokenContext
-        );
+        const criteria = await provider.generateProofCriteria(proofCriteria, criteriaValues, tokenContext);
 
         // Assert
         expect(criteria).toBeDefined();
@@ -502,11 +456,7 @@ describe('JsonCriteriaProvider', () => {
         ];
 
         // Act
-        const criteria = await provider.generateProofCriteria(
-          proofCriteria,
-          criteriaValues,
-          tokenContext
-        );
+        const criteria = await provider.generateProofCriteria(proofCriteria, criteriaValues, tokenContext);
 
         // Assert
         expect(criteria).toBeDefined();
@@ -549,11 +499,7 @@ describe('JsonCriteriaProvider', () => {
         ];
 
         // Act
-        const criteria = await provider.generateProofCriteria(
-          proofCriteria,
-          criteriaValues,
-          tokenContext
-        );
+        const criteria = await provider.generateProofCriteria(proofCriteria, criteriaValues, tokenContext);
 
         // Assert
         expect(criteria).toBeDefined();
@@ -583,11 +529,7 @@ describe('JsonCriteriaProvider', () => {
         ];
 
         // Act
-        const criteria = await provider.generateProofCriteria(
-          proofCriteria,
-          criteriaValues,
-          tokenContext
-        );
+        const criteria = await provider.generateProofCriteria(proofCriteria, criteriaValues, tokenContext);
 
         // Assert
         expect(criteria).toBeDefined();
@@ -637,11 +579,7 @@ describe('JsonCriteriaProvider', () => {
         ];
 
         // Act
-        const criteria = await provider.generateProofCriteria(
-          proofCriteria,
-          criteriaValues,
-          tokenContext
-        );
+        const criteria = await provider.generateProofCriteria(proofCriteria, criteriaValues, tokenContext);
 
         // Assert
         expect(criteria).toBeDefined();
@@ -678,15 +616,11 @@ describe('JsonCriteriaProvider', () => {
           }
         ];
         const criteriaValues = {
-          [initialField.property]: [
-            dataSet.propertyValue,
-            otherSet.propertyValue
-          ]
+          [initialField.property]: [dataSet.propertyValue, otherSet.propertyValue]
         };
         const tokenContext = {};
 
-        const expectedValue =
-          dataSet.propertyLabel + ', ' + otherSet.propertyLabel;
+        const expectedValue = dataSet.propertyLabel + ', ' + otherSet.propertyLabel;
         const expectedCriteria = [
           {
             name: initialField.property,
@@ -696,11 +630,7 @@ describe('JsonCriteriaProvider', () => {
         ];
 
         // Act
-        const criteria = await provider.generateProofCriteria(
-          proofCriteria,
-          criteriaValues,
-          tokenContext
-        );
+        const criteria = await provider.generateProofCriteria(proofCriteria, criteriaValues, tokenContext);
 
         // Assert
         expect(criteria).toBeDefined();
@@ -728,9 +658,7 @@ describe('JsonCriteriaProvider', () => {
           value: 'optionValue',
           label: 'optionLabel'
         };
-        provider['getCriteriaFieldOptions'] = jest
-          .fn()
-          .mockResolvedValue([criteraFieldOptionReturn]);
+        provider['getCriteriaFieldOptions'] = jest.fn().mockResolvedValue([criteraFieldOptionReturn]);
 
         const expectedResponse = {
           name: fieldConfig.property,
@@ -773,9 +701,7 @@ describe('JsonCriteriaProvider', () => {
           value: 'optionValue',
           label: 'optionLabel'
         };
-        provider['getCriteriaFieldOptions'] = jest
-          .fn()
-          .mockResolvedValue([criteraFieldOptionReturn]);
+        provider['getCriteriaFieldOptions'] = jest.fn().mockResolvedValue([criteraFieldOptionReturn]);
 
         const expectedResponse = {
           name: fieldConfig.property,
@@ -827,9 +753,7 @@ describe('JsonCriteriaProvider', () => {
           value: 'optionValue',
           label: 'optionLabel'
         };
-        provider['getCriteriaFieldOptions'] = jest
-          .fn()
-          .mockResolvedValue([criteraFieldOptionReturn]);
+        provider['getCriteriaFieldOptions'] = jest.fn().mockResolvedValue([criteraFieldOptionReturn]);
 
         const expectedResponse = {
           name: fieldConfig.property,
@@ -894,16 +818,10 @@ describe('JsonCriteriaProvider', () => {
         // Due to async function throwing error, can't just use expect().toThrow()
         let criteriaFieldOptions;
         try {
-          criteriaFieldOptions = await provider['getCriteriaFieldOptions'](
-            fieldConfig,
-            criteriaValues,
-            tokenContext
-          );
+          criteriaFieldOptions = await provider['getCriteriaFieldOptions'](fieldConfig, criteriaValues, tokenContext);
           expect(false).toBeTruthy();
-        } catch (error) {
-          expect(error.message).toBe(
-            `Pending response received for critera field data set: ${dataSet}`
-          );
+        } catch (error: any) {
+          expect(error.message).toBe(`Pending response received for critera field data set: ${dataSet}`);
         }
 
         // Assert
@@ -942,16 +860,10 @@ describe('JsonCriteriaProvider', () => {
         // Due to async function throwing error, can't just use expect().toThrow()
         let criteriaFieldOptions;
         try {
-          criteriaFieldOptions = await provider['getCriteriaFieldOptions'](
-            fieldConfig,
-            criteriaValues,
-            tokenContext
-          );
+          criteriaFieldOptions = await provider['getCriteriaFieldOptions'](fieldConfig, criteriaValues, tokenContext);
           expect(false).toBeTruthy();
-        } catch (error) {
-          expect(error.message).toBe(
-            `Invalid criteria field data set: ${dataSet}`
-          );
+        } catch (error: any) {
+          expect(error.message).toBe(`Invalid criteria field data set: ${dataSet}`);
         }
 
         // Assert
@@ -976,7 +888,7 @@ describe('JsonCriteriaProvider', () => {
         const criteriaValues = {};
         const tokenContext = {};
 
-        const expectedResponse = [];
+        const expectedResponse: ISelectOption[] = [];
 
         // Act
         const criteriaFieldOptions = await provider['getCriteriaFieldOptions'](
@@ -1008,7 +920,7 @@ describe('JsonCriteriaProvider', () => {
         const criteriaValues = {};
         const tokenContext = {};
 
-        const expectedResponse = [];
+        const expectedResponse: ISelectOption[] = [];
 
         // Act
         const criteriaFieldOptions = await provider['getCriteriaFieldOptions'](
@@ -1040,7 +952,7 @@ describe('JsonCriteriaProvider', () => {
         const criteriaValues = {};
         const tokenContext = {};
 
-        const expectedResponse = [];
+        const expectedResponse: ISelectOption[] = [];
 
         // Act
         const criteriaFieldOptions = await provider['getCriteriaFieldOptions'](
@@ -1343,12 +1255,7 @@ describe('JsonCriteriaProvider', () => {
         });
 
         // Act
-        await provider['getCriteriaFieldOptions'](
-          fieldConfig,
-          criteriaValues,
-          tokenContext,
-          searchInput
-        );
+        await provider['getCriteriaFieldOptions'](fieldConfig, criteriaValues, tokenContext, searchInput);
 
         // Assert
         expect(mockGetData).toHaveBeenCalledWith(

@@ -1,23 +1,14 @@
 import { ID_ALL, ID_ANY, ID_NONE, ID_UNDEFINED, StringMap } from './common';
 import { HypersyncTemplate } from './enums';
 import { ICriteriaPage, ICriteriaProvider } from './ICriteriaProvider';
-import {
-  DataSetResultStatus,
-  IDataSource,
-  isRestDataSourceBase,
-  SyncMetadata
-} from './IDataSource';
+import { DataSetResultStatus, IDataSource, isRestDataSourceBase, SyncMetadata } from './IDataSource';
 import { calcLayoutInfo } from './layout';
 import { MESSAGES } from './messages';
 import { IHypersync } from './models';
-import {
-  IHypersyncProofField,
-  IProofFile,
-  ProofProviderBase
-} from './ProofProviderBase';
+import { IHypersyncProofField, IProofFile, ProofProviderBase } from './ProofProviderBase';
 import { IterableObject } from './ServiceDataIterator';
 import { IGetProofDataResponse, IHypersyncSyncPlanResponse } from './Sync';
-import { dateToLocalizedString } from './time';
+import { dateToLocalizedDateString, dateToLocalizedString } from './time';
 import { resolveTokens, TokenContext } from './tokens';
 
 import {
@@ -30,6 +21,7 @@ import {
   ICriteriaSearchInput,
   IHypersyncDefinition,
   IHypersyncField,
+  IProofCriterionRef,
   IProofSpec,
   IteratorSource
 } from '@hyperproof/hypersync-models';
@@ -50,6 +42,13 @@ export class JsonProofProvider extends ProofProviderBase {
   private proofType: string;
   private messages: StringMap;
   private getDefinition: () => Promise<IHypersyncDefinition>;
+  private filterCriteria?: (criteria: IProofCriterionRef[], proofType: string) => IProofCriterionRef[];
+  private filterFields?: (
+    fields: IHypersyncField[],
+    proofType: string,
+    criteriaValues: HypersyncCriteria
+  ) => IHypersyncField[];
+  private integrationType: string;
 
   constructor(
     connectorName: string,
@@ -57,7 +56,14 @@ export class JsonProofProvider extends ProofProviderBase {
     dataSource: IDataSource,
     criteriaProvider: ICriteriaProvider,
     messages: StringMap,
-    getDefinitionCallback: () => Promise<IHypersyncDefinition>
+    getDefinitionCallback: () => Promise<IHypersyncDefinition>,
+    fieldFilterCallback?: (
+      fields: IHypersyncField[],
+      proofType: string,
+      criteriaValues: HypersyncCriteria
+    ) => IHypersyncField[],
+    integrationType?: string,
+    criteriaFilterCallback?: (criteria: IProofCriterionRef[], proofType: string) => IProofCriterionRef[]
   ) {
     super(dataSource, criteriaProvider);
     this.connectorName = connectorName;
@@ -65,6 +71,9 @@ export class JsonProofProvider extends ProofProviderBase {
     this.criteriaProvider = criteriaProvider;
     this.messages = messages;
     this.getDefinition = getDefinitionCallback;
+    this.filterFields = fieldFilterCallback;
+    this.filterCriteria = criteriaFilterCallback;
+    this.integrationType = integrationType ?? process.env.integration_type!;
   }
 
   public async generateCriteriaMetadata(
@@ -75,13 +84,11 @@ export class JsonProofProvider extends ProofProviderBase {
     const definition = await this.getDefinition();
     const tokenContext = this.initTokenContext(criteriaValues);
 
-    await this.criteriaProvider.generateCriteriaFields(
-      definition.criteria.map(c => ({ name: c.name, page: c.page })),
-      criteriaValues,
-      tokenContext,
-      pages,
-      search
-    );
+    let proofCriteria = definition.criteria.map(c => ({ name: c.name, page: c.page }));
+    if (this.filterCriteria) {
+      proofCriteria = this.filterCriteria(proofCriteria, this.proofType);
+    }
+    await this.criteriaProvider.generateCriteriaFields(proofCriteria, criteriaValues, tokenContext, pages, search);
 
     // If all of the criteria have been specified, build the proof spec
     // so that we can provide some additional values.
@@ -90,10 +97,7 @@ export class JsonProofProvider extends ProofProviderBase {
     if (pages[pages.length - 1].isValid) {
       proofSpec = this.buildProofSpec(definition, tokenContext);
       await this.fetchLookups(proofSpec, tokenContext);
-      const criteriaLabels = this.findCriteriaLabels(
-        pages,
-        tokenContext.criteria as HypersyncCriteria
-      );
+      const criteriaLabels = this.findCriteriaLabels(pages, tokenContext.criteria as HypersyncCriteria);
       suggestedName = resolveTokens(proofSpec.suggestedName, {
         ...tokenContext,
         criteriaLabels
@@ -118,10 +122,17 @@ export class JsonProofProvider extends ProofProviderBase {
     const definition = await this.getDefinition();
     const tokenContext = this.initTokenContext(criteriaValues);
     const proofSpec = this.buildProofSpec(definition, tokenContext);
+
+    // Apply field filtering if a filter callback was provided
+    let fields = proofSpec.fields;
+    if (this.filterFields) {
+      fields = this.filterFields(fields, this.proofType, criteriaValues);
+    }
+
     return {
       format: proofSpec.format,
       isHierarchical: false,
-      fields: proofSpec.fields.map(f => ({
+      fields: fields.map(f => ({
         property: f.property,
         label: resolveTokens(f.label, tokenContext),
         type: f.type || HypersyncFieldType.Text
@@ -135,24 +146,18 @@ export class JsonProofProvider extends ProofProviderBase {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     retryCount?: number
   ): Promise<IHypersyncSyncPlanResponse> {
-    await Logger.info(`Generating sync plan for proof ${this.proofType}`);
+    Logger.info(`Generating sync plan for proof ${this.proofType}`);
     const definition = await this.getDefinition();
     const tokenContext = this.initTokenContext(criteriaValues);
     const proofSpec: IProofSpec = this.buildProofSpec(definition, tokenContext);
 
     if (proofSpec.sort?.some(s => typeof s.property !== 'string')) {
-      throw createHttpError(
-        StatusCodes.BAD_REQUEST,
-        'Sort clauses must specify a property to sort on.'
-      );
+      throw createHttpError(StatusCodes.BAD_REQUEST, 'Sort clauses must specify a property to sort on.');
     }
 
     if (proofSpec.dataSetIterator) {
       if (!isRestDataSourceBase(this.dataSource)) {
-        throw createHttpError(
-          StatusCodes.BAD_REQUEST,
-          'Hypersync does not support data source iteration.'
-        );
+        throw createHttpError(StatusCodes.BAD_REQUEST, 'Hypersync does not support data source iteration.');
       }
       await this.fetchLookups(proofSpec, tokenContext);
 
@@ -165,10 +170,7 @@ export class JsonProofProvider extends ProofProviderBase {
       let iteratorParams = {};
       // Resolve tokens for principal iterator params
       for (const iterator of proofSpec.dataSetIterator) {
-        if (
-          iterator.layer === 1 &&
-          iterator.source === IteratorSource.DataSet
-        ) {
+        if (iterator.layer === 1 && iterator.source === IteratorSource.DataSet) {
           iteratorParams = iterator.dataSetParams ?? {};
           this.resolveTokensForParams(iteratorParams, tokenContext);
         }
@@ -216,7 +218,7 @@ export class JsonProofProvider extends ProofProviderBase {
     retryCount?: number,
     iterableSlice?: IterableObject[]
   ): Promise<IProofFile[] | IGetProofDataResponse> {
-    await Logger.info(`Generating declarative proof type ${this.proofType}`);
+    Logger.info(`Generating declarative proof type ${this.proofType}`);
     const settings = hypersync.settings;
     const criteriaValues = settings.criteria;
     const definition = await this.getDefinition();
@@ -233,10 +235,7 @@ export class JsonProofProvider extends ProofProviderBase {
     let response;
     if (proofSpec.dataSetIterator) {
       if (!isRestDataSourceBase(this.dataSource)) {
-        throw createHttpError(
-          StatusCodes.BAD_REQUEST,
-          'Hypersync does not support data source iteration.'
-        );
+        throw createHttpError(StatusCodes.BAD_REQUEST, 'Hypersync does not support data source iteration.');
       }
       response = await this.dataSource.iterateDataFlow(
         this.proofType,
@@ -249,13 +248,7 @@ export class JsonProofProvider extends ProofProviderBase {
         organization
       );
     } else {
-      response = await this.dataSource.getData(
-        proofSpec.dataSet,
-        params,
-        page,
-        metadata,
-        organization
-      );
+      response = await this.dataSource.getData(proofSpec.dataSet, params, page, metadata, organization);
     }
 
     if (response.status !== DataSetResultStatus.Complete) {
@@ -265,13 +258,7 @@ export class JsonProofProvider extends ProofProviderBase {
       };
     }
 
-    const {
-      data,
-      source,
-      context: dataSourceContext,
-      nextPage,
-      errorInfo
-    } = response;
+    const { data, source, context: dataSourceContext, nextPage, errorInfo } = response;
 
     if (dataSourceContext) {
       tokenContext.dataSource = dataSourceContext;
@@ -281,34 +268,38 @@ export class JsonProofProvider extends ProofProviderBase {
       validateDataSchema(hypersync, data);
     }
 
-    const dateFields = proofSpec.fields.filter(f => f.type === 'date');
-    const numberFields = proofSpec.fields.filter(f => f.type === 'number');
+    let proofFields = proofSpec.fields;
+    if (this.filterFields) {
+      proofFields = this.filterFields(proofFields, this.proofType, criteriaValues);
+    }
+
+    const dateFields = proofFields.filter(f => f.type === 'date');
+    const numberFields = proofFields.filter(f => f.type === 'number');
     if (dateFields.length || numberFields.length) {
       if (Array.isArray(data)) {
         data.forEach(row => {
-          this.addFormattedValues(row, dateFields, numberFields, organization);
+          this.addFormattedValues(row, dateFields, numberFields, organization, proofSpec.sourceDateTimeZone);
         });
       } else {
-        this.addFormattedValues(data, dateFields, numberFields, organization);
+        this.addFormattedValues(data, dateFields, numberFields, organization, proofSpec.sourceDateTimeZone);
       }
     }
 
-    let resolvedFields = proofSpec.fields.map(f => ({
+    let resolvedFields = proofFields.map(f => ({
       property: f.property,
       label: resolveTokens(f.label, tokenContext),
       width: f.width,
       type: f.type === HypersyncFieldType.Text ? undefined : f.type
     })) as IHypersyncProofField[];
 
-    let zoom = 1;
-    if (proofSpec.autoLayout === true) {
-      const layoutInfo = calcLayoutInfo(
-        resolvedFields,
-        Array.isArray(data) ? data : [data]
-      );
-      resolvedFields = layoutInfo.fields;
-      zoom = layoutInfo.zoom;
-    }
+    const layoutInfo = calcLayoutInfo(
+      resolvedFields,
+      Array.isArray(data) ? data : [data],
+      undefined,
+      proofSpec.orientation
+    );
+    resolvedFields = layoutInfo.fields;
+    const zoom = layoutInfo.zoom;
 
     // Since Job Engine seeks the first job-level page, assign
     // empty list for subsequent pages to optimize performance.
@@ -316,12 +307,12 @@ export class JsonProofProvider extends ProofProviderBase {
     if (page !== undefined) {
       displayProofCriteria = false;
     }
+    let proofCriteriaRefs = definition.criteria;
+    if (this.filterCriteria) {
+      proofCriteriaRefs = this.filterCriteria(proofCriteriaRefs, this.proofType);
+    }
     const criteria = displayProofCriteria
-      ? await this.criteriaProvider.generateProofCriteria(
-          definition.criteria,
-          criteriaValues,
-          tokenContext
-        )
+      ? await this.criteriaProvider.generateProofCriteria(proofCriteriaRefs, criteriaValues, tokenContext)
       : [];
 
     // Push the raw data into the token context so that properties like
@@ -337,14 +328,14 @@ export class JsonProofProvider extends ProofProviderBase {
         {
           filename: settings.name,
           contents: {
-            type: process.env.integration_type!,
+            type: this.integrationType,
             title: resolveTokens(proofSpec.title, tokenContext),
             subtitle: resolveTokens(proofSpec.subtitle, tokenContext),
             source: source,
             ...(proofSpec.webPageUrl && {
               webPageUrl: resolveTokens(proofSpec.webPageUrl, tokenContext)
             }),
-            orientation: proofSpec.orientation,
+            orientation: proofSpec.orientation ?? layoutInfo.orientation,
             userTimeZone: organization.timeZone,
             criteria,
             proofFormat: settings.proofFormat,
@@ -399,30 +390,15 @@ export class JsonProofProvider extends ProofProviderBase {
    * Creates a proof specification object by combining the base proof spec in
    * the proof type definion with any overrides that have matching conditions.
    */
-  private buildProofSpec(
-    definition: IHypersyncDefinition,
-    tokenContext: TokenContext
-  ) {
+  private buildProofSpec(definition: IHypersyncDefinition, tokenContext: TokenContext) {
     let proofSpec = definition.proofSpec;
     if (definition.overrides) {
       for (const override of definition.overrides) {
-        const operand = resolveTokens(
-          override.condition.criteria,
-          tokenContext
-        );
+        const operand = resolveTokens(override.condition.criteria, tokenContext);
         const isUndefinedEval = operand === ID_UNDEFINED; // evaluate for undefined criteria value
-        const conditionValue = resolveTokens(
-          override.condition.value,
-          tokenContext,
-          false,
-          isUndefinedEval
-        );
-        if (
-          conditionValue === operand ||
-          (isUndefinedEval && typeof conditionValue === 'undefined')
-        ) {
-          const shouldOverrideDataSetParams =
-            override.proofSpec?.dataSetParams ?? false;
+        const conditionValue = resolveTokens(override.condition.value, tokenContext, false, isUndefinedEval);
+        if (conditionValue === operand || (isUndefinedEval && typeof conditionValue === 'undefined')) {
+          const shouldOverrideDataSetParams = override.proofSpec?.dataSetParams ?? false;
           proofSpec = {
             ...proofSpec,
             ...override.proofSpec,
@@ -448,24 +424,16 @@ export class JsonProofProvider extends ProofProviderBase {
    * The result of the fetch is added to the tokenContext so that it
    * may be referenced by tokens in the proof specification.
    */
-  private async fetchLookups(
-    proofSpec: IProofSpec,
-    tokenContext: TokenContext
-  ) {
+  private async fetchLookups(proofSpec: IProofSpec, tokenContext: TokenContext) {
     if (proofSpec.lookups) {
       for (const lookup of proofSpec.lookups) {
         const params = lookup.dataSetParams;
         if (params) {
           this.resolveTokensForParams(params, tokenContext);
         }
-        const response = await this.dataSource.getData(
-          lookup.dataSet,
-          lookup.dataSetParams
-        );
+        const response = await this.dataSource.getData(lookup.dataSet, lookup.dataSetParams);
         if (response.status !== DataSetResultStatus.Complete) {
-          throw new Error(
-            `Pending response received for proof specification lookup data set: ${lookup.dataSet}`
-          );
+          throw new Error(`Pending response received for proof specification lookup data set: ${lookup.dataSet}`);
         }
         const lookups = tokenContext.lookups as TokenContext;
         lookups[lookup.name] = response.data;
@@ -473,10 +441,7 @@ export class JsonProofProvider extends ProofProviderBase {
     }
   }
 
-  private resolveTokensForParams(
-    params: DataValueMap,
-    tokenContext: TokenContext
-  ) {
+  private resolveTokensForParams(params: DataValueMap, tokenContext: TokenContext) {
     for (const key of Object.keys(params)) {
       const value = params[key];
       if (typeof value === 'string') {
@@ -489,10 +454,7 @@ export class JsonProofProvider extends ProofProviderBase {
    * Performs reverse lookup of criteria labels for hypersync
    * suggested name.
    */
-  private findCriteriaLabels(
-    pages: ICriteriaPage[],
-    criteria?: HypersyncCriteria
-  ) {
+  private findCriteriaLabels(pages: ICriteriaPage[], criteria?: HypersyncCriteria) {
     const criteriaLabels: { [key: string]: any } = {};
     const fields = pages.flatMap(page => page.fields);
     for (const criterion in criteria) {
@@ -500,9 +462,7 @@ export class JsonProofProvider extends ProofProviderBase {
       if (!criteriaField || !criteriaField.options) {
         continue;
       }
-      criteriaLabels[criterion] = criteriaField.options.find(
-        option => option.value === criteria[criterion]
-      )?.label;
+      criteriaLabels[criterion] = criteriaField.options.find(option => option.value === criteria[criterion])?.label;
     }
     return criteriaLabels;
   }
@@ -511,10 +471,11 @@ export class JsonProofProvider extends ProofProviderBase {
     proofRow: DataObject,
     dateFields: IHypersyncField[],
     numberFields: IHypersyncField[],
-    organization: ILocalizable
+    organization: ILocalizable,
+    sourceDateTimeZone?: string
   ) {
     if (dateFields.length) {
-      this.addFormattedDates(proofRow, dateFields, organization);
+      this.addFormattedDates(proofRow, dateFields, organization, sourceDateTimeZone);
     }
     if (numberFields.length) {
       this.addFormattedNumbers(proofRow, numberFields);
@@ -522,12 +483,16 @@ export class JsonProofProvider extends ProofProviderBase {
   }
 
   /**
-   * Helper method that adds formatted date properties to a proof row.
+   * Helper method that adds formatted date properties to a proof row. When
+   * `sourceDateTimeZone` is provided, the proof's date-only values are formatted
+   * in that zone (date-only output) instead of the user's time zone — used
+   * for sources that return calendar dates with no real time component.
    */
   private addFormattedDates(
     proofRow: DataObject,
     dateFields: IHypersyncField[],
-    organization: ILocalizable
+    organization: ILocalizable,
+    sourceDateTimeZone?: string
   ) {
     for (const dateField of dateFields) {
       if (proofRow[dateField.property + 'Formatted']) {
@@ -535,12 +500,9 @@ export class JsonProofProvider extends ProofProviderBase {
       }
       const dateValue = proofRow[dateField.property];
       if (dateValue instanceof Date || typeof dateValue === 'string') {
-        proofRow[dateField.property + 'Formatted'] = dateToLocalizedString(
-          dateValue,
-          organization.timeZone,
-          organization.language,
-          organization.locale
-        )!;
+        proofRow[dateField.property + 'Formatted'] = sourceDateTimeZone
+          ? dateToLocalizedDateString(dateValue, sourceDateTimeZone, organization.language, organization.locale)!
+          : dateToLocalizedString(dateValue, organization.timeZone, organization.language, organization.locale)!;
       }
     }
   }
@@ -548,20 +510,14 @@ export class JsonProofProvider extends ProofProviderBase {
   /**
    * Helper method that adds formatted numbers properties to a proof row.
    */
-  private addFormattedNumbers(
-    proofRow: DataObject,
-    numberFields: IHypersyncField[]
-  ) {
+  private addFormattedNumbers(proofRow: DataObject, numberFields: IHypersyncField[]) {
     for (const numberField of numberFields) {
       if (proofRow[numberField.property + 'Formatted']) {
         continue; // don't overwrite existing formatted number
       }
       const numberValue = proofRow[numberField.property];
       if (typeof numberValue === 'number') {
-        proofRow[numberField.property + 'Formatted'] = this.formatNumber(
-          numberValue,
-          numberField
-        );
+        proofRow[numberField.property + 'Formatted'] = this.formatNumber(numberValue, numberField);
       }
     }
   }
@@ -579,10 +535,7 @@ export class JsonProofProvider extends ProofProviderBase {
     return value.toString();
   }
 
-  private addSavedCriteriaToParams(
-    params: DataValueMap | undefined,
-    criteriaValues: HypersyncCriteria
-  ) {
+  private addSavedCriteriaToParams(params: DataValueMap | undefined, criteriaValues: HypersyncCriteria) {
     if (params && this.criteriaValuesHaveSavedCriterion(criteriaValues)) {
       for (const key in criteriaValues) {
         if (key.endsWith(SAVED_CRITERIA_SUFFIX)) {

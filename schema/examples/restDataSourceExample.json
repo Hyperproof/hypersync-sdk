@@ -109,9 +109,7 @@
         {
           "alias": "o",
           "dataSet": "orders",
-          "on": [
-            { "leftProperty": "customerId", "rightProperty": "customerId" }
-          ]
+          "on": [{ "leftProperty": "customerId", "rightProperty": "customerId" }]
         }
       ],
       "transform": {

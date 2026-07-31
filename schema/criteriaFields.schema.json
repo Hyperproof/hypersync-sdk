@@ -16,14 +16,7 @@
       "properties": {
         "type": {
           "type": "string",
-          "enum": [
-            "select",
-            "text",
-            "search",
-            "radio",
-            "pairedSelect",
-            "keyValueSet"
-          ]
+          "enum": ["select", "text", "search", "radio", "pairedSelect", "keyValueSet"]
         },
         "property": {
           "type": "string"

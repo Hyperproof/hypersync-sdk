@@ -32,9 +32,7 @@ export interface IDataSetResultPending {
   metadata: SyncMetadata;
 }
 
-export type DataSetResult<TData> =
-  | IDataSetResultComplete<TData>
-  | IDataSetResultPending;
+export type DataSetResult<TData> = IDataSetResultComplete<TData> | IDataSetResultPending;
 
 /**
  * Interface implemented by client objects that provide data from an external source.
@@ -60,8 +58,6 @@ export interface IDataSource {
   ): Promise<DataSetResult<DataObject | DataObject[]>>;
 }
 
-export function isRestDataSourceBase(
-  dataSource: IDataSource
-): dataSource is RestDataSourceBase {
+export function isRestDataSourceBase(dataSource: IDataSource): dataSource is RestDataSourceBase {
   return (dataSource as RestDataSourceBase).getConfig() !== undefined;
 }

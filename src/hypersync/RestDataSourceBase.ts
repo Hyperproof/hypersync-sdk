@@ -1,18 +1,9 @@
 import { StringMap } from './common';
 import { DataSourceBase } from './DataSourceBase';
-import {
-  DataSetResultStatus,
-  IDataSetResultComplete,
-  IDataSetResultPending,
-  SyncMetadata
-} from './IDataSource';
+import { DataSetResultStatus, IDataSetResultComplete, IDataSetResultPending, SyncMetadata } from './IDataSource';
 import { IErrorInfo } from './models';
 import { Paginator, PagingState } from './Paginator';
-import {
-  IterableObject,
-  IteratorPlanDataSetResult,
-  ServiceDataIterator
-} from './ServiceDataIterator';
+import { IterableObject, IteratorPlanDataSetResult, ServiceDataIterator } from './ServiceDataIterator';
 import { resolveTokens, TokenContext } from './tokens';
 
 import {
@@ -28,13 +19,7 @@ import {
   Transform,
   ValueLookup
 } from '@hyperproof/hypersync-models';
-import {
-  ApiClient,
-  compareValues,
-  IApiClientResponse,
-  ILocalizable,
-  Logger
-} from '@hyperproof/integration-sdk';
+import { ApiClient, compareValues, IApiClientResponse, ILocalizable, Logger } from '@hyperproof/integration-sdk';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
 import jsonata from 'jsonata';
@@ -44,15 +29,12 @@ import queryString from 'query-string';
 
 const LOOKUP_DEFAULT_VALUE = '__default__';
 
-export interface IRestDataSetComplete<TData = DataObject>
-  extends IDataSetResultComplete<TData> {
+export interface IRestDataSetComplete<TData = DataObject> extends IDataSetResultComplete<TData> {
   headers: { [name: string]: string[] };
   errorInfo?: IErrorInfo;
 }
 
-export type RestDataSetResult<TData = DataObject> =
-  | IRestDataSetComplete<TData>
-  | IDataSetResultPending;
+export type RestDataSetResult<TData = DataObject> = IRestDataSetComplete<TData> | IDataSetResultPending;
 
 export interface IJoinDataSetDone {
   status: DataSetResultStatus.Complete;
@@ -74,9 +56,7 @@ interface IPredicateClause {
  * Connectors should override this class and add support for service-specific
  * functionality.
  */
-export class RestDataSourceBase<
-  TDataSet extends IDataSet = IDataSet
-> extends DataSourceBase {
+export class RestDataSourceBase<TDataSet extends IDataSet = IDataSet> extends DataSourceBase {
   protected config: IRestDataSourceConfig<TDataSet>;
   protected apiClient: ApiClient;
   protected messages: StringMap;
@@ -103,7 +83,7 @@ export class RestDataSourceBase<
 
   public setPagingState(pagingState: PagingState) {
     if (this.pagingState !== PagingState.None) {
-      throw new Error('Paging state can only be set once.');
+      throw createHttpError(StatusCodes.INTERNAL_SERVER_ERROR, 'Paging state can only be set once.');
     }
     this.pagingState = pagingState;
   }
@@ -119,6 +99,10 @@ export class RestDataSourceBase<
   public async setBaseUrl(baseUrl: string): Promise<void> {
     this.config.baseUrl = baseUrl;
     this.apiClient.setBaseUrl(baseUrl);
+  }
+
+  public getBaseUrl(): string | undefined {
+    return this.apiClient.getBaseUrl() ?? this.config.baseUrl;
   }
 
   /**
@@ -148,7 +132,7 @@ export class RestDataSourceBase<
    */
   public addDataSet(name: string, dataSet: TDataSet) {
     if (Object.prototype.hasOwnProperty.call(this.config.dataSets, name)) {
-      throw new Error('A data set with that name already exists.');
+      throw createHttpError(StatusCodes.CONFLICT, 'A data set with that name already exists.');
     }
     this.config.dataSets[name] = dataSet;
   }
@@ -161,32 +145,23 @@ export class RestDataSourceBase<
       this.config.valueLookups = {};
     }
     if (Object.prototype.hasOwnProperty.call(this.config.valueLookups, name)) {
-      throw new Error('A value lookup with that name already exists.');
+      throw createHttpError(StatusCodes.CONFLICT, 'A value lookup with that name already exists.');
     }
     this.config.valueLookups[name] = valueLookup;
   }
 
-  public async getUnprocessedResponse(
-    dataSetName: string,
-    params?: DataValueMap
-  ): Promise<Response> {
+  public async getUnprocessedResponse(dataSetName: string, params?: DataValueMap): Promise<Response> {
     const dataSet = this.config.dataSets[dataSetName];
     if (!dataSet) {
-      throw new Error(`Invalid data set name: ${dataSetName}`);
+      throw createHttpError(StatusCodes.NOT_FOUND, `Invalid data set name: ${dataSetName}`);
     }
 
     // Resolve tokens in the URL and query string.
     const { resolvedUrl } = this.resolveUrlTokens(params, dataSet);
 
-    await Logger.info(
-      `RestDataSourceBase: Retrieving RAW response from URL '${resolvedUrl}'`
-    );
+    Logger.info(`RestDataSourceBase: Retrieving RAW response from URL '${resolvedUrl}'`);
 
-    return this.apiClient.getUnprocessedResponse(
-      resolvedUrl,
-      undefined,
-      dataSet.isAbsoluteUrl
-    );
+    return this.apiClient.getUnprocessedResponse(resolvedUrl, undefined, dataSet.isAbsoluteUrl);
   }
 
   public async generateIteratorPlan(
@@ -197,11 +172,7 @@ export class RestDataSourceBase<
     metadata?: SyncMetadata
   ): Promise<IteratorPlanDataSetResult> {
     const iterator = new ServiceDataIterator(this, dataSetIterator, proofType);
-    return iterator.generateIteratorPlan(
-      dataSetParams,
-      iteratorParams,
-      metadata
-    );
+    return iterator.generateIteratorPlan(dataSetParams, iteratorParams, metadata);
   }
 
   public async iterateDataFlow(
@@ -215,14 +186,7 @@ export class RestDataSourceBase<
     organization?: ILocalizable
   ): Promise<RestDataSetResult<DataObject[]>> {
     const iterator = new ServiceDataIterator(this, dataSetIterator, proofType);
-    return iterator.iterateDataFlow(
-      dataSetName,
-      iterableSlice,
-      params,
-      page,
-      metadata,
-      organization
-    );
+    return iterator.iterateDataFlow(dataSetName, iterableSlice, params, page, metadata, organization);
   }
 
   /**
@@ -240,28 +204,18 @@ export class RestDataSourceBase<
     metadata?: SyncMetadata,
     organization?: ILocalizable
   ): Promise<RestDataSetResult<TData>> {
-    await Logger.debug(
-      `RestDataSourceBase: Retrieving Hypersync service data for data set '${dataSetName}'`
-    );
+    Logger.debug(`RestDataSourceBase: Retrieving Hypersync service data for data set '${dataSetName}'`);
     const dataSet = this.config.dataSets[dataSetName];
     if (!dataSet) {
-      throw new Error(`Invalid data set name: ${dataSetName}`);
+      throw createHttpError(StatusCodes.NOT_FOUND, `Invalid data set name: ${dataSetName}`);
     }
 
     // Resolve tokens in the URL and query string.
-    const { resolvedUrl: relativeUrl, tokenContext } = this.resolveUrlTokens(
-      params,
-      dataSet
-    );
+    const { resolvedUrl: relativeUrl, tokenContext } = this.resolveUrlTokens(params, dataSet);
 
     let requestBody;
     if (dataSet.method && DataSetMethodsWithBody.includes(dataSet.method)) {
-      requestBody = this.generateRequestBody(
-        dataSetName,
-        tokenContext,
-        dataSet.body,
-        params
-      );
+      requestBody = this.generateRequestBody(dataSetName, tokenContext, dataSet.body, params);
     }
 
     let response;
@@ -299,20 +253,10 @@ export class RestDataSourceBase<
       return response;
     }
 
-    return this.processResponse(
-      dataSetName,
-      dataSet,
-      tokenContext,
-      response,
-      params,
-      metadata
-    );
+    return this.processResponse(dataSetName, dataSet, tokenContext, response, params, metadata);
   }
 
-  private resolveUrlTokens(
-    params: DataValueMap | undefined,
-    dataSet: TDataSet
-  ) {
+  private resolveUrlTokens(params: DataValueMap | undefined, dataSet: TDataSet) {
     const tokenContext = this.initTokenContext(params);
     let resolvedUrl = resolveTokens(dataSet.url, tokenContext);
     const query = { ...dataSet.query };
@@ -322,15 +266,12 @@ export class RestDataSourceBase<
       }
 
       // Only include query parameters that have a non-empty value.
-      const filteredQuery = Object.keys(query).reduce(
-        (acc: DataValueMap, key) => {
-          if (query[key] && query[key].length > 0) {
-            acc[key] = query[key];
-          }
-          return acc;
-        },
-        {}
-      );
+      const filteredQuery = Object.keys(query).reduce((acc: DataValueMap, key) => {
+        if (query[key] && query[key].length > 0) {
+          acc[key] = query[key];
+        }
+        return acc;
+      }, {});
 
       if (Object.keys(filteredQuery).length !== 0) {
         resolvedUrl = `${resolvedUrl}?${queryString.stringify(filteredQuery)}`;
@@ -362,63 +303,40 @@ export class RestDataSourceBase<
     let data: any = response.data;
     // The `property` attribute can be used to select data out of the response.
     if (dataSet.property) {
-      await Logger.info(
-        `RestDataSourceBase: Extracting data from '${dataSet.property}' property.`
-      );
+      Logger.info(`RestDataSourceBase: Extracting data from '${dataSet.property}' property.`);
       const expression = jsonata(dataSet.property);
-      data = expression.evaluate(data);
+      data = await expression.evaluate(data);
     }
 
     if (Array.isArray(data)) {
-      await Logger.info(
-        `RestDataSourceBase: Received array of length ${data.length} from REST API.`
-      );
+      Logger.info(`RestDataSourceBase: Received array of length ${data.length} from REST API.`);
     } else {
-      await Logger.info(`RestDataSourceBase: Received object from REST API.`);
+      Logger.info(`RestDataSourceBase: Received object from REST API.`);
     }
 
     // Join in any other data sets.
-    const joinResponse = await this.applyJoins(
-      dataSetName,
-      dataSet,
-      tokenContext,
-      data
-    );
+    const joinResponse = await this.applyJoins(dataSetName, dataSet, tokenContext, data);
     if (joinResponse.status !== DataSetResultStatus.Complete) {
       return joinResponse;
     }
     data = joinResponse.data;
 
     // Apply per-row lookups after joins are complete.
-    data = await this.applyLookups(
-      dataSetName,
-      dataSet,
-      tokenContext,
-      data,
-      metadata
-    );
+    data = await this.applyLookups(dataSetName, dataSet, tokenContext, data, metadata);
 
     // If a filter was provided, apply that to the result.
-    data = await this.applyFilter(
-      dataSetName,
-      dataSet,
-      tokenContext,
-      data,
-      params
-    );
+    data = await this.applyFilter(dataSetName, dataSet, tokenContext, data, params);
 
     const isDataArray = Array.isArray(data);
     if (this.isArrayResult(dataSet) !== isDataArray) {
       if (isDataArray && data.length === 1) {
         data = data[0];
-      } else if (
-        this.isArrayResult(dataSet) &&
-        [null, undefined].includes(data)
-      ) {
+      } else if (this.isArrayResult(dataSet) && [null, undefined].includes(data)) {
         // Allow for offset pagination beyond end of record set
         data = [];
       } else {
-        throw new Error(
+        throw createHttpError(
+          StatusCodes.UNPROCESSABLE_ENTITY,
           `Data returned from ${dataSetName} response ${
             dataSet.property ? `'.${dataSet.property}' property` : 'body'
           } does not match expected ${dataSet.result} result.`
@@ -429,14 +347,18 @@ export class RestDataSourceBase<
     // Transform the data if necessary.
     data = await this.applyTransforms(dataSetName, dataSet, data, params);
 
+    if (Array.isArray(data) && !dataSet.keepEmptyRows) {
+      data = await this.dropEmptyRows(dataSetName, data);
+    }
+
     // Finally apply the sort.
     if (Array.isArray(data)) {
       data = await this.applySort(dataSetName, dataSet, data, params);
     }
 
-    await Logger.debug(
-      `RestDataSourceBase: Data retrieval and processing for '${dataSetName}' complete`
-    );
+    Logger.debug(`RestDataSourceBase: Data retrieval and processing for '${dataSetName}' complete`);
+
+    const additionalContext = this.getAdditionalContext();
 
     return {
       status: DataSetResultStatus.Complete,
@@ -444,8 +366,18 @@ export class RestDataSourceBase<
       source: response.source,
       headers: response.headers,
       nextPage: response.nextPage,
-      errorInfo: response.errorInfo
+      errorInfo: response.errorInfo,
+      ...(additionalContext ? { context: additionalContext } : {})
     };
+  }
+
+  /**
+   * Override to contribute additional properties to the result context returned by getData
+   * (available downstream as tokenContext.dataSource). Return the properties to merge in — do
+   * not mutate any shared state.
+   */
+  protected getAdditionalContext(): Record<string, any> | undefined {
+    return undefined;
   }
 
   /**
@@ -507,10 +439,7 @@ export class RestDataSourceBase<
     return response as IRestDataSetComplete<TData>;
   }
 
-  private validateRequestMethod(
-    dataSetName: string,
-    method: DataSetMethod
-  ): void {
+  private validateRequestMethod(dataSetName: string, method: DataSetMethod): void {
     const dataSet = this.config.dataSets[dataSetName];
     if (dataSet?.method !== method) {
       throw createHttpError(
@@ -566,43 +495,26 @@ export class RestDataSourceBase<
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     organization?: ILocalizable
   ): Promise<RestDataSetResult<any>> {
-    await Logger.info(
-      `RestDataSourceBase: Retrieving data from URL '${relativeUrl}'`
-    );
+    Logger.info(`RestDataSourceBase: Retrieving data from URL '${relativeUrl}'`);
     let response: IApiClientResponse<any>;
 
     switch (method) {
       case DataSetMethod.PATCH:
-        response = await this.apiClient.patchJson(
-          relativeUrl,
-          requestBody,
-          requestHeaders
-        );
+        response = await this.apiClient.patchJson(relativeUrl, requestBody, requestHeaders);
         break;
       case DataSetMethod.POST:
-        response = await this.apiClient.postJson(
-          relativeUrl,
-          requestBody,
-          requestHeaders
-        );
+        response = await this.apiClient.postJson(relativeUrl, requestBody, requestHeaders);
 
         break;
       case DataSetMethod.PUT:
-        response = await this.apiClient.putJson(
-          relativeUrl,
-          requestBody,
-          requestHeaders
-        );
+        response = await this.apiClient.putJson(relativeUrl, requestBody, requestHeaders);
         break;
       case DataSetMethod.GET:
       case undefined:
         response = await this.apiClient.getJson(relativeUrl, requestHeaders);
         break;
       default:
-        throw createHttpError(
-          StatusCodes.METHOD_NOT_ALLOWED,
-          `RestDataSourceBase does not support ${method} requests`
-        );
+        throw createHttpError(StatusCodes.METHOD_NOT_ALLOWED, `RestDataSourceBase does not support ${method} requests`);
     }
 
     const { json: data, source, headers } = response;
@@ -653,14 +565,13 @@ export class RestDataSourceBase<
       let connectorPage: string | undefined;
       let response;
       do {
-        const { pagedRelativeUrl, pagedMessageBody } =
-          paginator.paginateRequest(
-            relativeUrl,
-            baseUrl,
-            requestBody,
-            method,
-            connectorPage
-          );
+        const { pagedRelativeUrl, pagedMessageBody } = paginator.paginateRequest(
+          relativeUrl,
+          baseUrl,
+          requestBody,
+          method,
+          connectorPage
+        );
         response = await this.getDataFromUrl(
           dataSetName,
           dataSet,
@@ -679,27 +590,17 @@ export class RestDataSourceBase<
         }
 
         if (dataSet.property) {
-          const resultsAtProperty = this.getPropertyValue(
-            response.data,
-            dataSet.property
-          );
+          const resultsAtProperty = await this.getPropertyValue(response.data, dataSet.property);
           results.push(...((resultsAtProperty ?? []) as DataObject[]));
         } else {
           results.push(...(response.data ?? []));
         }
 
-        connectorPage = paginator.getNextPage(
-          dataSet,
-          response.data,
-          response.headers,
-          baseUrl
-        );
+        connectorPage = await paginator.getNextPage(dataSet, response.data, response.headers, baseUrl);
       } while (connectorPage !== undefined);
       return {
         ...response,
-        source: baseUrl
-          ? new URL(relativeUrl, baseUrl).toString()
-          : relativeUrl,
+        source: baseUrl ? new URL(relativeUrl, baseUrl).toString() : relativeUrl,
         data: dataSet.property ? set({}, dataSet.property, results) : results
       };
     } else {
@@ -728,7 +629,7 @@ export class RestDataSourceBase<
         return response;
       }
 
-      const nextPage: string | undefined = paginator.getNextPage(
+      const nextPage: string | undefined = await paginator.getNextPage(
         dataSet,
         response.data,
         response.headers,
@@ -736,9 +637,7 @@ export class RestDataSourceBase<
       );
       return {
         ...response,
-        source: baseUrl
-          ? new URL(relativeUrl, baseUrl).toString()
-          : relativeUrl,
+        source: baseUrl ? new URL(relativeUrl, baseUrl).toString() : relativeUrl,
         nextPage
       };
     }
@@ -766,20 +665,17 @@ export class RestDataSourceBase<
       };
     }
 
-    await Logger.info(`RestDataSourceBase: Applying ${joins.length} join(s).`);
+    Logger.info(`RestDataSourceBase: Applying ${joins.length} join(s).`);
 
     let joinData = Array.isArray(data) ? data : [data];
     for (const join of joins) {
-      const response = await this.getData<any>(
-        join.dataSet,
-        join.dataSetParams
-      );
+      const response = await this.getData<any>(join.dataSet, join.dataSetParams);
       if (response.status !== DataSetResultStatus.Complete) {
         return response;
       }
       const rhs: any[] = response.data;
       if (!Array.isArray(rhs)) {
-        throw new Error('Joined data sets must be array types.');
+        throw createHttpError(StatusCodes.UNPROCESSABLE_ENTITY, 'Joined data sets must be array types.');
       }
 
       // Parse the join clause up front for performance.
@@ -791,9 +687,12 @@ export class RestDataSourceBase<
       // Perform the join.  Note that only inner joins are supported.
       const results: any[] = [];
       for (const left of joinData) {
-        const matches = rhs.filter(right =>
-          this.isPredicateMatch(left, right, predicate)
-        );
+        const matches: any[] = [];
+        for (const right of rhs) {
+          if (await this.isPredicateMatch(left, right, predicate)) {
+            matches.push(right);
+          }
+        }
 
         for (const match of matches) {
           const r = { ...left, [join.alias]: match };
@@ -833,64 +732,12 @@ export class RestDataSourceBase<
       return data;
     }
 
-    await Logger.info(
-      `RestDataSourceBase: Applying ${lookups.length} lookup(s).`
-    );
+    Logger.info(`RestDataSourceBase: Applying ${lookups.length} lookup(s).`);
 
     const result = Array.isArray(data) ? data : [data];
     for (const lookup of lookups) {
       for (const dataObject of result) {
-        if (!dataObject || typeof dataObject !== 'object') {
-          await Logger.warn(
-            `RestDataSourceBase: Skipping invalid data object in lookup of type: ${typeof dataObject}`
-          );
-          continue;
-        }
-        const params = { ...lookup.dataSetParams };
-        if (params) {
-          tokenContext['source'] = dataObject;
-          for (const key of Object.keys(params)) {
-            const value = params[key];
-            if (typeof value === 'string') {
-              params[key] = resolveTokens(value, tokenContext);
-            }
-          }
-        }
-        if (lookup.delaySeconds) {
-          const { delaySeconds } = lookup;
-          if (isNaN(delaySeconds) || delaySeconds < 0 || delaySeconds > 1) {
-            throw new Error(
-              `Invalid delay seconds number: ${delaySeconds} for data set: ${dataSetName}.  Must be less than or equal to 1.`
-            );
-          }
-          await new Promise(resolve =>
-            setTimeout(resolve, delaySeconds * 1000)
-          );
-        }
-
-        try {
-          const response = await this.getData<any>(
-            lookup.dataSet,
-            params,
-            undefined, // Paging is not supported for lookups
-            metadata
-          );
-          if (response.status !== DataSetResultStatus.Complete) {
-            throw new Error(
-              `Invalid response received for data set: ${dataSetName}`
-            );
-          }
-          dataObject[lookup.alias] = response.data;
-        } catch (error) {
-          if (lookup.continueOnError === true) {
-            await Logger.warn(
-              `Continuing upon error performing lookup for data set: ${lookup.dataSet}`,
-              JSON.stringify(error)
-            );
-            continue;
-          }
-          throw error;
-        }
+        await this.applyLookupToObject(dataSetName, lookup, dataObject, tokenContext, metadata);
       }
     }
 
@@ -915,10 +762,11 @@ export class RestDataSourceBase<
     params?: DataValueMap
   ): Promise<any> {
     if (dataSet.filter !== undefined) {
-      await Logger.info(`RestDataSourceBase: Filtering data set.`);
+      Logger.info(`RestDataSourceBase: Filtering data set.`);
 
       if (!Array.isArray(data)) {
-        throw new Error(
+        throw createHttpError(
+          StatusCodes.UNPROCESSABLE_ENTITY,
           'Filter specified on data set but retrieved data is not an array.'
         );
       }
@@ -933,14 +781,20 @@ export class RestDataSourceBase<
             : criterion.value
       }));
 
-      data = data.filter(item => {
+      const filteredData = [];
+      for (const item of data) {
+        let matchesAllCriteria = true;
         for (const criterion of filterCriteria) {
-          if (criterion.expression.evaluate(item) !== criterion.value) {
-            return false;
+          if ((await criterion.expression.evaluate(item)) !== criterion.value) {
+            matchesAllCriteria = false;
+            break;
           }
         }
-        return true;
-      });
+        if (matchesAllCriteria) {
+          filteredData.push(item);
+        }
+      }
+      data = filteredData;
 
       // If the return type is an object and we just filtered down to one
       // element in the array, return the first element as an object.
@@ -953,7 +807,8 @@ export class RestDataSourceBase<
             data = data[0];
             break;
           default:
-            throw new Error(
+            throw createHttpError(
+              StatusCodes.UNPROCESSABLE_ENTITY,
               `Object result specified for data set but filtered result had ${data.length} items.`
             );
         }
@@ -982,13 +837,40 @@ export class RestDataSourceBase<
       return data;
     }
 
-    await Logger.info(`RestDataSourceBase: Transforming data set.`);
+    Logger.info(`RestDataSourceBase: Transforming data set.`);
 
     if (Array.isArray(data)) {
-      return data.map(item => this.transformObject(transform, item, params));
+      return Promise.all(data.map(item => this.transformObject(transform, item, params)));
     } else {
       return this.transformObject(transform, data, params);
     }
+  }
+
+  /**
+   * Filters out rows whose every value is empty.  Empty arrays and empty
+   * objects are treated as non-empty values since they are typically intentional.
+   * Non-object rows (primitives) are preserved.
+   *
+   * @param {string} dataSetName Name of the data set .
+   * @param {*} data Array of rows to filter.
+   */
+  protected async dropEmptyRows(dataSetName: string, data: any[]): Promise<any[]> {
+    const isEmptyValue = (value: unknown): boolean =>
+      value === null || value === undefined || (typeof value === 'string' && value.trim() === '');
+    const isEmptyRow = (row: unknown): boolean => {
+      if (row === null || typeof row !== 'object' || Array.isArray(row)) {
+        return false;
+      }
+      const values = Object.values(row as Record<string, unknown>);
+      return values.length > 0 && values.every(isEmptyValue);
+    };
+
+    const filtered = data.filter(row => !isEmptyRow(row));
+    const droppedCount = data.length - filtered.length;
+    if (droppedCount > 0) {
+      await Logger.info(`RestDataSourceBase: Dropped ${droppedCount} empty row(s) from '${dataSetName}'.`);
+    }
+    return filtered;
   }
 
   /**
@@ -1012,15 +894,12 @@ export class RestDataSourceBase<
       return data;
     }
 
-    await Logger.info(`RestDataSourceBase: Sorting data set.`);
+    Logger.info(`RestDataSourceBase: Sorting data set.`);
 
     data.sort((a, b) => {
       for (const s of sort) {
         const dir = s.direction === 'ascending' ? 1 : -1;
-        const compare = compareValues(
-          a[s.property] as DataValue,
-          b[s.property] as DataValue
-        );
+        const compare = compareValues(a[s.property] as DataValue, b[s.property] as DataValue);
         if (compare < 0) {
           return -1 * dir;
         } else if (compare > 0) {
@@ -1051,11 +930,7 @@ export class RestDataSourceBase<
    * @param {object} o Object to be transformed.
    * @param {object} params Parameter values to be used when retrieving data.  Optional.
    */
-  protected transformObject(
-    transform: Transform,
-    o: DataObject,
-    params?: DataValueMap
-  ) {
+  protected async transformObject(transform: Transform, o: DataObject, params?: DataValueMap): Promise<DataObject> {
     const result: DataObject = {};
 
     const tokenContext = this.initTokenContext(params);
@@ -1072,29 +947,27 @@ export class RestDataSourceBase<
 
       const valueLookupFunction = (lookupName: string, value: string) => {
         if (!valueLookups) {
-          throw new Error(
+          throw createHttpError(
+            StatusCodes.UNPROCESSABLE_ENTITY,
             `Invalid value lookup: ${lookupName}.  No value lookups defined.`
           );
         }
         const lookup = valueLookups[lookupName];
         if (!lookup) {
-          throw new Error(`Unable to find data set lookup: ${lookupName}`);
+          throw createHttpError(StatusCodes.UNPROCESSABLE_ENTITY, `Unable to find data set lookup: ${lookupName}`);
         }
 
         if (value === undefined || value === null) {
           if (lookup[LOOKUP_DEFAULT_VALUE] === undefined) {
-            throw new Error(
+            throw createHttpError(
+              StatusCodes.UNPROCESSABLE_ENTITY,
               `Invalid lookup: ${lookupName}.  Default value not defined.`
             );
           }
           return lookup[LOOKUP_DEFAULT_VALUE];
         } else {
-          if (
-            typeof value !== 'string' &&
-            typeof value !== 'number' &&
-            typeof value !== 'boolean'
-          ) {
-            throw new Error(`Invalid data set lookup value: ${lookupName}`);
+          if (typeof value !== 'string' && typeof value !== 'number' && typeof value !== 'boolean') {
+            throw createHttpError(StatusCodes.UNPROCESSABLE_ENTITY, `Invalid data set lookup value: ${lookupName}`);
           }
           const lookupValue = value.toString();
           if (lookupValue in lookup) {
@@ -1114,7 +987,7 @@ export class RestDataSourceBase<
       });
 
       // Evaluate the expression and resolve any remaining tokens.
-      let expressionResult = expression.evaluate(o);
+      let expressionResult = await expression.evaluate(o);
       if (typeof expressionResult === 'string') {
         // Since we may be operating on data returned from the service, we
         // can't rule out the possibility of the service returning data that
@@ -1127,6 +1000,73 @@ export class RestDataSourceBase<
     }
 
     return result;
+  }
+
+  /**
+   * Helper function that applies a single lookup to a data object.
+   *
+   * @param {string} dataSetName Name of the data set.
+   * @param {object} lookup Lookup to apply to the data object.
+   * @param {object} dataObject Object to be updated with lookup data.
+   * @param {*} tokenContext Context object used in token replacement.
+   * @param {object} metadata Metadata from previous sync run if paging. Optional.
+   */
+  protected async applyLookupToObject(
+    dataSetName: string,
+    lookup: NonNullable<IDataSet['lookups']>[number],
+    dataObject: any,
+    tokenContext: TokenContext,
+    metadata?: SyncMetadata
+  ): Promise<void> {
+    if (!dataObject || typeof dataObject !== 'object') {
+      Logger.warn(`RestDataSourceBase: Skipping invalid data object in lookup of type: ${typeof dataObject}`);
+      return;
+    }
+    const params = { ...lookup.dataSetParams };
+    if (params) {
+      const lookupTokenContext: TokenContext = { ...tokenContext, source: dataObject };
+      for (const key of Object.keys(params)) {
+        const value = params[key];
+        if (typeof value === 'string') {
+          params[key] = resolveTokens(value, lookupTokenContext);
+        }
+      }
+    }
+    if (lookup.delaySeconds) {
+      const { delaySeconds } = lookup;
+      if (isNaN(delaySeconds) || delaySeconds < 0 || delaySeconds > 1) {
+        throw createHttpError(
+          StatusCodes.UNPROCESSABLE_ENTITY,
+          `Invalid delay seconds number: ${delaySeconds} for data set: ${dataSetName}.  Must be less than or equal to 1.`
+        );
+      }
+      await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
+    }
+
+    try {
+      const response = await this.getData<any>(
+        lookup.dataSet,
+        params,
+        undefined, // Paging is not supported for lookups
+        metadata
+      );
+      if (response.status !== DataSetResultStatus.Complete) {
+        throw createHttpError(
+          StatusCodes.INTERNAL_SERVER_ERROR,
+          `Invalid response received for data set: ${dataSetName}`
+        );
+      }
+      dataObject[lookup.alias] = response.data;
+    } catch (error) {
+      if (lookup.continueOnError === true) {
+        Logger.warn(
+          `Continuing upon error performing lookup for data set: ${lookup.dataSet}`,
+          error instanceof Error ? error.message : String(error)
+        );
+        return;
+      }
+      throw error;
+    }
   }
 
   protected initTokenContext(params?: DataValueMap): TokenContext {
@@ -1144,10 +1084,10 @@ export class RestDataSourceBase<
    *
    * @returns The property value or undefined if the property was not found.
    */
-  protected getPropertyValue(
+  protected async getPropertyValue(
     o: any,
     property: string
-  ): DataValue | DataObject | DataObject[] | undefined {
+  ): Promise<DataValue | DataObject | DataObject[] | undefined> {
     const expression = jsonata(property);
     return expression.evaluate(o);
   }
@@ -1159,16 +1099,9 @@ export class RestDataSourceBase<
    * @param right Object on right side of join.
    * @param predicate Predicate to use for comparison.
    */
-  protected isPredicateMatch(
-    left: any,
-    right: any,
-    predicate: IPredicateClause[]
-  ) {
+  protected async isPredicateMatch(left: any, right: any, predicate: IPredicateClause[]): Promise<boolean> {
     for (const clause of predicate) {
-      if (
-        clause.leftExpression.evaluate(left) !==
-        clause.rightExpression.evaluate(right)
-      ) {
+      if ((await clause.leftExpression.evaluate(left)) !== (await clause.rightExpression.evaluate(right))) {
         return false;
       }
     }
@@ -1225,9 +1158,7 @@ export class RestDataSourceBase<
       return true;
     } else if (
       dataSet.pagingScheme &&
-      [PagingState.IterationPlan, PagingState.BatchedIteration].includes(
-        this.pagingState
-      )
+      [PagingState.IterationPlan, PagingState.BatchedIteration].includes(this.pagingState)
     ) {
       return true;
     }

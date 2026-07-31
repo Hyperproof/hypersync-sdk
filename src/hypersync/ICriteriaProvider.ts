@@ -1,3 +1,4 @@
+import { IInfoMessage } from './models';
 import { TokenContext } from './tokens';
 
 import {
@@ -12,7 +13,6 @@ import {
   IValidation,
   SchemaCategory
 } from '@hyperproof/hypersync-models';
-import { CriteriaPageMessageLevel } from '@hyperproof/integration-sdk';
 
 /**
  * Information needed to render a criteria field used in the configuration
@@ -40,12 +40,7 @@ export interface ICriteriaField {
 export interface ICriteriaPage {
   fields: ICriteriaField[];
   isValid: boolean;
-  info?: ICriteriaPageMessage[];
-}
-
-export interface ICriteriaPageMessage {
-  message: string;
-  alertStyle: CriteriaPageMessageLevel;
+  info?: IInfoMessage[];
 }
 
 /**

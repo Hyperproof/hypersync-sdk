@@ -28,7 +28,7 @@ If your code imported classes, types, interfaces, or enums from one of the other
 
 ### IP address allowlist change (US Only)
 
-New internal infrastructure for custom apps running version ^6.0.0 of the hypersync-sdk will cause the outgoing API calls to come from a new IP address. If you had previously added a Hyperproof address to your private server's allowlist, you may need to add additional addresses for your custom app to continue to function. See the "Integrations" IP Address for your instance of Hyperproof: https://docs.hyperproof.io/admin/en/get-to-know-hyperproof/hp-instances.html
+New internal infrastructure for custom apps running version ^6.0.0 of the hypersync-sdk will cause the outgoing API calls to come from a new IP address. If you had previously added a Hyperproof address to your private server's allowlist, you may need to add additional addresses for your custom app to continue to function. See the "Integrations" IP Address for your instance of Hyperproof: https://help.hyperproof.app/en/articles/14303850-hyperproof-instances
 
 ### OAuth callback change (US Only)
 

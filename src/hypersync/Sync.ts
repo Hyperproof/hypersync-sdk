@@ -1,11 +1,8 @@
 import { HypersyncResult } from './enums';
 import { SyncMetadata } from './IDataSource';
+import { applyProofLayout } from './layout';
 import { IHypersync } from './models';
-import {
-  IHypersyncContents,
-  IHypersyncSyncPlan,
-  IProofFile
-} from './ProofProviderBase';
+import { IHypersyncContents, IHypersyncSyncPlan, IProofFile } from './ProofProviderBase';
 
 import { ILocalizable } from '@hyperproof/integration-sdk';
 
@@ -40,7 +37,7 @@ export class Sync {
   public hypersync: IHypersync;
   public syncStartDate: Date;
   public organization: ILocalizable;
-  public page?: number;
+  public page?: string;
   public metadata?: SyncMetadata;
 
   /**
@@ -48,7 +45,7 @@ export class Sync {
    * @param {UserContext} userContext Information about the user in the external system.
    * @param {Hypersync} hypersync The Hypersync to run the sync for
    * @param {string} syncStartDate The ISO-8601 string for moment the sync started
-   * @param {number} page The page of data to retrieve.  Optional.
+   * @param {string} page The page of data to retrieve.  Optional.
    * @param {SyncMetadata} metadata Hypersync-specific synchronization state.  Optional.
    */
   constructor(
@@ -56,7 +53,7 @@ export class Sync {
     hypersync: IHypersync,
     syncStartDate: string,
     organization: ILocalizable,
-    page?: number,
+    page?: string,
     metadata?: SyncMetadata
   ) {
     this.userContext = userContext;
@@ -77,7 +74,16 @@ export class Sync {
           data
         }
       : data;
-    response.data.forEach(proofFile => this.formatProof(proofFile.contents));
+    // Central layout pass for the Sync-based connectors (the older
+    // createHypersync pattern). Mirrors HypersyncApp.getProofData so every
+    // provider — declarative or programmatic — gets computed widths /
+    // orientation / zoom even when it never calls calcLayoutInfo itself.
+    (response.data ?? []).forEach(proofFile => {
+      if (proofFile.contents) {
+        applyProofLayout(proofFile.contents);
+      }
+      this.formatProof(proofFile.contents);
+    });
     return response;
   }
 

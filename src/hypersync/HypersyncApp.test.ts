@@ -1,8 +1,4 @@
-import {
-  HypersyncApp,
-  HypersyncAppConnector,
-  IHypersyncAppConfig
-} from './HypersyncApp';
+import { HypersyncApp, HypersyncAppConnector, IHypersyncAppConfig } from './HypersyncApp';
 import { ICriteriaPage, ICriteriaProvider } from './ICriteriaProvider';
 import { IDataSource } from './IDataSource';
 import { JsonProofProvider } from './JsonProofProvider';
@@ -10,11 +6,7 @@ import { IHypersync } from './models';
 import { ProofProviderBase } from './ProofProviderBase';
 import { ProofProviderFactory } from './ProofProviderFactory';
 
-import {
-  IntegrationContext,
-  ObjectType,
-  UserContext
-} from '@hyperproof/integration-sdk/lib';
+import { IntegrationContext, ObjectType, UserContext } from '@hyperproof/integration-sdk/lib';
 import { ILocalizable } from '@hyperproof/integration-sdk/src';
 
 describe('HypersyncApp.ts', () => {
@@ -40,9 +32,7 @@ describe('HypersyncApp.ts', () => {
       mockProofProviderFactory = {
         getProofTypeOptions: jest.fn(),
         createProofProvider: jest.fn(),
-        getCustomProofTypeCategories: jest
-          .fn()
-          .mockReturnValue(new Set<undefined>())
+        getCustomProofTypeCategories: jest.fn().mockReturnValue(new Set<undefined>())
       };
 
       datasource = {
@@ -69,10 +59,8 @@ describe('HypersyncApp.ts', () => {
             generateProofCategoryField: jest.fn()
           };
 
-          let proofProviderFactory =
-            mockProofProviderFactory as unknown as ProofProviderFactory;
-          let criteriaProvider =
-            mockCriteriaProvider as unknown as ICriteriaProvider;
+          let proofProviderFactory = mockProofProviderFactory as unknown as ProofProviderFactory;
+          let criteriaProvider = mockCriteriaProvider as unknown as ICriteriaProvider;
 
           // Act
           await app.generateCriteriaMetadata(
@@ -85,9 +73,7 @@ describe('HypersyncApp.ts', () => {
           );
 
           // Assert
-          expect(
-            criteriaProvider.generateProofCategoryField
-          ).toHaveBeenCalled();
+          expect(criteriaProvider.generateProofCategoryField).toHaveBeenCalled();
         });
 
         it('should add categoryField to fields array when valid', async () => {
@@ -101,15 +87,11 @@ describe('HypersyncApp.ts', () => {
           };
 
           const mockCriteriaProvider = {
-            generateProofCategoryField: jest
-              .fn()
-              .mockResolvedValue(validCategoryField)
+            generateProofCategoryField: jest.fn().mockResolvedValue(validCategoryField)
           };
 
-          let proofProviderFactory =
-            mockProofProviderFactory as unknown as ProofProviderFactory;
-          let criteriaProvider =
-            mockCriteriaProvider as unknown as ICriteriaProvider;
+          let proofProviderFactory = mockProofProviderFactory as unknown as ProofProviderFactory;
+          let criteriaProvider = mockCriteriaProvider as unknown as ICriteriaProvider;
 
           // Act
           await app.generateCriteriaMetadata(
@@ -136,26 +118,15 @@ describe('HypersyncApp.ts', () => {
           };
 
           const mockCriteriaProvider = {
-            generateProofCategoryField: jest
-              .fn()
-              .mockResolvedValue(invalidCategoryField)
+            generateProofCategoryField: jest.fn().mockResolvedValue(invalidCategoryField)
           };
 
-          let proofProviderFactory =
-            mockProofProviderFactory as unknown as ProofProviderFactory;
-          let criteriaProvider =
-            mockCriteriaProvider as unknown as ICriteriaProvider;
+          let proofProviderFactory = mockProofProviderFactory as unknown as ProofProviderFactory;
+          let criteriaProvider = mockCriteriaProvider as unknown as ICriteriaProvider;
 
           // Act & Assert
           await expect(
-            app.generateCriteriaMetadata(
-              messages,
-              datasource,
-              criteriaProvider,
-              proofProviderFactory,
-              criteria,
-              pages
-            )
+            app.generateCriteriaMetadata(messages, datasource, criteriaProvider, proofProviderFactory, criteria, pages)
           ).rejects.toThrow('Invalid proof category field.');
         });
 
@@ -170,26 +141,15 @@ describe('HypersyncApp.ts', () => {
           };
 
           const mockCriteriaProvider = {
-            generateProofCategoryField: jest
-              .fn()
-              .mockResolvedValue(invalidCategoryField)
+            generateProofCategoryField: jest.fn().mockResolvedValue(invalidCategoryField)
           };
 
-          let proofProviderFactory =
-            mockProofProviderFactory as unknown as ProofProviderFactory;
-          let criteriaProvider =
-            mockCriteriaProvider as unknown as ICriteriaProvider;
+          let proofProviderFactory = mockProofProviderFactory as unknown as ProofProviderFactory;
+          let criteriaProvider = mockCriteriaProvider as unknown as ICriteriaProvider;
 
           // Act & Assert
           await expect(
-            app.generateCriteriaMetadata(
-              messages,
-              datasource,
-              criteriaProvider,
-              proofProviderFactory,
-              criteria,
-              pages
-            )
+            app.generateCriteriaMetadata(messages, datasource, criteriaProvider, proofProviderFactory, criteria, pages)
           ).rejects.toThrow('Invalid proof category field.');
         });
 
@@ -204,26 +164,15 @@ describe('HypersyncApp.ts', () => {
           };
 
           const mockCriteriaProvider = {
-            generateProofCategoryField: jest
-              .fn()
-              .mockResolvedValue(invalidCategoryField)
+            generateProofCategoryField: jest.fn().mockResolvedValue(invalidCategoryField)
           };
 
-          let proofProviderFactory =
-            mockProofProviderFactory as unknown as ProofProviderFactory;
-          let criteriaProvider =
-            mockCriteriaProvider as unknown as ICriteriaProvider;
+          let proofProviderFactory = mockProofProviderFactory as unknown as ProofProviderFactory;
+          let criteriaProvider = mockCriteriaProvider as unknown as ICriteriaProvider;
 
           // Act & Assert
           await expect(
-            app.generateCriteriaMetadata(
-              messages,
-              datasource,
-              criteriaProvider,
-              proofProviderFactory,
-              criteria,
-              pages
-            )
+            app.generateCriteriaMetadata(messages, datasource, criteriaProvider, proofProviderFactory, criteria, pages)
           ).rejects.toThrow('Invalid proof category field.');
         });
 
@@ -238,26 +187,15 @@ describe('HypersyncApp.ts', () => {
           };
 
           const mockCriteriaProvider = {
-            generateProofCategoryField: jest
-              .fn()
-              .mockResolvedValue(invalidCategoryField)
+            generateProofCategoryField: jest.fn().mockResolvedValue(invalidCategoryField)
           };
 
-          let proofProviderFactory =
-            mockProofProviderFactory as unknown as ProofProviderFactory;
-          let criteriaProvider =
-            mockCriteriaProvider as unknown as ICriteriaProvider;
+          let proofProviderFactory = mockProofProviderFactory as unknown as ProofProviderFactory;
+          let criteriaProvider = mockCriteriaProvider as unknown as ICriteriaProvider;
 
           // Act & Assert
           await expect(
-            app.generateCriteriaMetadata(
-              messages,
-              datasource,
-              criteriaProvider,
-              proofProviderFactory,
-              criteria,
-              pages
-            )
+            app.generateCriteriaMetadata(messages, datasource, criteriaProvider, proofProviderFactory, criteria, pages)
           ).rejects.toThrow('Invalid proof category field.');
         });
 
@@ -273,9 +211,7 @@ describe('HypersyncApp.ts', () => {
           };
 
           const mockCriteriaProvider = {
-            generateProofCategoryField: jest
-              .fn()
-              .mockResolvedValue(validCategoryField)
+            generateProofCategoryField: jest.fn().mockResolvedValue(validCategoryField)
           };
 
           const customCategories = new Set(['other', 'customCategory2']);
@@ -283,15 +219,11 @@ describe('HypersyncApp.ts', () => {
           const mockProofProviderFactory = {
             getProofTypeOptions: jest.fn(),
             createProofProvider: jest.fn(),
-            getCustomProofTypeCategories: jest
-              .fn()
-              .mockReturnValue(customCategories)
+            getCustomProofTypeCategories: jest.fn().mockReturnValue(customCategories)
           };
 
-          let proofProviderFactory =
-            mockProofProviderFactory as unknown as ProofProviderFactory;
-          let criteriaProvider =
-            mockCriteriaProvider as unknown as ICriteriaProvider;
+          let proofProviderFactory = mockProofProviderFactory as unknown as ProofProviderFactory;
+          let criteriaProvider = mockCriteriaProvider as unknown as ICriteriaProvider;
 
           // Act
           await app.generateCriteriaMetadata(
@@ -304,9 +236,7 @@ describe('HypersyncApp.ts', () => {
           );
 
           // Assert
-          const categoryFieldOptions = pages[0].fields.find(
-            f => f.name === 'category'
-          )?.options;
+          const categoryFieldOptions = pages[0].fields.find(f => f.name === 'category')?.options;
           expect(categoryFieldOptions).toContainEqual({
             value: 'other',
             label: 'Other'
@@ -326,9 +256,7 @@ describe('HypersyncApp.ts', () => {
           };
 
           const mockCriteriaProvider = {
-            generateProofCategoryField: jest
-              .fn()
-              .mockResolvedValue(categoryField)
+            generateProofCategoryField: jest.fn().mockResolvedValue(categoryField)
           };
 
           const validProofTypes = [
@@ -339,19 +267,15 @@ describe('HypersyncApp.ts', () => {
           const mockProofProviderFactory = {
             getProofTypeOptions: jest.fn().mockReturnValue(validProofTypes),
             createProofProvider: jest.fn(),
-            getCustomProofTypeCategories: jest
-              .fn()
-              .mockReturnValue(new Set<undefined>())
+            getCustomProofTypeCategories: jest.fn().mockReturnValue(new Set<undefined>())
           };
 
           const invalidCriteria = {
             proofType: 'invalidType' // Type that doesn't exist in options
           };
 
-          let proofProviderFactory =
-            mockProofProviderFactory as unknown as ProofProviderFactory;
-          let criteriaProvider =
-            mockCriteriaProvider as unknown as ICriteriaProvider;
+          let proofProviderFactory = mockProofProviderFactory as unknown as ProofProviderFactory;
+          let criteriaProvider = mockCriteriaProvider as unknown as ICriteriaProvider;
 
           // Act
           await app.generateCriteriaMetadata(
@@ -368,9 +292,7 @@ describe('HypersyncApp.ts', () => {
           expect(invalidCriteria.proofType).toBeUndefined();
 
           // Verify proofType field was added with correct options
-          const proofTypeField = pages[0].fields.find(
-            f => f.name === 'proofType'
-          );
+          const proofTypeField = pages[0].fields.find(f => f.name === 'proofType');
           expect(proofTypeField?.options).toEqual(validProofTypes);
           expect(proofTypeField?.isRequired).toBeTruthy();
           expect(proofTypeField?.value).toBeUndefined();
@@ -387,9 +309,7 @@ describe('HypersyncApp.ts', () => {
           };
 
           const mockCriteriaProvider = {
-            generateProofCategoryField: jest
-              .fn()
-              .mockResolvedValue(categoryField)
+            generateProofCategoryField: jest.fn().mockResolvedValue(categoryField)
           };
 
           const validProofTypes = [
@@ -404,22 +324,16 @@ describe('HypersyncApp.ts', () => {
           const mockProofProviderFactory = {
             getProofTypeOptions: jest.fn().mockReturnValue(validProofTypes),
             createProofProvider: jest.fn().mockReturnValue(mockProofProvider),
-            getCustomProofTypeCategories: jest
-              .fn()
-              .mockReturnValue(new Set<undefined>())
+            getCustomProofTypeCategories: jest.fn().mockReturnValue(new Set<undefined>())
           };
 
           const criteria = {
             proofType: 'type1' // Valid proof type that exists in options
           };
 
-          let proofProviderFactory =
-            mockProofProviderFactory as unknown as ProofProviderFactory;
-          let criteriaProvider =
-            mockCriteriaProvider as unknown as ICriteriaProvider;
-          let provider = mockProofProvider as unknown as
-            | ProofProviderBase<IDataSource>
-            | JsonProofProvider;
+          let proofProviderFactory = mockProofProviderFactory as unknown as ProofProviderFactory;
+          let criteriaProvider = mockCriteriaProvider as unknown as ICriteriaProvider;
+          let provider = mockProofProvider as unknown as ProofProviderBase<IDataSource> | JsonProofProvider;
 
           // Act
           await app.generateCriteriaMetadata(
@@ -432,18 +346,12 @@ describe('HypersyncApp.ts', () => {
           );
 
           // Assert
-          const proofTypeField = pages[0].fields.find(
-            f => f.name === 'proofType'
-          );
+          const proofTypeField = pages[0].fields.find(f => f.name === 'proofType');
           expect(proofTypeField?.options).toEqual(validProofTypes);
           expect(proofTypeField?.value).toBe('type1');
           expect(proofTypeField?.isRequired).toBeTruthy();
           expect(proofTypeField?.isDisabled).toBeFalsy();
-          expect(provider.generateCriteriaMetadata).toHaveBeenCalledWith(
-            criteria,
-            pages,
-            undefined
-          );
+          expect(provider.generateCriteriaMetadata).toHaveBeenCalledWith(criteria, pages, undefined);
         });
 
         it('should add proofType field with correct disabled state', async () => {
@@ -457,15 +365,11 @@ describe('HypersyncApp.ts', () => {
           };
 
           const mockCriteriaProvider = {
-            generateProofCategoryField: jest
-              .fn()
-              .mockResolvedValue(categoryField)
+            generateProofCategoryField: jest.fn().mockResolvedValue(categoryField)
           };
 
-          let proofProviderFactory =
-            mockProofProviderFactory as unknown as ProofProviderFactory;
-          let criteriaProvider =
-            mockCriteriaProvider as unknown as ICriteriaProvider;
+          let proofProviderFactory = mockProofProviderFactory as unknown as ProofProviderFactory;
+          let criteriaProvider = mockCriteriaProvider as unknown as ICriteriaProvider;
 
           // Act
           await app.generateCriteriaMetadata(
@@ -478,9 +382,7 @@ describe('HypersyncApp.ts', () => {
           );
 
           // Assert
-          const proofTypeField = pages[0].fields.find(
-            f => f.name === 'proofType'
-          );
+          const proofTypeField = pages[0].fields.find(f => f.name === 'proofType');
           expect(proofTypeField?.isDisabled).toBeTruthy();
         });
 
@@ -495,9 +397,7 @@ describe('HypersyncApp.ts', () => {
           };
 
           const mockCriteriaProvider = {
-            generateProofCategoryField: jest
-              .fn()
-              .mockResolvedValue(categoryField)
+            generateProofCategoryField: jest.fn().mockResolvedValue(categoryField)
           };
 
           const expectedProofTypes = [
@@ -508,15 +408,11 @@ describe('HypersyncApp.ts', () => {
           const mockProofProviderFactory = {
             getProofTypeOptions: jest.fn().mockReturnValue(expectedProofTypes),
             createProofProvider: jest.fn(),
-            getCustomProofTypeCategories: jest
-              .fn()
-              .mockReturnValue(new Set<undefined>())
+            getCustomProofTypeCategories: jest.fn().mockReturnValue(new Set<undefined>())
           };
 
-          let proofProviderFactory =
-            mockProofProviderFactory as unknown as ProofProviderFactory;
-          let criteriaProvider =
-            mockCriteriaProvider as unknown as ICriteriaProvider;
+          let proofProviderFactory = mockProofProviderFactory as unknown as ProofProviderFactory;
+          let criteriaProvider = mockCriteriaProvider as unknown as ICriteriaProvider;
 
           // Act
           await app.generateCriteriaMetadata(
@@ -529,13 +425,9 @@ describe('HypersyncApp.ts', () => {
           );
 
           // Assert
-          expect(
-            mockProofProviderFactory.getProofTypeOptions
-          ).toHaveBeenCalledWith('test', undefined);
+          expect(mockProofProviderFactory.getProofTypeOptions).toHaveBeenCalledWith('test', undefined);
 
-          const proofTypeField = pages[0].fields.find(
-            f => f.name === 'proofType'
-          );
+          const proofTypeField = pages[0].fields.find(f => f.name === 'proofType');
           expect(proofTypeField?.options).toEqual(expectedProofTypes);
           expect(proofTypeField?.isDisabled).toBeFalsy();
         });
@@ -551,29 +443,21 @@ describe('HypersyncApp.ts', () => {
           };
 
           const mockCriteriaProvider = {
-            generateProofCategoryField: jest
-              .fn()
-              .mockResolvedValue(categoryField)
+            generateProofCategoryField: jest.fn().mockResolvedValue(categoryField)
           };
 
           const mockProofProviderFactory = {
-            getProofTypeOptions: jest
-              .fn()
-              .mockReturnValue([{ value: 'newType', label: 'New Type' }]),
+            getProofTypeOptions: jest.fn().mockReturnValue([{ value: 'newType', label: 'New Type' }]),
             createProofProvider: jest.fn(),
-            getCustomProofTypeCategories: jest
-              .fn()
-              .mockReturnValue(new Set<undefined>())
+            getCustomProofTypeCategories: jest.fn().mockReturnValue(new Set<undefined>())
           };
 
           const criteria = {
             proofType: 'oldType' // This type doesn't exist in new options
           };
 
-          let proofProviderFactory =
-            mockProofProviderFactory as unknown as ProofProviderFactory;
-          let criteriaProvider =
-            mockCriteriaProvider as unknown as ICriteriaProvider;
+          let proofProviderFactory = mockProofProviderFactory as unknown as ProofProviderFactory;
+          let criteriaProvider = mockCriteriaProvider as unknown as ICriteriaProvider;
 
           // Act
           await app.generateCriteriaMetadata(
@@ -602,9 +486,7 @@ describe('HypersyncApp.ts', () => {
           };
 
           const mockCriteriaProvider = {
-            generateProofCategoryField: jest
-              .fn()
-              .mockResolvedValue(categoryField)
+            generateProofCategoryField: jest.fn().mockResolvedValue(categoryField)
           };
 
           const mockProofProvider = {
@@ -612,23 +494,17 @@ describe('HypersyncApp.ts', () => {
           };
 
           const mockProofProviderFactory = {
-            getProofTypeOptions: jest
-              .fn()
-              .mockReturnValue([{ value: 'validType', label: 'Valid Type' }]),
+            getProofTypeOptions: jest.fn().mockReturnValue([{ value: 'validType', label: 'Valid Type' }]),
             createProofProvider: jest.fn().mockReturnValue(mockProofProvider),
-            getCustomProofTypeCategories: jest
-              .fn()
-              .mockReturnValue(new Set<undefined>())
+            getCustomProofTypeCategories: jest.fn().mockReturnValue(new Set<undefined>())
           };
 
           const criteria = {
             proofType: 'validType'
           };
 
-          let proofProviderFactory =
-            mockProofProviderFactory as unknown as ProofProviderFactory;
-          let criteriaProvider =
-            mockCriteriaProvider as unknown as ICriteriaProvider;
+          let proofProviderFactory = mockProofProviderFactory as unknown as ProofProviderFactory;
+          let criteriaProvider = mockCriteriaProvider as unknown as ICriteriaProvider;
 
           // Act
           await app.generateCriteriaMetadata(
@@ -641,12 +517,12 @@ describe('HypersyncApp.ts', () => {
           );
 
           // Assert
-          expect(
-            mockProofProviderFactory.createProofProvider
-          ).toHaveBeenCalledWith('validType', datasource, criteriaProvider);
-          expect(
-            mockProofProvider.generateCriteriaMetadata
-          ).toHaveBeenCalledWith(criteria, pages, undefined);
+          expect(mockProofProviderFactory.createProofProvider).toHaveBeenCalledWith(
+            'validType',
+            datasource,
+            criteriaProvider
+          );
+          expect(mockProofProvider.generateCriteriaMetadata).toHaveBeenCalledWith(criteria, pages, undefined);
         });
       });
     });
@@ -698,10 +574,7 @@ describe('HypersyncApp.ts', () => {
             }
           } as unknown as IHypersync;
 
-          jest
-            .spyOn(mockConnector, 'getUser')
-            .mockImplementation()
-            .mockResolvedValue(undefined);
+          jest.spyOn(mockConnector, 'getUser').mockImplementation().mockResolvedValue(undefined);
 
           // Act & Assert
           await expect(
@@ -749,17 +622,13 @@ describe('HypersyncApp.ts', () => {
             timeZone: 'America/Los_Angeles'
           };
 
-          jest
-            .spyOn(mockConnector as any, 'getUser')
-            .mockResolvedValue(mockUserContext);
-          jest
-            .spyOn(mockConnector as any, 'createResources')
-            .mockResolvedValue({
-              messages: {},
-              dataSource: {},
-              criteriaProvider: {},
-              proofProviderFactory: {}
-            });
+          jest.spyOn(mockConnector as any, 'getUser').mockResolvedValue(mockUserContext);
+          jest.spyOn(mockConnector as any, 'createResources').mockResolvedValue({
+            messages: {},
+            dataSource: {},
+            criteriaProvider: {},
+            proofProviderFactory: {}
+          });
 
           // Act
           await mockConnector.syncNow(
@@ -801,9 +670,7 @@ describe('HypersyncApp.ts', () => {
               }
             ]
           };
-          (mockApp.getProofData as jest.Mock).mockResolvedValue(
-            expectedResults
-          );
+          (mockApp.getProofData as jest.Mock).mockResolvedValue(expectedResults);
 
           const mockIntegrationContext = {
             storage: {
@@ -822,17 +689,13 @@ describe('HypersyncApp.ts', () => {
             }
           } as unknown as IHypersync;
 
-          jest
-            .spyOn(mockConnector as any, 'getUser')
-            .mockResolvedValue(mockUserContext);
-          jest
-            .spyOn(mockConnector as any, 'createResources')
-            .mockResolvedValue({
-              messages: {},
-              dataSource: {},
-              criteriaProvider: {},
-              proofProviderFactory: {}
-            });
+          jest.spyOn(mockConnector as any, 'getUser').mockResolvedValue(mockUserContext);
+          jest.spyOn(mockConnector as any, 'createResources').mockResolvedValue({
+            messages: {},
+            dataSource: {},
+            criteriaProvider: {},
+            proofProviderFactory: {}
+          });
 
           // Act
           const result = await mockConnector.syncNow(
@@ -869,11 +732,7 @@ describe('HypersyncApp.ts', () => {
 
         // Act & Assert
         await expect(
-          mockConnector.validateCredentials(
-            credentials,
-            mockIntegrationContext,
-            'hyperproofUserId123'
-          )
+          mockConnector.validateCredentials(credentials, mockIntegrationContext, 'hyperproofUserId123')
         ).rejects.toThrow();
       });
 

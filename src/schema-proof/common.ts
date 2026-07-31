@@ -10,10 +10,7 @@ const UarSchemas = {
   [SchemaCategory.UarApplication]: uarApplicationSchema
 };
 
-export function validateDataSchema(
-  hypersync: IHypersync,
-  data: DataObject | DataObject[]
-) {
+export function validateDataSchema(hypersync: IHypersync, data: DataObject | DataObject[]) {
   if (!hypersync) {
     throw new Error('hypersync is undefined.');
   }

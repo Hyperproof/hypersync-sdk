@@ -1,20 +1,10 @@
-import {
-  DataObject,
-  DataValue,
-  HypersyncCriteria,
-  HypersyncCriteriaValue
-} from '@hyperproof/hypersync-models';
+import { DataObject, DataValue, HypersyncCriteria, HypersyncCriteriaValue } from '@hyperproof/hypersync-models';
 
 /**
  * Context object that is used when resolving placeholder tokens in a string.
  */
 export type TokenContext = {
-  [key: string]:
-    | DataValue
-    | DataObject
-    | DataObject[]
-    | HypersyncCriteria
-    | TokenContext;
+  [key: string]: DataValue | DataObject | DataObject[] | HypersyncCriteria | TokenContext;
 };
 
 /**
@@ -36,12 +26,7 @@ export const resolveTokens = <T extends object | string>(
   suppressErrors = false,
   undefinedOnMissingValue = false
 ): T => {
-  return executeResolveTokensInJsonValue(
-    value,
-    context,
-    suppressErrors,
-    undefinedOnMissingValue
-  ) as T;
+  return executeResolveTokensInJsonValue(value, context, suppressErrors, undefinedOnMissingValue) as T;
 };
 
 const tokenRegEx = /\{\{.*?\}\}/g;
@@ -56,6 +41,7 @@ const tokenRegEx = /\{\{.*?\}\}/g;
  * @param suppressErrors Whether or not to suppress errors when they are detected.
  * @param undefinedOnMissingValue If true, set the value to undefined if the token resolves to a falsy value. Otherwise, defaults to an empty string
  */
+// eslint-disable-next-line complexity
 const executeResolveTokens = (
   value: string,
   context: TokenContext,
@@ -69,13 +55,16 @@ const executeResolveTokens = (
   while (tokens && !foundError) {
     for (const token of tokens) {
       const parts = splitToken(token);
-      let value:
-        | DataValue
-        | DataObject
-        | DataObject[]
-        | HypersyncCriteria
-        | HypersyncCriteriaValue
-        | TokenContext;
+      let value: DataValue | DataObject | DataObject[] | HypersyncCriteria | HypersyncCriteriaValue | TokenContext;
+
+      let arrayIndex: number | null = null;
+      // Special handling for array index references
+      const arrayIndexMatch = parts[parts.length - 1].match(/(.*?)\[(\d+)\]$/);
+      if (arrayIndexMatch) {
+        const arrayPart = arrayIndexMatch[1];
+        parts[parts.length - 1] = arrayPart;
+        arrayIndex = parseInt(arrayIndexMatch[2], 10);
+      }
 
       // Special handling for `env.` references.
       if (parts.length === 2 && parts[0] === 'env') {
@@ -110,7 +99,7 @@ const executeResolveTokens = (
       // For multiselect fields, we need to join the values together.
       // HYP-47577: We should use a more flexible method of resolving multiselect field values
       if (Array.isArray(value)) {
-        value = value.join(',');
+        value = arrayIndex !== null ? value[arrayIndex] : value.join(',');
       }
 
       // If the token resolved to an object reference, it is considered
@@ -159,20 +148,10 @@ const executeResolveTokensInJsonValue = (
   undefinedOnMissingValue = false
 ): object | string | undefined => {
   if (typeof value === 'string') {
-    return executeResolveTokens(
-      value,
-      context,
-      suppressErrors,
-      undefinedOnMissingValue
-    );
+    return executeResolveTokens(value, context, suppressErrors, undefinedOnMissingValue);
   } else {
     const out = JSON.parse(JSON.stringify(value)); // deep clone the original object
-    innerResolveTokensInJsonValue(
-      out,
-      context,
-      suppressErrors,
-      undefinedOnMissingValue
-    );
+    innerResolveTokensInJsonValue(out, context, suppressErrors, undefinedOnMissingValue);
     return out;
   }
 };
@@ -188,19 +167,9 @@ const innerResolveTokensInJsonValue = (
   }
   for (const key in value) {
     if (typeof value[key] === 'string') {
-      value[key] = executeResolveTokens(
-        value[key],
-        context,
-        suppressErrors,
-        undefinedOnMissingValue
-      );
+      value[key] = executeResolveTokens(value[key], context, suppressErrors, undefinedOnMissingValue);
     } else if (typeof value[key] === 'object') {
-      innerResolveTokensInJsonValue(
-        value[key],
-        context,
-        suppressErrors,
-        undefinedOnMissingValue
-      );
+      innerResolveTokensInJsonValue(value[key], context, suppressErrors, undefinedOnMissingValue);
     }
   }
 };
