@@ -16,15 +16,13 @@ All three packages are released together at the same version. Update `package.js
 
 ### Outbound requests are now SSRF-guarded
 
-**Read this first — it is the change most likely to break a working app.**
-
 Requests made through the SDK's HTTP layer (`ApiClient`, and therefore every `RestDataSourceBase` data set) now go through a guarded agent that:
 
-- allows only `http:` and `https:` schemes,
-- resolves the target hostname on a **public** DNS-over-HTTPS resolver
-- rejects any address in a private, reserved, or link-local range
-- rejects IP-literal hosts (e.g. `https://10.0.0.5/api`)
-- pins the socket to the validated public IP, re-checking on every redirect hop
+- Allows only `http:` and `https:` schemes,
+- Resolves the target hostname on a **public** DNS-over-HTTPS resolver
+- Rejects any address in a private, reserved, or link-local range
+- Rejects IP-literal hosts (e.g. `https://10.0.0.5/api`)
+- Pins the socket to the validated public IP, re-checking on every redirect hop
 
 A blocked request fails with HTTP `400` and error code `EGRESS_BLOCKED`. The guard fails closed: a resolver error or timeout also denies the connection.
 
@@ -47,7 +45,7 @@ Logger.info('Fetching users');
 
 `Logger.init()` is no longer necessary and has been removed.
 
-### Renamed types — check these carefully
+### Renamed types
 
 `ICriteriaPageMessage` was replaced by `IInfoMessage`; `ICriteriaPage.info` is now `IInfoMessage[]`. `IInfoMessage` adds an optional action so a criteria page can render an actionable prompt rather than a bare message.
 
@@ -55,23 +53,20 @@ Logger.info('Fetching users');
 
 - **`IProofSpec.autoLayout`**: Layout is now applied centrally to every proof, so the opt-in flag no longer exists. See _Layout is automatic_ below.
 
-### Changed signatures
+### Updated signatures
 
-If you override any of these, update the signature.
-
-`HypersyncApp`:
+#### HypersyncApp
 
 ```diff
-- public async createDataSource(tokenOrCreds: string | CustomAuthCredentials): Promise<IDataSource>
-+ public async createDataSource(tokenOrCreds: string | CustomAuthCredentials, variant?: string): Promise<IDataSource>
-
 - public async onLastUserDeleted(user: TUserProfile, accessToken: string): Promise<void>
 + public async onLastUserDeleted(user: TUserProfile, credentials?: string | CustomAuthCredentials): Promise<void>
 ```
 
-`onLastUserDeleted` previously received an OAuth `accessToken`, which was meaningless for custom-auth apps. It now receives the app's actual credentials, so the parameter is optional and may be a credentials object.
+`onLastUserDeleted` previously did not work for custom-auth hypersyncs, which is now fixed.
 
-`RestDataSourceBase` — these became `async`, so overrides must be `async` too and callers must `await` them:
+#### RestDataSourceBase
+
+The following functions became `async`:
 
 ```diff
 - protected transformObject(transform: Transform, o: DataObject, params?: DataValueMap): DataObject
@@ -84,7 +79,7 @@ If you override any of these, update the signature.
 + protected async isPredicateMatch(left: any, right: any, predicate: IPredicateClause[]): Promise<boolean>
 ```
 
-These became async because JSONata 2.x evaluation returns a promise — see _JSONata upgraded to 2.2.2_ above.
+These became async because JSONata 2.x evaluation returns a promise — see _JSONata upgraded to 2.2.2_ below.
 
 `Sync.page` is now a `string` rather than a `number`, matching the opaque page tokens the paging schemes produce.
 
