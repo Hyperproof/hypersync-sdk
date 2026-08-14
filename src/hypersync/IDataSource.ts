@@ -48,13 +48,16 @@ export interface IDataSource {
    *  if the status was Complete. Optional.
    * @param {object} metadata Metadata from previous sync run if requeued. Only returned
    *  from the previous sync if the status was Pending. Optional.
+   * @param {Date} syncStartDate Time at which the sync started, used by data sources
+   *  that build date-relative requests. Optional.
    */
   getData(
     dataSetName: string,
     params?: DataValueMap,
     page?: string,
     metadata?: SyncMetadata,
-    organization?: ILocalizable
+    organization?: ILocalizable,
+    syncStartDate?: Date
   ): Promise<DataSetResult<DataObject | DataObject[]>>;
 }
 

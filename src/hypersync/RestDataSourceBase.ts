@@ -202,7 +202,8 @@ export class RestDataSourceBase<TDataSet extends IDataSet = IDataSet> extends Da
     params?: DataValueMap,
     page?: string,
     metadata?: SyncMetadata,
-    organization?: ILocalizable
+    organization?: ILocalizable,
+    syncStartDate?: Date
   ): Promise<RestDataSetResult<TData>> {
     Logger.debug(`RestDataSourceBase: Retrieving Hypersync service data for data set '${dataSetName}'`);
     const dataSet = this.config.dataSets[dataSetName];
@@ -231,7 +232,8 @@ export class RestDataSourceBase<TDataSet extends IDataSet = IDataSet> extends Da
         dataSet.method,
         requestBody,
         dataSet.headers,
-        organization
+        organization,
+        syncStartDate
       );
     } else {
       // Fetch the data from the service.
@@ -245,7 +247,8 @@ export class RestDataSourceBase<TDataSet extends IDataSet = IDataSet> extends Da
         dataSet.method,
         requestBody,
         dataSet.headers,
-        organization
+        organization,
+        syncStartDate
       );
     }
 
@@ -493,7 +496,9 @@ export class RestDataSourceBase<TDataSet extends IDataSet = IDataSet> extends Da
     requestBody?: any,
     requestHeaders?: { [key: string]: string },
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    organization?: ILocalizable
+    organization?: ILocalizable,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    syncStartDate?: Date
   ): Promise<RestDataSetResult<any>> {
     Logger.info(`RestDataSourceBase: Retrieving data from URL '${relativeUrl}'`);
     let response: IApiClientResponse<any>;
@@ -555,7 +560,8 @@ export class RestDataSourceBase<TDataSet extends IDataSet = IDataSet> extends Da
     method?: DataSetMethod,
     requestBody?: any,
     requestHeaders?: { [key: string]: string },
-    organization?: ILocalizable
+    organization?: ILocalizable,
+    syncStartDate?: Date
   ): Promise<RestDataSetResult<any>> {
     const baseUrl = this.config.baseUrl;
     const paginator = Paginator.createPaginator(dataSet.pagingScheme!, method);
@@ -582,7 +588,8 @@ export class RestDataSourceBase<TDataSet extends IDataSet = IDataSet> extends Da
           method,
           pagedMessageBody,
           requestHeaders,
-          organization
+          organization,
+          syncStartDate
         );
 
         if (response.status !== DataSetResultStatus.Complete) {
@@ -622,7 +629,8 @@ export class RestDataSourceBase<TDataSet extends IDataSet = IDataSet> extends Da
         method,
         pagedMessageBody,
         requestHeaders,
-        organization
+        organization,
+        syncStartDate
       );
 
       if (response.status !== DataSetResultStatus.Complete) {

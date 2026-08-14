@@ -349,6 +349,35 @@ describe('JsonProofProvider', () => {
         expect(provider['fetchLookups']).toHaveBeenCalled();
       });
 
+      it('passes syncStartDate through to dataSource.getData', async () => {
+        // Act
+        await provider.getProofData(hypersync, organization, authorizedUser, syncStartDate);
+
+        // Assert
+        expect(dataSource.getData).toHaveBeenCalledWith(
+          proofSpec.dataSet,
+          undefined,
+          undefined,
+          undefined,
+          organization,
+          syncStartDate
+        );
+      });
+
+      it('normalizes an invalid syncStartDate to the current time before calling dataSource.getData', async () => {
+        // Arrange: callers upstream do `new Date(syncStartDate)` on a possibly empty/missing
+        // string, which yields an Invalid Date object (not undefined) - must not throw.
+        const invalidDate = new Date('');
+
+        // Act
+        await provider.getProofData(hypersync, organization, authorizedUser, invalidDate);
+
+        // Assert
+        const actualSyncStartDate = (dataSource.getData as jest.Mock).mock.calls[0][5] as Date;
+        expect(actualSyncStartDate).toBeInstanceOf(Date);
+        expect(isNaN(actualSyncStartDate.getTime())).toBe(false);
+      });
+
       it('calls addFormattedNumbers if field includes numbers', async () => {
         // Arrange
         const expectedProofData = buildExpectedProofData(

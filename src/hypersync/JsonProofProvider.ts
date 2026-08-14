@@ -232,6 +232,10 @@ export class JsonProofProvider extends ProofProviderBase {
     }
     this.addSavedCriteriaToParams(params, criteriaValues);
 
+    // Normalize an absent/invalid sync start time to now so date-relative data
+    // sources compute a stable window instead of operating on an invalid Date.
+    const effectiveSyncStartDate = syncStartDate && !isNaN(syncStartDate.getTime()) ? syncStartDate : new Date();
+
     let response;
     if (proofSpec.dataSetIterator) {
       if (!isRestDataSourceBase(this.dataSource)) {
@@ -248,7 +252,14 @@ export class JsonProofProvider extends ProofProviderBase {
         organization
       );
     } else {
-      response = await this.dataSource.getData(proofSpec.dataSet, params, page, metadata, organization);
+      response = await this.dataSource.getData(
+        proofSpec.dataSet,
+        params,
+        page,
+        metadata,
+        organization,
+        effectiveSyncStartDate
+      );
     }
 
     if (response.status !== DataSetResultStatus.Complete) {
