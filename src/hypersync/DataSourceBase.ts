@@ -1,10 +1,4 @@
-import {
-  DataSetResult,
-  DataSetResultStatus,
-  IDataSetResultComplete,
-  IDataSource,
-  SyncMetadata
-} from './IDataSource';
+import { DataSetResult, DataSetResultStatus, IDataSetResultComplete, IDataSource, SyncMetadata } from './IDataSource';
 
 import { DataObject, DataValueMap } from '@hyperproof/hypersync-models';
 import { ILocalizable } from '@hyperproof/integration-sdk';

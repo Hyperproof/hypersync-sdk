@@ -32,9 +32,7 @@ export interface IDataSetResultPending {
   metadata: SyncMetadata;
 }
 
-export type DataSetResult<TData> =
-  | IDataSetResultComplete<TData>
-  | IDataSetResultPending;
+export type DataSetResult<TData> = IDataSetResultComplete<TData> | IDataSetResultPending;
 
 /**
  * Interface implemented by client objects that provide data from an external source.
@@ -50,18 +48,19 @@ export interface IDataSource {
    *  if the status was Complete. Optional.
    * @param {object} metadata Metadata from previous sync run if requeued. Only returned
    *  from the previous sync if the status was Pending. Optional.
+   * @param {Date} syncStartDate Time at which the sync started, used by data sources
+   *  that build date-relative requests. Optional.
    */
   getData(
     dataSetName: string,
     params?: DataValueMap,
     page?: string,
     metadata?: SyncMetadata,
-    organization?: ILocalizable
+    organization?: ILocalizable,
+    syncStartDate?: Date
   ): Promise<DataSetResult<DataObject | DataObject[]>>;
 }
 
-export function isRestDataSourceBase(
-  dataSource: IDataSource
-): dataSource is RestDataSourceBase {
+export function isRestDataSourceBase(dataSource: IDataSource): dataSource is RestDataSourceBase {
   return (dataSource as RestDataSourceBase).getConfig() !== undefined;
 }

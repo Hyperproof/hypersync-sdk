@@ -6,10 +6,8 @@ export const MESSAGES = {
   FormatBooleanYesNo: 'Yes;No',
   FormatBooleanTrueFalse: 'True;False',
   ImportTimeLessThan1Hour: 'This import will take {minutes} minutes',
-  ImportTimeGreaterThan1Hour:
-    'This import will take {hours} hour and {minutes} minutes',
-  ImportTimeGreaterThan2Hours:
-    'This import will take {hours} hours and {minutes} minutes',
+  ImportTimeGreaterThan1Hour: 'This import will take {hours} hour and {minutes} minutes',
+  ImportTimeGreaterThan2Hours: 'This import will take {hours} hours and {minutes} minutes',
   ProofCategoryOther: 'Other',
   ProofType: 'Proof',
   NoAccountFound:
@@ -58,12 +56,10 @@ export const formatMessage = (
 ) => {
   let message = messageKey;
 
-  Object.entries(
-    (messageKeysOverride
-      ? messageKeysOverride[messageKey]
-      : MESSAGE_KEYS[messageKey]) ?? {}
-  ).forEach(([key, messageVal]) => {
-    message = message.replace(`{${messageVal}}`, messageVals[key]);
-  });
+  Object.entries((messageKeysOverride ? messageKeysOverride[messageKey] : MESSAGE_KEYS[messageKey]) ?? {}).forEach(
+    ([key, messageVal]) => {
+      message = message.replace(`{${messageVal}}`, messageVals[key]);
+    }
+  );
   return message;
 };

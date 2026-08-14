@@ -11,11 +11,7 @@ import { date, InferType, object, string } from 'yup';
 
 import { DataSourceBase } from '../hypersync/DataSourceBase';
 import { HypersyncTemplate } from '../hypersync/enums';
-import {
-  ICriteriaMetadata,
-  ICriteriaPage,
-  ICriteriaProvider
-} from '../hypersync/ICriteriaProvider';
+import { ICriteriaMetadata, ICriteriaPage, ICriteriaProvider } from '../hypersync/ICriteriaProvider';
 import { MESSAGES } from '../hypersync/messages';
 import { IHypersync } from '../hypersync/models';
 import { IProofFile, ProofProviderBase } from '../hypersync/ProofProviderBase';
@@ -36,15 +32,18 @@ export type IUarDirectory = InferType<typeof uarDirectorySchema>;
 
 export abstract class UarDirectoryProofProvider extends ProofProviderBase {
   static override schemaCategory = SchemaCategory.UarDirectory;
-  private connectorName;
+  private connectorName: string;
+  private integrationType: string;
 
   constructor(
     dataSource: DataSourceBase,
     criteriaProvider: ICriteriaProvider,
-    connectorName: string
+    connectorName: string,
+    integrationType?: string
   ) {
     super(dataSource, criteriaProvider);
     this.connectorName = connectorName;
+    this.integrationType = integrationType ?? process.env.integration_type!;
   }
 
   // the concrete class must implement this function and provide the criteria fields
@@ -76,7 +75,7 @@ export abstract class UarDirectoryProofProvider extends ProofProviderBase {
       {
         filename: `${MESSAGES.UarDirectory.LabelAccessReview} - ${hypersync.settings.name}`,
         contents: {
-          type: process.env.integration_type!,
+          type: this.integrationType,
           title: MESSAGES.LabelAccessReview,
           subtitle: MESSAGES.LabelAccessReview,
           userTimeZone: organization.timeZone,
@@ -98,7 +97,7 @@ export abstract class UarDirectoryProofProvider extends ProofProviderBase {
     ];
   }
 
-  protected getLayout() {
+  getLayout() {
     return {
       label: MESSAGES.UarDirectory.LabelAccessReview,
       format: HypersyncDataFormat.Tabular,

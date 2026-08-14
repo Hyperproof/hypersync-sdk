@@ -38,11 +38,7 @@ const MESSAGE_KEYS = {
  * @param {string} timeZone The syncing user's timezone
  * @returns {PeriodRange} An object with two {ZonedDateTime} objects, "to" and "from"
  */
-export const getLastPeriod = (
-  period: HypersyncPeriod,
-  syncStartDate: Date,
-  timeZone: string
-) => {
+export const getLastPeriod = (period: HypersyncPeriod, syncStartDate: Date, timeZone: string) => {
   // Convert millis to Unix timestamp
   const now = syncStartDate
     ? dateToZonedDateTime(syncStartDate, timeZone)
@@ -88,15 +84,19 @@ export const getLastPeriod = (
       };
     }
     case HypersyncPeriod.Yearly: {
-      const startOfThisYear = now
-        .truncatedTo(ChronoUnit.DAYS)
-        .withMonth(1)
-        .withDayOfMonth(1);
+      const startOfThisYear = now.truncatedTo(ChronoUnit.DAYS).withMonth(1).withDayOfMonth(1);
       const lastYearStartDate = startOfThisYear.minusYears(1);
       const lastYearEndDate = startOfThisYear.minusSeconds(1);
       return {
         from: lastYearStartDate,
         to: lastYearEndDate
+      };
+    }
+    case HypersyncPeriod.YearToDate: {
+      const startOfThisYear = now.truncatedTo(ChronoUnit.DAYS).withMonth(1).withDayOfMonth(1);
+      return {
+        from: startOfThisYear,
+        to: now
       };
     }
     default:
@@ -122,9 +122,7 @@ export const dateToUnixTimestamp = (date: Date) => {
 const dateToZonedDateTime = (date: Date, timeZone: string) => {
   return ZonedDateTime.ofInstant(
     Instant.ofEpochSecond(dateToUnixTimestamp(date)),
-    timeZone
-      ? ZoneId.of(timeZone).rules().offset(Instant.now())
-      : ZoneOffset.UTC
+    timeZone ? ZoneId.of(timeZone).rules().offset(Instant.now()) : ZoneOffset.UTC
   );
 };
 
@@ -145,12 +143,7 @@ const localDateTimeToDate = (localDateTime: LocalDateTime | ZonedDateTime) => {
  * @param {string} lang  The language used for string formatting, defaults to 'en'
  * @param {string} locale  The locale used for string formatting, defaults to 'US'
  */
-export const dateToLocalizedString = (
-  date: Date | string,
-  timeZone: string,
-  lang: string,
-  locale: string
-) => {
+export const dateToLocalizedString = (date: Date | string, timeZone: string, lang: string, locale: string) => {
   if (!date) {
     return undefined;
   }
@@ -178,12 +171,7 @@ export const dateToLocalizedString = (
  * @param {string} lang  The language used for string formatting, defaults to 'en'
  * @param {string} locale  The locale used for string formatting, defaults to 'US'
  */
-export const dateToLocalizedDateString = (
-  date: Date | string,
-  timeZone: string,
-  lang: string,
-  locale: string
-) => {
+export const dateToLocalizedDateString = (date: Date | string, timeZone: string, lang: string, locale: string) => {
   if (!date) {
     return undefined;
   }
@@ -202,9 +190,11 @@ export const dateToLocalizedDateString = (
 /**
  * Convert JsJoda LocalDateTime object and HypersyncPeriod to a user-friendly date string
  *
- * Day:   Jan 01, 2021
- * Week:  Week of Jan 01, 2021
- * Month: Jan-2021
+ * Day:     Jan 01, 2021
+ * Week:    Week of Jan 01, 2021
+ * Month:   Jan-2021
+ * Quarter: Q1 2021
+ * Year:    2021
  *
  * @param {LocalDateTime} periodStart The first day of the time period
  * @param {HypersyncPeriod} period The range of time or frequency of the hypersync
@@ -224,6 +214,7 @@ export const formatJsJodaDateRange = (
   const year = Intl.DateTimeFormat(locales, { year: 'numeric' }).format(date);
   const month = Intl.DateTimeFormat(locales, { month: 'short' }).format(date);
   const day = Intl.DateTimeFormat(locales, { day: '2-digit' }).format(date);
+  const quarter = Math.ceil((date.getMonth() + 1) / 3);
 
   switch (period) {
     case HypersyncPeriod.Daily:
@@ -233,6 +224,12 @@ export const formatJsJodaDateRange = (
       return `Week of ${month} ${day}, ${year}`;
     case HypersyncPeriod.Monthly:
       return `${month}-${year}`;
+    case HypersyncPeriod.Quarterly:
+      return `Q${quarter} ${year}`;
+    case HypersyncPeriod.Yearly:
+      return `${year}`;
+    case HypersyncPeriod.YearToDate:
+      return `${year} YTD`;
     default:
       throw new Error(`HypersyncPeriod "${period}" is not supported`);
   }
@@ -285,36 +282,12 @@ export const buildAgeString = (age: Duration): string => {
   milliseconds -= minutes * minutesInMs;
 
   const ageYearsString =
-    years === 0
-      ? ''
-      : formatMessage(
-          MESSAGES.AgeString.Years,
-          { years: years.toString() },
-          MESSAGE_KEYS
-        );
+    years === 0 ? '' : formatMessage(MESSAGES.AgeString.Years, { years: years.toString() }, MESSAGE_KEYS);
   const ageDaysString =
-    days === 0
-      ? ''
-      : formatMessage(
-          MESSAGES.AgeString.Days,
-          { days: days.toString() },
-          MESSAGE_KEYS
-        );
+    days === 0 ? '' : formatMessage(MESSAGES.AgeString.Days, { days: days.toString() }, MESSAGE_KEYS);
   const ageHoursString =
-    hours === 0
-      ? ''
-      : formatMessage(
-          MESSAGES.AgeString.Hours,
-          { hours: hours.toString() },
-          MESSAGE_KEYS
-        );
+    hours === 0 ? '' : formatMessage(MESSAGES.AgeString.Hours, { hours: hours.toString() }, MESSAGE_KEYS);
   const ageMinutesString =
-    minutes === 0
-      ? ''
-      : formatMessage(
-          MESSAGES.AgeString.Minutes,
-          { minutes: minutes.toString() },
-          MESSAGE_KEYS
-        );
+    minutes === 0 ? '' : formatMessage(MESSAGES.AgeString.Minutes, { minutes: minutes.toString() }, MESSAGE_KEYS);
   return `${ageYearsString}${ageDaysString}${ageHoursString}${ageMinutesString}`;
 };

@@ -24,7 +24,7 @@ describe('Paginator', () => {
         type: PagingType.NextToken,
         tokenType: NextTokenType.Token,
         request: {
-          limitParameter: '$top',
+          limitParameter: 'limit',
           limitValue: 10,
           tokenParameter: 'nextToken'
         }
@@ -38,7 +38,7 @@ describe('Paginator', () => {
         type: PagingType.NextToken,
         tokenType: NextTokenType.Token,
         request: {
-          limitParameter: '$top',
+          limitParameter: 'limit',
           limitValue: -10,
           tokenParameter: 'nextToken'
         }
@@ -65,13 +65,11 @@ describe('Paginator', () => {
         type: PagingType.NextToken,
         tokenType: NextTokenType.Token,
         request: {
-          limitParameter: '$top',
+          limitParameter: 'limit',
           tokenParameter: 'nextToken'
         }
       } as INextTokenScheme;
-      expect(() =>
-        Paginator.createPaginator(pagingSchemeWithNoLimitValue)
-      ).toThrow(
+      expect(() => Paginator.createPaginator(pagingSchemeWithNoLimitValue)).toThrow(
         'Paginator: Limit value must be defined if request parameters are defined for nextToken schemes.'
       );
     });
@@ -99,9 +97,7 @@ describe('Paginator', () => {
           limitValue: 10
         }
       } as IPageBasedScheme;
-      expect(() =>
-        Paginator.createPaginator(pagingSchemeWithNoLimitParameter)
-      ).toThrow(
+      expect(() => Paginator.createPaginator(pagingSchemeWithNoLimitParameter)).toThrow(
         'Paginator: Request parameters must be defined for pageBased schemes.'
       );
     });
@@ -115,9 +111,7 @@ describe('Paginator', () => {
           limitParameter: 'limit'
         }
       } as IPageBasedScheme;
-      expect(() =>
-        Paginator.createPaginator(pagingSchemeWithNoPageParameter)
-      ).toThrow(
+      expect(() => Paginator.createPaginator(pagingSchemeWithNoPageParameter)).toThrow(
         'Paginator: Request parameters must be defined for pageBased schemes.'
       );
     });
@@ -131,9 +125,7 @@ describe('Paginator', () => {
           limitValue: 10
         }
       } as IPageBasedScheme;
-      expect(() =>
-        Paginator.createPaginator(pagingSchemeWithNoPageStartingValue)
-      ).toThrow(
+      expect(() => Paginator.createPaginator(pagingSchemeWithNoPageStartingValue)).toThrow(
         'Paginator: Request parameters must be defined for pageBased schemes.'
       );
     });
@@ -194,9 +186,7 @@ describe('Paginator', () => {
         },
         pageUntil: PageUntilCondition.NoDataLeft
       } as IOffsetAndLimitScheme;
-      expect(() =>
-        Paginator.createPaginator(pagingSchemewithNoOffestParameter)
-      ).toThrow(
+      expect(() => Paginator.createPaginator(pagingSchemewithNoOffestParameter)).toThrow(
         'Paginator: Request parameters must be defined for offsetAndLimit schemes.'
       );
     });
@@ -211,9 +201,7 @@ describe('Paginator', () => {
         },
         pageUntil: PageUntilCondition.NoDataLeft
       } as IOffsetAndLimitScheme;
-      expect(() =>
-        Paginator.createPaginator(pagingSchemeWithNoOffsetStartingValue)
-      ).toThrow(
+      expect(() => Paginator.createPaginator(pagingSchemeWithNoOffsetStartingValue)).toThrow(
         'Paginator: Request parameters must be defined for offsetAndLimit schemes.'
       );
     });
@@ -228,9 +216,7 @@ describe('Paginator', () => {
         },
         pageUntil: PageUntilCondition.NoDataLeft
       } as IOffsetAndLimitScheme;
-      expect(() =>
-        Paginator.createPaginator(pagingSchemeWithNoLimitParameter)
-      ).toThrow(
+      expect(() => Paginator.createPaginator(pagingSchemeWithNoLimitParameter)).toThrow(
         'Paginator: Request parameters must be defined for offsetAndLimit schemes.'
       );
     });
@@ -274,10 +260,7 @@ describe('Paginator', () => {
         response: { pageInfo: JSON.stringify({ totalCount: 'totalCount' }) },
         pageUntil: PageUntilCondition.NoNextPage
       } as IGraphQLConnectionsScheme;
-      const paginator = Paginator.createPaginator(
-        pagingScheme,
-        DataSetMethod.POST
-      );
+      const paginator = Paginator.createPaginator(pagingScheme, DataSetMethod.POST);
 
       expect(paginator).toBeInstanceOf(GraphQLConnectionsPaginator);
     });
@@ -290,9 +273,7 @@ describe('Paginator', () => {
         pageUntil: PageUntilCondition.NoNextPage
       } as IGraphQLConnectionsScheme;
 
-      expect(() =>
-        Paginator.createPaginator(pagingScheme, DataSetMethod.POST)
-      ).toThrow(
+      expect(() => Paginator.createPaginator(pagingScheme, DataSetMethod.POST)).toThrow(
         'Paginator: Request parameters must be defined for graphqlConnections schemes.'
       );
     });
@@ -305,12 +286,7 @@ describe('Paginator', () => {
         pageUntil: PageUntilCondition.NoNextPage
       } as IGraphQLConnectionsScheme;
 
-      expect(() =>
-        Paginator.createPaginator(
-          pagingSchemeWithNoLimitValue,
-          DataSetMethod.POST
-        )
-      ).toThrow(
+      expect(() => Paginator.createPaginator(pagingSchemeWithNoLimitValue, DataSetMethod.POST)).toThrow(
         'Paginator: Limit value undefined must be a positive integer for graphqlConnections schemes.'
       );
     });
@@ -323,12 +299,7 @@ describe('Paginator', () => {
         pageUntil: PageUntilCondition.NoNextPage
       } as IGraphQLConnectionsScheme;
 
-      expect(() =>
-        Paginator.createPaginator(
-          pagingSchemeWithNonPositiveLimitValue,
-          DataSetMethod.POST
-        )
-      ).toThrow(
+      expect(() => Paginator.createPaginator(pagingSchemeWithNonPositiveLimitValue, DataSetMethod.POST)).toThrow(
         'Paginator: Limit value undefined must be a positive integer for graphqlConnections schemes.'
       );
     });
@@ -360,7 +331,7 @@ describe('Paginator', () => {
         type: PagingType.NextToken,
         tokenType: NextTokenType.Token,
         request: {
-          limitParameter: '$top',
+          limitParameter: 'limit',
           limitValue: 10,
           tokenParameter: 'nextToken'
         }
@@ -373,13 +344,7 @@ describe('Paginator', () => {
       const messageBody = undefined;
       let page = undefined;
 
-      let result = paginator.paginateRequest(
-        relativeUrl,
-        baseUrl,
-        messageBody,
-        DataSetMethod.GET,
-        page
-      );
+      let result = paginator.paginateRequest(relativeUrl, baseUrl, messageBody, DataSetMethod.GET, page);
 
       expect(result.pagedRelativeUrl).toBe(
         `${relativeUrl}?${pagingScheme.request.limitParameter}=${pagingScheme.request.limitValue}`
@@ -388,13 +353,7 @@ describe('Paginator', () => {
       // pretending we found the next token
       page = 'testToken';
 
-      result = paginator.paginateRequest(
-        relativeUrl,
-        baseUrl,
-        messageBody,
-        DataSetMethod.GET,
-        page
-      );
+      result = paginator.paginateRequest(relativeUrl, baseUrl, messageBody, DataSetMethod.GET, page);
 
       expect(result.pagedRelativeUrl).toBe(
         `${relativeUrl}?${pagingScheme.request.limitParameter}=${pagingScheme.request.limitValue}&${pagingScheme.request.tokenParameter}=${page}`
@@ -406,7 +365,7 @@ describe('Paginator', () => {
         type: PagingType.NextToken,
         tokenType: NextTokenType.Url,
         request: {
-          limitParameter: '$top',
+          limitParameter: 'limit',
           limitValue: 10,
           tokenParameter: 'nextToken'
         }
@@ -419,13 +378,7 @@ describe('Paginator', () => {
       const messageBody = undefined;
       let page = undefined;
 
-      let result = paginator.paginateRequest(
-        relativeUrl,
-        baseUrl,
-        messageBody,
-        DataSetMethod.GET,
-        page
-      );
+      let result = paginator.paginateRequest(relativeUrl, baseUrl, messageBody, DataSetMethod.GET, page);
 
       expect(result.pagedRelativeUrl).toBe(
         `${relativeUrl}?${pagingScheme.request.limitParameter}=${pagingScheme.request.limitValue}`
@@ -434,13 +387,7 @@ describe('Paginator', () => {
       // pretending we found the next token
       page = `${baseUrl}/testToken`;
 
-      result = paginator.paginateRequest(
-        relativeUrl,
-        baseUrl,
-        messageBody,
-        DataSetMethod.GET,
-        page
-      );
+      result = paginator.paginateRequest(relativeUrl, baseUrl, messageBody, DataSetMethod.GET, page);
 
       expect(result.pagedRelativeUrl).toBe(page);
     });
@@ -460,30 +407,16 @@ describe('Paginator', () => {
       const messageBody = undefined;
       let page = undefined;
 
-      let result = paginator.paginateRequest(
-        relativeUrl,
-        baseUrl,
-        messageBody,
-        DataSetMethod.GET,
-        page
-      );
+      let result = paginator.paginateRequest(relativeUrl, baseUrl, messageBody, DataSetMethod.GET, page);
 
       expect(result.pagedRelativeUrl).toBe(relativeUrl);
 
       // pretending we found the next token
       page = 'testToken';
 
-      result = paginator.paginateRequest(
-        relativeUrl,
-        baseUrl,
-        messageBody,
-        DataSetMethod.GET,
-        page
-      );
+      result = paginator.paginateRequest(relativeUrl, baseUrl, messageBody, DataSetMethod.GET, page);
 
-      expect(result.pagedRelativeUrl).toBe(
-        `${relativeUrl}?${pagingScheme.request.tokenParameter}=${page}`
-      );
+      expect(result.pagedRelativeUrl).toBe(`${relativeUrl}?${pagingScheme.request.tokenParameter}=${page}`);
     });
 
     it('should paginate POST message body', () => {
@@ -502,17 +435,10 @@ describe('Paginator', () => {
       const relativeUrl = '/graphql';
       const baseUrl = 'https://example.com';
       const messageBody = {
-        query:
-          'query($token: String) { attributes(token: $token) { nodes { id name } pagination { token } } }'
+        query: 'query($token: String) { attributes(token: $token) { nodes { id name } pagination { token } } }'
       };
       let page = '9f6a4b24af';
-      let result = paginator.paginateRequest(
-        relativeUrl,
-        baseUrl,
-        messageBody,
-        DataSetMethod.POST,
-        page
-      );
+      let result = paginator.paginateRequest(relativeUrl, baseUrl, messageBody, DataSetMethod.POST, page);
       expect(result.pagedRelativeUrl).toBe(relativeUrl);
       expect(result.pagedMessageBody).toEqual({
         ...messageBody,
@@ -541,13 +467,7 @@ describe('Paginator', () => {
       const messageBody = undefined;
       let page = undefined;
 
-      let result = paginator.paginateRequest(
-        relativeUrl,
-        baseUrl,
-        messageBody,
-        DataSetMethod.GET,
-        page
-      );
+      let result = paginator.paginateRequest(relativeUrl, baseUrl, messageBody, DataSetMethod.GET, page);
 
       expect(result.pagedRelativeUrl).toBe(
         `${relativeUrl}?${pagingScheme.request.pageParameter}=${pagingScheme.request.pageStartingValue}&${pagingScheme.request.limitParameter}=${pagingScheme.request.limitValue}`
@@ -556,13 +476,7 @@ describe('Paginator', () => {
       // pretending we found the next token
       page = '2';
 
-      result = paginator.paginateRequest(
-        relativeUrl,
-        baseUrl,
-        messageBody,
-        DataSetMethod.GET,
-        page
-      );
+      result = paginator.paginateRequest(relativeUrl, baseUrl, messageBody, DataSetMethod.GET, page);
       expect(result.pagedRelativeUrl).toBe(
         `${relativeUrl}?page=${page}&${pagingScheme.request.limitParameter}=${pagingScheme.request.limitValue}`
       );
@@ -587,13 +501,7 @@ describe('Paginator', () => {
           'query($page: Int, $limit: Int) { attributes(page: $page, limit: $limit) { nodes { id name } pagination { page } } }'
       };
       let page = undefined;
-      let result = paginator.paginateRequest(
-        relativeUrl,
-        baseUrl,
-        messageBody,
-        DataSetMethod.POST,
-        page
-      );
+      let result = paginator.paginateRequest(relativeUrl, baseUrl, messageBody, DataSetMethod.POST, page);
       expect(result.pagedRelativeUrl).toBe(relativeUrl);
       expect(result.pagedMessageBody).toEqual({
         ...messageBody,
@@ -624,13 +532,7 @@ describe('Paginator', () => {
       const messageBody = undefined;
       let page = undefined;
 
-      let result = paginator.paginateRequest(
-        relativeUrl,
-        baseUrl,
-        messageBody,
-        DataSetMethod.GET,
-        page
-      );
+      let result = paginator.paginateRequest(relativeUrl, baseUrl, messageBody, DataSetMethod.GET, page);
 
       expect(result.pagedRelativeUrl).toBe(
         `${relativeUrl}?${pagingScheme.request.offsetParameter}=${pagingScheme.request.offsetStartingValue}&${pagingScheme.request.limitParameter}=${pagingScheme.request.limitValue}`
@@ -639,13 +541,7 @@ describe('Paginator', () => {
       // pretending we found the next token
       page = '10';
 
-      result = paginator.paginateRequest(
-        relativeUrl,
-        baseUrl,
-        messageBody,
-        DataSetMethod.GET,
-        page
-      );
+      result = paginator.paginateRequest(relativeUrl, baseUrl, messageBody, DataSetMethod.GET, page);
       expect(result.pagedRelativeUrl).toBe(
         `${relativeUrl}?${pagingScheme.request.offsetParameter}=${page}&${pagingScheme.request.limitParameter}=${pagingScheme.request.limitValue}`
       );
@@ -673,13 +569,7 @@ describe('Paginator', () => {
           'query($offset: Int, $limit: Int) { attributes(offset: $offset, limit: $limit) { nodes { id name } pagination { totalCount } } }'
       };
       let page = undefined;
-      let result = paginator.paginateRequest(
-        relativeUrl,
-        baseUrl,
-        messageBody,
-        DataSetMethod.POST,
-        page
-      );
+      let result = paginator.paginateRequest(relativeUrl, baseUrl, messageBody, DataSetMethod.POST, page);
       expect(result.pagedRelativeUrl).toBe(relativeUrl);
       expect(result.pagedMessageBody).toEqual({
         ...messageBody,
@@ -699,23 +589,14 @@ describe('Paginator', () => {
         response: { pageInfo: JSON.stringify({ totalCount: 'totalCount' }) },
         pageUntil: PageUntilCondition.NoNextPage
       } as IGraphQLConnectionsScheme;
-      const paginator = Paginator.createPaginator(
-        pagingScheme,
-        DataSetMethod.POST
-      );
+      const paginator = Paginator.createPaginator(pagingScheme, DataSetMethod.POST);
 
       const relativeUrl = '/api/data';
       const baseUrl = 'https://example.com';
       const messageBody = { query: 'test' };
       let page = undefined;
 
-      let result = paginator.paginateRequest(
-        relativeUrl,
-        baseUrl,
-        messageBody,
-        DataSetMethod.POST,
-        page
-      );
+      let result = paginator.paginateRequest(relativeUrl, baseUrl, messageBody, DataSetMethod.POST, page);
 
       expect(result.pagedRelativeUrl).toBe(relativeUrl);
     });
@@ -727,27 +608,18 @@ describe('Paginator', () => {
         response: { pageInfo: JSON.stringify({ totalCount: 'totalCount' }) },
         pageUntil: PageUntilCondition.NoNextPage
       } as IGraphQLConnectionsScheme;
-      const paginator = Paginator.createPaginator(
-        pagingScheme,
-        DataSetMethod.POST
-      );
+      const paginator = Paginator.createPaginator(pagingScheme, DataSetMethod.POST);
 
       const relativeUrl = '/api/data';
       const baseUrl = 'https://example.com';
       const messageBody = { query: 'test' };
       let page = undefined;
 
-      let result = paginator.paginateRequest(
-        relativeUrl,
-        baseUrl,
-        messageBody,
-        DataSetMethod.POST,
-        page
-      );
+      let result = paginator.paginateRequest(relativeUrl, baseUrl, messageBody, DataSetMethod.POST, page);
 
-      expect(
-        result.pagedMessageBody.variables[pagingScheme.request.limitParameter]
-      ).toBe(pagingScheme.request.limitValue);
+      expect(result.pagedMessageBody.variables[pagingScheme.request.limitParameter]).toBe(
+        pagingScheme.request.limitValue
+      );
     });
   });
 });

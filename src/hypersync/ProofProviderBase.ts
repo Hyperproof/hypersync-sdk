@@ -1,10 +1,5 @@
 import { HypersyncTemplate } from './enums';
-import {
-  ICriteriaMetadata,
-  ICriteriaPage,
-  ICriteriaProvider,
-  IProofCriterionValue
-} from './ICriteriaProvider';
+import { ICriteriaMetadata, ICriteriaPage, ICriteriaProvider, IProofCriterionValue } from './ICriteriaProvider';
 import { SyncMetadata } from './IDataSource';
 import { IErrorInfo, IHypersync } from './models';
 import { IterableObject } from './ServiceDataIterator';
@@ -18,6 +13,7 @@ import {
   HypersyncFieldFormat,
   HypersyncFieldType,
   HypersyncPageOrientation,
+  IHypersyncField,
   SchemaCategory,
   SortClause
 } from '@hyperproof/hypersync-models';
@@ -85,8 +81,7 @@ export interface IHypersyncProofLayout<TField = IHypersyncProofField> {
 /**
  * Nested layout object within a proof document.
  */
-export interface IHypersyncProofSubLayout<TField = IHypersyncProofField>
-  extends IHypersyncProofLayout<TField> {
+export interface IHypersyncProofSubLayout<TField = IHypersyncProofField> extends IHypersyncProofLayout<TField> {
   collection: string;
 }
 
@@ -138,17 +133,28 @@ export class ProofProviderBase<T = any> {
     this.criteriaProvider = criteriaProvider;
   }
 
-  public static schemaCategory?: SchemaCategory;
   public static proofType: string;
   public static proofTypeLabel: string;
+  public static category?: string;
+  public static schemaCategory?: SchemaCategory;
+  public static hasDynamicFields?: boolean;
 
   /**
    * Returns TRUE if this proof type should be shown for the given proof category.
    *
    * @param {*} category The proof type category selected by the user.
    */
-  static matchesCategory(category?: string) {
+  public static matchesCategory(category?: string) {
     return true;
+  }
+
+  /**
+   * Creates a lightweight instance for use by the proof type catalog.
+   * The instance has no data source or criteria provider and should only
+   * be used to call getLayout() for field enumeration.
+   */
+  public static createForCatalog() {
+    return new this(null as any, null as any);
   }
 
   /**
@@ -158,13 +164,11 @@ export class ProofProviderBase<T = any> {
    * @param {*} criteriaValues Criteria values chosen by the user.
    * @param {*} pages Array of pages to display to the user when selecting criteria.
    */
-  async generateCriteriaMetadata(
+  public async generateCriteriaMetadata(
     criteriaValues: HypersyncCriteria,
     pages: ICriteriaPage[]
   ): Promise<ICriteriaMetadata> {
-    throw new Error(
-      'generateCriteriaMetadata must be implemented by derived class.'
-    );
+    throw new Error('generateCriteriaMetadata must be implemented by derived class.');
   }
 
   /**
@@ -173,9 +177,7 @@ export class ProofProviderBase<T = any> {
    *
    * @param {*} criteriaValues Criteria values chosen by the user.
    */
-  async generateSchema(
-    criteriaValues: HypersyncCriteria
-  ): Promise<IHypersyncSchema> {
+  public async generateSchema(criteriaValues: HypersyncCriteria): Promise<IHypersyncSchema> {
     throw new Error('generateSchema must be implemented by derived class.');
   }
 
@@ -187,15 +189,12 @@ export class ProofProviderBase<T = any> {
    * @param {*} metadata Additional metadata associated with the sync.  Optional.
    * @param {number} retryCount Current retry count of sync. Optional.
    */
-  async generateSyncPlan(
+  public async generateSyncPlan(
     criteriaValues: HypersyncCriteria,
     metadata?: SyncMetadata,
     retryCount?: number
   ): Promise<IHypersyncSyncPlanResponse> {
-    throw createHttpError(
-      StatusCodes.METHOD_NOT_ALLOWED,
-      'generateSyncPlan must be implemented by derived class.'
-    );
+    throw createHttpError(StatusCodes.METHOD_NOT_ALLOWED, 'generateSyncPlan must be implemented by derived class.');
   }
 
   /**
@@ -216,7 +215,7 @@ export class ProofProviderBase<T = any> {
    * contains this array in a .data member along with related pagination properties.
    * This option is useful if the provider needs to paginate large data sets.
    */
-  async getProofData(
+  public async getProofData(
     hypersync: IHypersync,
     organization: ILocalizable,
     authorizedUser: string,
@@ -227,5 +226,19 @@ export class ProofProviderBase<T = any> {
     iterableSlice?: IterableObject[]
   ): Promise<IGetProofDataResponse | IProofFile[]> {
     throw new Error('getProofData must be implemented by derived class.');
+  }
+
+  /**
+   * Returns the layout describing this proof type's fields and optional subLayouts.
+   * Override in subclasses that define fields in code rather than JSON.
+   *
+   * Called at runtime by generateSchema() and getProofData() to produce proof output,
+   * and also by the proof type catalog (via createForCatalog) to enumerate fields.
+   * When called without criteria, implementations should return all possible fields.
+   *
+   * Returns an empty layout by default.
+   */
+  public getLayout(criteria?: HypersyncCriteria): IHypersyncProofLayout<IHypersyncField> {
+    return { format: HypersyncDataFormat.Tabular, fields: [] };
   }
 }

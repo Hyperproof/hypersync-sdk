@@ -1,22 +1,20 @@
 import { HypersyncProofFormat, HypersyncResult } from './enums';
 import { IHypersyncSchema } from './ProofProviderBase';
 
+import { HypersyncCriteria, HypersyncPeriod, SchemaCategory } from '@hyperproof/hypersync-models';
 import {
-  HypersyncCriteria,
-  HypersyncPeriod,
-  SchemaCategory
-} from '@hyperproof/hypersync-models';
-import {
+  AlertCardStyle,
+  IAuthorizationConfigBase,
   IIntegration,
   IIntegrationSettingsBase,
+  InfoAction,
   IntegrationSettingsClass
 } from '@hyperproof/integration-sdk';
 
 /**
  * Settings that are saved with a Hypersync integration.
  */
-export interface IHypersyncIntegrationSettings
-  extends IIntegrationSettingsBase {
+export interface IHypersyncIntegrationSettings extends IIntegrationSettingsBase {
   class: IntegrationSettingsClass.Hypersync;
   vendorUserId: string;
   name: string;
@@ -37,8 +35,7 @@ export interface IHypersyncIntegrationSettings
 /**
  * Hypersync information stored in Hyperproof.
  */
-export interface IHypersync
-  extends IIntegration<IHypersyncIntegrationSettings> {
+export interface IHypersync extends IIntegration<IHypersyncIntegrationSettings> {
   schemaCategory?: SchemaCategory;
 }
 
@@ -58,4 +55,11 @@ export interface IErrorInfo {
   errors: {
     [key: string]: string;
   }[];
+}
+
+export interface IInfoMessage {
+  message: string;
+  alertStyle: AlertCardStyle;
+  action?: InfoAction;
+  authConfig?: IAuthorizationConfigBase;
 }

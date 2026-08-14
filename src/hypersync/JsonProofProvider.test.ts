@@ -3,7 +3,7 @@ import { ICriteriaProvider } from './ICriteriaProvider';
 import { DataSetResultStatus, IDataSource } from './IDataSource';
 import { JsonProofProvider } from './JsonProofProvider';
 import { MESSAGES } from './messages';
-import { dateToLocalizedString } from './time';
+import { dateToLocalizedDateString, dateToLocalizedString } from './time';
 
 import {
   HypersyncCriteriaFieldType,
@@ -14,16 +14,8 @@ import {
   HypersyncPeriod,
   IProofSpec
 } from '@hyperproof/hypersync-models';
-import {
-  HypersyncProofFormat,
-  HypersyncTemplate,
-  IHypersync
-} from '@hyperproof/hypersync-sdk/lib';
-import {
-  ILocalizable,
-  IntegrationSettingsClass,
-  ObjectType
-} from '@hyperproof/integration-sdk';
+import { HypersyncProofFormat, HypersyncTemplate, IHypersync } from '@hyperproof/hypersync-sdk/lib';
+import { ILocalizable, IntegrationSettingsClass, ObjectType } from '@hyperproof/integration-sdk';
 
 const CONNECTOR_NAME = 'testConnector';
 const PROOF_TYPE = 'testProofType';
@@ -188,10 +180,7 @@ describe('JsonProofProvider', () => {
         };
 
         // Act
-        const criteriaMetadata = await provider.generateCriteriaMetadata(
-          criteriaValues,
-          pages
-        );
+        const criteriaMetadata = await provider.generateCriteriaMetadata(criteriaValues, pages);
 
         // Assert
         expect(criteriaMetadata).toBeDefined();
@@ -222,10 +211,7 @@ describe('JsonProofProvider', () => {
         };
 
         // Act
-        const criteriaMetadata = await provider.generateCriteriaMetadata(
-          criteriaValues,
-          pages
-        );
+        const criteriaMetadata = await provider.generateCriteriaMetadata(criteriaValues, pages);
 
         // Assert
         expect(criteriaMetadata).toBeDefined();
@@ -352,12 +338,7 @@ describe('JsonProofProvider', () => {
         };
 
         // Act
-        const proofData = await provider.getProofData(
-          hypersync,
-          organization,
-          authorizedUser,
-          syncStartDate
-        );
+        const proofData = await provider.getProofData(hypersync, organization, authorizedUser, syncStartDate);
 
         // Assert
         expect(proofData).toBeDefined();
@@ -366,6 +347,35 @@ describe('JsonProofProvider', () => {
         expect(provider['initTokenContext']).toHaveBeenCalled();
         expect(provider['buildProofSpec']).toHaveBeenCalled();
         expect(provider['fetchLookups']).toHaveBeenCalled();
+      });
+
+      it('passes syncStartDate through to dataSource.getData', async () => {
+        // Act
+        await provider.getProofData(hypersync, organization, authorizedUser, syncStartDate);
+
+        // Assert
+        expect(dataSource.getData).toHaveBeenCalledWith(
+          proofSpec.dataSet,
+          undefined,
+          undefined,
+          undefined,
+          organization,
+          syncStartDate
+        );
+      });
+
+      it('normalizes an invalid syncStartDate to the current time before calling dataSource.getData', async () => {
+        // Arrange: callers upstream do `new Date(syncStartDate)` on a possibly empty/missing
+        // string, which yields an Invalid Date object (not undefined) - must not throw.
+        const invalidDate = new Date('');
+
+        // Act
+        await provider.getProofData(hypersync, organization, authorizedUser, invalidDate);
+
+        // Assert
+        const actualSyncStartDate = (dataSource.getData as jest.Mock).mock.calls[0][5] as Date;
+        expect(actualSyncStartDate).toBeInstanceOf(Date);
+        expect(isNaN(actualSyncStartDate.getTime())).toBe(false);
       });
 
       it('calls addFormattedNumbers if field includes numbers', async () => {
@@ -379,12 +389,7 @@ describe('JsonProofProvider', () => {
         );
 
         // Act
-        const proofData = await provider.getProofData(
-          hypersync,
-          organization,
-          authorizedUser,
-          syncStartDate
-        );
+        const proofData = await provider.getProofData(hypersync, organization, authorizedUser, syncStartDate);
 
         // Assert
         expect(proofData).toBeDefined();
@@ -422,12 +427,7 @@ describe('JsonProofProvider', () => {
         );
 
         // Act
-        const proofData = await provider.getProofData(
-          hypersync,
-          organization,
-          authorizedUser,
-          syncStartDate
-        );
+        const proofData = await provider.getProofData(hypersync, organization, authorizedUser, syncStartDate);
 
         // Assert
         expect(proofData).toBeDefined();
@@ -473,12 +473,7 @@ describe('JsonProofProvider', () => {
         );
 
         // Act
-        const proofData = await provider.getProofData(
-          hypersync,
-          organization,
-          authorizedUser,
-          syncStartDate
-        );
+        const proofData = await provider.getProofData(hypersync, organization, authorizedUser, syncStartDate);
 
         // Assert
         expect(proofData).toBeDefined();
@@ -516,12 +511,7 @@ describe('JsonProofProvider', () => {
         );
 
         // Act
-        const proofData = await provider.getProofData(
-          hypersync,
-          organization,
-          authorizedUser,
-          syncStartDate
-        );
+        const proofData = await provider.getProofData(hypersync, organization, authorizedUser, syncStartDate);
 
         // Assert
         expect(proofData).toBeDefined();
@@ -533,6 +523,44 @@ describe('JsonProofProvider', () => {
         expect(provider['fetchLookups']).toHaveBeenCalled();
         expect(provider['addFormattedDates']).not.toHaveBeenCalled();
         expect(provider['addFormattedNumbers']).not.toHaveBeenCalled();
+      });
+
+      it('falls back to the calculated orientation when the proof spec omits one', async () => {
+        // Arrange — wide fields force a landscape calculation; the spec sets no orientation.
+        const wideProofSpec = {
+          ...PROOF_SPEC,
+          orientation: undefined,
+          fields: [
+            { property: 'a', label: 'A', width: '400px' },
+            { property: 'b', label: 'B', width: '400px' }
+          ]
+        };
+        provider['buildProofSpec'] = jest.fn().mockReturnValue(wideProofSpec);
+
+        // Act
+        const proofData = await provider.getProofData(hypersync, organization, authorizedUser, syncStartDate);
+
+        // Assert
+        expect((proofData as any).data[0].contents.orientation).toBe(HypersyncPageOrientation.Landscape);
+      });
+
+      it('respects an explicit proof-spec orientation over the calculated one', async () => {
+        // Arrange — wide fields would calculate landscape, but the spec pins portrait.
+        const pinnedProofSpec = {
+          ...PROOF_SPEC,
+          orientation: HypersyncPageOrientation.Portrait,
+          fields: [
+            { property: 'a', label: 'A', width: '400px' },
+            { property: 'b', label: 'B', width: '400px' }
+          ]
+        };
+        provider['buildProofSpec'] = jest.fn().mockReturnValue(pinnedProofSpec);
+
+        // Act
+        const proofData = await provider.getProofData(hypersync, organization, authorizedUser, syncStartDate);
+
+        // Assert
+        expect((proofData as any).data[0].contents.orientation).toBe(HypersyncPageOrientation.Portrait);
       });
 
       it('returns empty array for criteria if page is included', async () => {
@@ -560,13 +588,7 @@ describe('JsonProofProvider', () => {
         };
 
         // Act
-        const proofData = await provider.getProofData(
-          hypersync,
-          organization,
-          authorizedUser,
-          syncStartDate,
-          page
-        );
+        const proofData = await provider.getProofData(hypersync, organization, authorizedUser, syncStartDate, page);
 
         // Assert
         expect(proofData).toBeDefined();
@@ -612,12 +634,7 @@ describe('JsonProofProvider', () => {
         );
 
         // Act
-        const proofData = await provider.getProofData(
-          hypersync,
-          organization,
-          authorizedUser,
-          syncStartDate
-        );
+        const proofData = await provider.getProofData(hypersync, organization, authorizedUser, syncStartDate);
 
         // Assert
         expect(proofData).toBeDefined();
@@ -675,12 +692,7 @@ describe('JsonProofProvider', () => {
         };
 
         // Act
-        const proofData = await provider.getProofData(
-          hypersync,
-          organization,
-          authorizedUser,
-          syncStartDate
-        );
+        const proofData = await provider.getProofData(hypersync, organization, authorizedUser, syncStartDate);
 
         // Assert
         expect(proofData).toBeDefined();
@@ -693,8 +705,7 @@ describe('JsonProofProvider', () => {
       });
 
       function buildHypersync(): IHypersync {
-        const hypersyncSettingsClass: IntegrationSettingsClass.Hypersync =
-          IntegrationSettingsClass.Hypersync;
+        const hypersyncSettingsClass: IntegrationSettingsClass.Hypersync = IntegrationSettingsClass.Hypersync;
         return {
           id: 'hypersyncId',
           appId: 'appId',
@@ -1189,12 +1200,7 @@ describe('JsonProofProvider', () => {
       it('does nothing if no dates or numbers are passed in', () => {
         // Arrange
         // Act
-        provider['addFormattedValues'](
-          proofRow,
-          dateFields,
-          numberFields,
-          organization
-        );
+        provider['addFormattedValues'](proofRow, dateFields, numberFields, organization);
 
         // Assert
         expect(addFormattedDates).not.toHaveBeenCalled();
@@ -1211,19 +1217,10 @@ describe('JsonProofProvider', () => {
         ];
 
         // Act
-        provider['addFormattedValues'](
-          proofRow,
-          dateFields,
-          numberFields,
-          organization
-        );
+        provider['addFormattedValues'](proofRow, dateFields, numberFields, organization);
 
         // Assert
-        expect(addFormattedDates).toHaveBeenCalledWith(
-          proofRow,
-          dateFields,
-          organization
-        );
+        expect(addFormattedDates).toHaveBeenCalledWith(proofRow, dateFields, organization, undefined);
         expect(addFormattedNumbers).not.toHaveBeenCalled();
       });
 
@@ -1237,19 +1234,11 @@ describe('JsonProofProvider', () => {
         ];
 
         // Act
-        provider['addFormattedValues'](
-          proofRow,
-          dateFields,
-          numberFields,
-          organization
-        );
+        provider['addFormattedValues'](proofRow, dateFields, numberFields, organization);
 
         // Assert
         expect(addFormattedDates).not.toHaveBeenCalled();
-        expect(addFormattedNumbers).toHaveBeenCalledWith(
-          proofRow,
-          numberFields
-        );
+        expect(addFormattedNumbers).toHaveBeenCalledWith(proofRow, numberFields);
       });
 
       it('calls both if dates and numbers are passed in', () => {
@@ -1268,23 +1257,11 @@ describe('JsonProofProvider', () => {
         ];
 
         // Act
-        provider['addFormattedValues'](
-          proofRow,
-          dateFields,
-          numberFields,
-          organization
-        );
+        provider['addFormattedValues'](proofRow, dateFields, numberFields, organization);
 
         // Assert
-        expect(addFormattedDates).toHaveBeenCalledWith(
-          proofRow,
-          dateFields,
-          organization
-        );
-        expect(addFormattedNumbers).toHaveBeenCalledWith(
-          proofRow,
-          numberFields
-        );
+        expect(addFormattedDates).toHaveBeenCalledWith(proofRow, dateFields, organization, undefined);
+        expect(addFormattedNumbers).toHaveBeenCalledWith(proofRow, numberFields);
       });
     });
 
@@ -1379,6 +1356,28 @@ describe('JsonProofProvider', () => {
 
         // Act
         provider['addFormattedDates'](proofRow, dateFields, organization);
+
+        // Assert
+        expect(proofRow).toEqual(expectedProofRow);
+      });
+
+      it('formats date in source time zone (date-only) when sourceDateTimeZone is provided', () => {
+        // Arrange — pacific user, UTC source: without the flag the user-TZ
+        // formatter shifts UTC midnight back a day; with the flag we format
+        // in UTC and skip the time component.
+        const rowValue = '2020-01-01T00:00:00Z';
+        const proofRow = {
+          [rowName]: rowValue
+        };
+
+        const expectedDate = dateToLocalizedDateString(rowValue, 'UTC', organization.language, organization.locale);
+        const expectedProofRow = {
+          [rowName]: rowValue,
+          [rowName + FORMATTED]: expectedDate
+        };
+
+        // Act
+        provider['addFormattedDates'](proofRow, dateFields, organization, 'UTC');
 
         // Assert
         expect(proofRow).toEqual(expectedProofRow);

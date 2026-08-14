@@ -8,6 +8,26 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ## Release Notes
 
+### 7.0.1
+
+See the [migration guide](doc/migration.md) for upgrade instructions.
+
+- **Breaking:** Updated to `@hyperproof/hypersync-models` 7.0.0 and `@hyperproof/integration-sdk` 7.0.0. Outbound requests are now SSRF-guarded, so apps targeting hosts that are not publicly resolvable will be rejected
+- **Breaking:** Updated `jsonata` from 1.8.7 to 2.2.2 (also resolves CVE-2026-52746). JSONata 2.x has behavior changes from 1.x — re-test your `transform` expressions
+- **Breaking:** Removed `ICriteriaPageMessage`, replaced by `IInfoMessage`, which supports an optional action
+- **Breaking:** `Sync.page` is now a `string` rather than a `number`
+- **Breaking:** `RestDataSourceBase.transformObject`, `getPropertyValue` and `isPredicateMatch` are now async
+- **Breaking:** `HypersyncApp.createDataSource` takes a `variant` argument, and `onLastUserDeleted` receives credentials rather than an OAuth access token
+- **Breaking:** `validateAccessToken` is a no-op by default instead of throwing `501`
+- Added the `prooftypecatalog` route and supporting helpers (`buildProofTypeCatalog`, `formatLayoutFields`)
+- Added a central layout pass — every provider now gets computed widths, orientation and zoom without calling `calcLayoutInfo`. `calcLayoutInfo` is non-mutating and returns freshly-sized fields, fixing widths being frozen across syncs by a shared layout singleton
+- Added sync metrics and structured sync logging, with `handleSyncNowError` extracted for shared error handling
+- Added overridable `filterProofFields` and `filterProofCriteria`
+- Added OAuth variant support and server-side credential field validation
+- Added `HypersyncPeriod.YearToDate`, `IProofSpec.sourceDateTimeZone` and `IDataSet.keepEmptyRows` support
+- Added `RestDataSourceBase.getBaseUrl()` and an overridable `getAdditionalContext()`
+- Criteria field options now skip items missing the configured value or label property
+
 ### 6.0.0
 
 - Bumped version to 6 to match hypersync-models package. All packages versions will be kept in sync from now on.

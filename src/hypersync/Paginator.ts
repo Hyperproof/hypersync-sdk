@@ -37,10 +37,7 @@ export abstract class Paginator {
    * @param {PagingScheme} pagingScheme JSON definition of pagination behavior.
    * @param {DataSetMethod} method HTTP Method. Optional.
    */
-  public static createPaginator(
-    pagingScheme: PagingScheme,
-    method?: DataSetMethod
-  ) {
+  public static createPaginator(pagingScheme: PagingScheme, method?: DataSetMethod) {
     const type: PagingType = pagingScheme.type;
     switch (type) {
       case PagingType.NextToken:
@@ -48,14 +45,9 @@ export abstract class Paginator {
       case PagingType.PageBased:
         return new PageBasedPaginator(pagingScheme as IPageBasedScheme);
       case PagingType.OffsetAndLimit:
-        return new OffsetAndLimitPaginator(
-          pagingScheme as IOffsetAndLimitScheme
-        );
+        return new OffsetAndLimitPaginator(pagingScheme as IOffsetAndLimitScheme);
       case PagingType.GraphQLConnections:
-        return new GraphQLConnectionsPaginator(
-          pagingScheme as IGraphQLConnectionsScheme,
-          method
-        );
+        return new GraphQLConnectionsPaginator(pagingScheme as IGraphQLConnectionsScheme, method);
       default:
         throw new Error(`Paginator: Invalid paging scheme: ${type}`);
     }
@@ -98,11 +90,7 @@ export abstract class Paginator {
    * @param baseUrl The base URL off of which relative URLs stem. Optional.
    * @param page The page value to continue fetching data from a previous sync. Optional.
    */
-  protected abstract paginateQueryString(
-    relativeUrl: string,
-    baseUrl?: string,
-    page?: string
-  ): string;
+  protected abstract paginateQueryString(relativeUrl: string, baseUrl?: string, page?: string): string;
 
   /**
    * Adds pagination parameters to a message body before it is sent.
@@ -129,7 +117,7 @@ export abstract class Paginator {
     data: any,
     headers?: { [name: string]: string[] },
     baseUrl?: string
-  ): string | undefined;
+  ): Promise<string | undefined>;
 
   /**
    * Applies validation rules for a given paging scheme.
@@ -138,10 +126,7 @@ export abstract class Paginator {
    * @param pagingScheme JSON definition of pagination behavior.
    * @param method HTTP Method. Optional.
    */
-  protected abstract validatePagingScheme(
-    pagingScheme: PagingScheme,
-    method?: DataSetMethod
-  ): string | undefined;
+  protected abstract validatePagingScheme(pagingScheme: PagingScheme, method?: DataSetMethod): string | undefined;
 
   /**
    * Returns length of data array.  Flattens data if necessary using IDataSet property.
@@ -149,9 +134,9 @@ export abstract class Paginator {
    * @param {object} dataSet Data set for which data has been retrieved.
    * @param {*} data Data to be evaluated.
    */
-  protected getSizeOfDataArray(dataSet: IDataSet, data: any): number {
+  protected async getSizeOfDataArray(dataSet: IDataSet, data: any): Promise<number> {
     if (dataSet.property) {
-      data = this.getPropertyValue(data, dataSet.property);
+      data = await this.getPropertyValue(data, dataSet.property);
     }
     return Array.isArray(data) ? data.length : 0;
   }
@@ -162,10 +147,7 @@ export abstract class Paginator {
    * @param {*} headers Response headers returned from external service.
    * @param {string} property Key of target element.
    */
-  protected getHeaderValue(
-    headers: { [name: string]: string[] },
-    property: string
-  ): string {
+  protected getHeaderValue(headers: { [name: string]: string[] }, property: string): string {
     let value: string | string[] = headers[property];
     if (Array.isArray(value)) {
       value = value[0];
@@ -181,7 +163,7 @@ export abstract class Paginator {
    *
    * @returns The property value or undefined if the property was not found.
    */
-  protected getPropertyValue(o: any, property: string) {
+  protected async getPropertyValue(o: any, property: string) {
     const expression = jsonata(property);
     return expression.evaluate(o);
   }
@@ -217,9 +199,7 @@ export abstract class Paginator {
    */
   protected ensureDataSetArray(dataSet: IDataSet): void {
     if (dataSet.result !== 'array' && !dataSet.filter) {
-      throw new Error(
-        `Paginator: Expected result for paginated requests must be of type array.`
-      );
+      throw new Error(`Paginator: Expected result for paginated requests must be of type array.`);
     }
   }
 }
@@ -244,17 +224,11 @@ export class NextTokenPaginator extends Paginator {
     this.tokenType = pagingScheme.tokenType;
     const request = pagingScheme.request as NextTokenRequest;
     this.limitParameter = request.limitParameter;
-    this.limitValue = request.limitValue
-      ? Number(request.limitValue)
-      : undefined;
+    this.limitValue = request.limitValue ? Number(request.limitValue) : undefined;
     this.tokenParameter = request.tokenParameter;
   }
 
-  protected paginateQueryString(
-    relativeUrl: string,
-    baseUrl?: string,
-    page?: string
-  ): string {
+  protected paginateQueryString(relativeUrl: string, baseUrl?: string, page?: string): string {
     this.currentPage = page;
     const delimiter = this.calcUrlDelimiter(relativeUrl, baseUrl);
     if (this.isFirstPage(page)) {
@@ -267,34 +241,26 @@ export class NextTokenPaginator extends Paginator {
     switch (this.tokenType) {
       case NextTokenType.Url:
         return page as string;
-      case NextTokenType.Token:
-        page = encodeURIComponent(page as string);
-        if (!this.limitParameter) {
-          return `${relativeUrl}${delimiter}${this.tokenParameter!}=${page}`;
+      case NextTokenType.Token: {
+        const [path, ...query] = relativeUrl.split('?');
+        const params = new URLSearchParams(query.join('?'));
+        if (this.limitParameter) {
+          params.set(this.limitParameter, String(this.limitValue));
         }
-        return `${relativeUrl}${delimiter}${this.limitParameter}=${
-          this.limitValue
-        }&${this.tokenParameter!}=${page}`;
+        params.set(this.tokenParameter!, page as string);
+        return `${path}?${params}`;
+      }
       default:
-        throw new Error(
-          'Paginator: Unable to paginate querystring.  Invalid token type.'
-        );
+        throw new Error('Paginator: Unable to paginate querystring.  Invalid token type.');
     }
   }
 
-  protected paginateMessageBody(
-    messageBody?: { [key: string]: any },
-    page?: string
-  ) {
+  protected paginateMessageBody(messageBody?: { [key: string]: any }, page?: string) {
     this.currentPage = page;
     if (!messageBody || typeof messageBody !== 'object') {
-      throw new Error(
-        `Paginator: Invalid POST request body: ${JSON.stringify(messageBody)}`
-      );
+      throw new Error(`Paginator: Invalid POST request body: ${JSON.stringify(messageBody)}`);
     }
-    if (
-      ![NextTokenType.Token, NextTokenType.SearchArray].includes(this.tokenType)
-    ) {
+    if (![NextTokenType.Token, NextTokenType.SearchArray].includes(this.tokenType)) {
       throw new Error(
         `Paginator: POST method pagination does not support ${this.tokenType}.  Type must be token or search array.`
       );
@@ -306,21 +272,19 @@ export class NextTokenPaginator extends Paginator {
       set(
         messageBody,
         this.tokenParameter!,
-        this.tokenType === NextTokenType.SearchArray
-          ? this.formatSearchArrayToken(page!)
-          : page
+        this.tokenType === NextTokenType.SearchArray ? this.formatSearchArrayToken(page!) : page
       );
     }
     return messageBody;
   }
 
-  public getNextPage(
+  public async getNextPage(
     dataSet: IDataSet,
     data: any,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     headers?: { [name: string]: string[] },
     baseUrl?: string
-  ): string | undefined {
+  ): Promise<string | undefined> {
     this.ensureDataSetArray(dataSet);
     const pagingScheme = dataSet.pagingScheme as INextTokenScheme;
     const { pageUntil } = pagingScheme;
@@ -333,29 +297,21 @@ export class NextTokenPaginator extends Paginator {
       if (PROPERTY_ACCESSORS.includes(nextTokenExpression)) {
         nextToken = data[nextTokenExpression];
       } else if (headers && isHeaderProperty) {
-        nextToken = this.getHeaderValue(
-          headers,
-          nextTokenExpression.slice(HEADER_PREFIX.length)
-        );
+        nextToken = this.getHeaderValue(headers, nextTokenExpression.slice(HEADER_PREFIX.length));
       } else {
-        nextToken = this.getPropertyValue(data, nextTokenExpression);
+        nextToken = await this.getPropertyValue(data, nextTokenExpression);
       }
       if (nextToken === null || nextToken === undefined || nextToken === '') {
         return undefined; // Last page detected, halt paging
       }
-      if (
-        this.tokenType === NextTokenType.Url &&
-        !this.isValidUrl(nextToken, baseUrl)
-      ) {
+      if (this.tokenType === NextTokenType.Url && !this.isValidUrl(nextToken, baseUrl)) {
         throw new Error(`Paginator: Detected invalid url: ${nextToken}`);
       }
       return String(nextToken);
     }
   }
 
-  protected validatePagingScheme(
-    pagingScheme: INextTokenScheme
-  ): string | undefined {
+  protected validatePagingScheme(pagingScheme: INextTokenScheme): string | undefined {
     const request = pagingScheme.request as NextTokenRequest;
     if (request['limitParameter'] || request['limitValue']) {
       // if either is defined, then
@@ -373,18 +329,14 @@ export class NextTokenPaginator extends Paginator {
         return `Limit value ${this.limitValue} must be a positive integer for ${pagingScheme.type} schemes.`;
       }
     }
-    if (
-      pagingScheme.pageUntil === PageUntilCondition.NoNextToken &&
-      !pagingScheme.response?.nextToken
-    ) {
+    if (pagingScheme.pageUntil === PageUntilCondition.NoNextToken && !pagingScheme.response?.nextToken) {
       return `Next token path must be defined for paging condition: ${pagingScheme.pageUntil}.`;
     }
     if (!pagingScheme.tokenType) {
       return `Token type must be defined for ${pagingScheme.type} schemes.`;
     }
     if (
-      (pagingScheme.tokenType === NextTokenType.Token ||
-        pagingScheme.tokenType === NextTokenType.SearchArray) &&
+      (pagingScheme.tokenType === NextTokenType.Token || pagingScheme.tokenType === NextTokenType.SearchArray) &&
       !request['tokenParameter']
     ) {
       return `Token parameter must be defined.`;
@@ -446,45 +398,30 @@ export class PageBasedPaginator extends Paginator {
     this.limitValue = Number(request.limitValue);
   }
 
-  protected paginateQueryString(
-    relativeUrl: string,
-    baseUrl?: string,
-    page?: string
-  ): string {
-    this.currentPage = this.isFirstPage(page)
-      ? this.pageStartingValue
-      : Number(page);
+  protected paginateQueryString(relativeUrl: string, baseUrl?: string, page?: string): string {
+    this.currentPage = this.isFirstPage(page) ? this.pageStartingValue : Number(page);
     const delimiter = this.calcUrlDelimiter(relativeUrl, baseUrl);
     return `${relativeUrl}${delimiter}${this.pageParameter}=${this.currentPage}&${this.limitParameter}=${this.limitValue}`;
   }
 
-  protected paginateMessageBody(
-    messageBody?: { [key: string]: any },
-    page?: string
-  ) {
-    this.currentPage = this.isFirstPage(page)
-      ? this.pageStartingValue
-      : Number(page);
+  protected paginateMessageBody(messageBody?: { [key: string]: any }, page?: string) {
+    this.currentPage = this.isFirstPage(page) ? this.pageStartingValue : Number(page);
     if (!messageBody || typeof messageBody !== 'object') {
-      throw new Error(
-        `Paginator: Invalid POST request body: ${JSON.stringify(messageBody)}`
-      );
+      throw new Error(`Paginator: Invalid POST request body: ${JSON.stringify(messageBody)}`);
     }
     set(messageBody, this.pageParameter, this.currentPage);
     set(messageBody, this.limitParameter, this.limitValue);
     return messageBody;
   }
 
-  public getNextPage(
+  public async getNextPage(
     dataSet: IDataSet,
     data: any,
     headers?: { [name: string]: string[] }
-  ): string | undefined {
+  ): Promise<string | undefined> {
     this.ensureDataSetArray(dataSet);
     if (this.currentPage === null || this.currentPage === undefined) {
-      throw new Error(
-        'Paginator: currentPage must be defined while paginating request to external service.'
-      );
+      throw new Error('Paginator: currentPage must be defined while paginating request to external service.');
     }
     const currentPage = this.currentPage as number;
     const pagingScheme = dataSet.pagingScheme as IPageBasedScheme;
@@ -493,7 +430,7 @@ export class PageBasedPaginator extends Paginator {
 
     // Page until no data is left
     if (pageUntil === PageUntilCondition.NoDataLeft) {
-      const length = this.getSizeOfDataArray(dataSet, data);
+      const length = await this.getSizeOfDataArray(dataSet, data);
       if (length === 0 || length < this.limitValue) {
         return undefined;
       }
@@ -505,21 +442,16 @@ export class PageBasedPaginator extends Paginator {
       let totalExpected;
       const isHeaderProperty = totalCount.startsWith(HEADER_PREFIX);
       if (headers && isHeaderProperty) {
-        totalExpected = this.getHeaderValue(
-          headers,
-          totalCount.slice(HEADER_PREFIX.length)
-        );
+        totalExpected = this.getHeaderValue(headers, totalCount.slice(HEADER_PREFIX.length));
         totalExpected = parseInt(totalExpected);
       } else {
-        totalExpected = this.getPropertyValue(data, totalCount);
+        totalExpected = await this.getPropertyValue(data, totalCount);
       }
       if (isNaN(+totalExpected)) {
         return undefined;
       }
       const nextPage = String(currentPage + 1);
-      const totalCollected =
-        this.limitValue *
-        (currentPage + (this.pageStartingValue === 0 ? 1 : 0));
+      const totalCollected = this.limitValue * (currentPage + (this.pageStartingValue === 0 ? 1 : 0));
       if (totalExpected > totalCollected) {
         return nextPage;
       }
@@ -527,25 +459,16 @@ export class PageBasedPaginator extends Paginator {
     }
   }
 
-  protected validatePagingScheme(
-    pagingScheme: IPageBasedScheme
-  ): string | undefined {
+  protected validatePagingScheme(pagingScheme: IPageBasedScheme): string | undefined {
     const request = pagingScheme.request as PageBasedRequest;
-    if (
-      isNaN(+request['pageStartingValue']) ||
-      !request['pageParameter'] ||
-      !request['limitParameter']
-    ) {
+    if (isNaN(+request['pageStartingValue']) || !request['pageParameter'] || !request['limitParameter']) {
       return `Request parameters must be defined for ${pagingScheme.type} schemes.`;
     }
     if (isNaN(+request.limitValue) || +request.limitValue <= 0) {
       // Guard against a non-incrementing loop
       return `Limit value ${this.limitValue} must be a positive integer for page-based schemes.`;
     }
-    if (
-      pagingScheme.pageUntil === PageUntilCondition.ReachTotalCount &&
-      !pagingScheme.response?.totalCount
-    ) {
+    if (pagingScheme.pageUntil === PageUntilCondition.ReachTotalCount && !pagingScheme.response?.totalCount) {
       return `totalCount must be defined for paging condition: ${pagingScheme.pageUntil}.`;
     }
   }
@@ -575,45 +498,30 @@ export class OffsetAndLimitPaginator extends Paginator {
     this.limitValue = Number(request.limitValue);
   }
 
-  protected paginateQueryString(
-    relativeUrl: string,
-    baseUrl?: string,
-    page?: string
-  ): string {
-    this.currentPage = this.isFirstPage(page)
-      ? this.offsetStartingValue
-      : Number(page);
+  protected paginateQueryString(relativeUrl: string, baseUrl?: string, page?: string): string {
+    this.currentPage = this.isFirstPage(page) ? this.offsetStartingValue : Number(page);
     const delimiter = this.calcUrlDelimiter(relativeUrl, baseUrl);
     return `${relativeUrl}${delimiter}${this.offsetParameter}=${this.currentPage}&${this.limitParameter}=${this.limitValue}`;
   }
 
-  protected paginateMessageBody(
-    messageBody?: { [key: string]: any },
-    page?: string
-  ) {
-    this.currentPage = this.isFirstPage(page)
-      ? this.offsetStartingValue
-      : Number(page);
+  protected paginateMessageBody(messageBody?: { [key: string]: any }, page?: string) {
+    this.currentPage = this.isFirstPage(page) ? this.offsetStartingValue : Number(page);
     if (!messageBody || typeof messageBody !== 'object') {
-      throw new Error(
-        `Paginator: Invalid POST request body: ${JSON.stringify(messageBody)}`
-      );
+      throw new Error(`Paginator: Invalid POST request body: ${JSON.stringify(messageBody)}`);
     }
     set(messageBody, this.offsetParameter, this.currentPage);
     set(messageBody, this.limitParameter, this.limitValue);
     return messageBody;
   }
 
-  public getNextPage(
+  public async getNextPage(
     dataSet: IDataSet,
     data: any,
     headers?: { [name: string]: string[] }
-  ): string | undefined {
+  ): Promise<string | undefined> {
     this.ensureDataSetArray(dataSet);
     if (this.currentPage === null || this.currentPage === undefined) {
-      throw new Error(
-        'Paginator: currentPage must be defined while paginating request to external service.'
-      );
+      throw new Error('Paginator: currentPage must be defined while paginating request to external service.');
     }
     const currentPage = this.currentPage as number;
     const pagingScheme = dataSet.pagingScheme as IOffsetAndLimitScheme;
@@ -622,7 +530,7 @@ export class OffsetAndLimitPaginator extends Paginator {
 
     // Page until no data is left
     if (pageUntil === PageUntilCondition.NoDataLeft) {
-      const length = this.getSizeOfDataArray(dataSet, data);
+      const length = await this.getSizeOfDataArray(dataSet, data);
       if (length === 0 || length < this.limitValue) {
         return undefined;
       }
@@ -634,13 +542,10 @@ export class OffsetAndLimitPaginator extends Paginator {
       let totalExpected;
       const isHeaderProperty = totalCount.startsWith(HEADER_PREFIX);
       if (headers && isHeaderProperty) {
-        totalExpected = this.getHeaderValue(
-          headers,
-          totalCount.slice(HEADER_PREFIX.length)
-        );
+        totalExpected = this.getHeaderValue(headers, totalCount.slice(HEADER_PREFIX.length));
         totalExpected = parseInt(totalExpected);
       } else {
-        totalExpected = this.getPropertyValue(data, totalCount);
+        totalExpected = await this.getPropertyValue(data, totalCount);
       }
       if (isNaN(+totalExpected)) {
         return undefined;
@@ -653,25 +558,16 @@ export class OffsetAndLimitPaginator extends Paginator {
     }
   }
 
-  protected validatePagingScheme(
-    pagingScheme: IOffsetAndLimitScheme
-  ): string | undefined {
+  protected validatePagingScheme(pagingScheme: IOffsetAndLimitScheme): string | undefined {
     const request = pagingScheme.request as OffsetAndLimitRequest;
-    if (
-      isNaN(+request['offsetStartingValue']) ||
-      !request['offsetParameter'] ||
-      !request['limitParameter']
-    ) {
+    if (isNaN(+request['offsetStartingValue']) || !request['offsetParameter'] || !request['limitParameter']) {
       return `Request parameters must be defined for ${pagingScheme.type} schemes.`;
     }
     if (isNaN(+request.limitValue) || +request.limitValue <= 0) {
       // Guard against a non-incrementing loop
       return `Limit value ${this.limitValue} must be a positive integer for offset-and-limit schemes.`;
     }
-    if (
-      pagingScheme.pageUntil === PageUntilCondition.ReachTotalCount &&
-      !pagingScheme.response?.totalCount
-    ) {
+    if (pagingScheme.pageUntil === PageUntilCondition.ReachTotalCount && !pagingScheme.response?.totalCount) {
       return `totalCount must be defined for paging condition: ${pagingScheme.pageUntil}.`;
     }
   }
@@ -706,17 +602,10 @@ export class GraphQLConnectionsPaginator extends Paginator {
     return relativeUrl; // No change
   }
 
-  protected paginateMessageBody(
-    messageBody?: { [key: string]: any },
-    page?: string
-  ) {
+  protected paginateMessageBody(messageBody?: { [key: string]: any }, page?: string) {
     this.currentPage = page;
     if (!messageBody || typeof messageBody !== 'object' || !messageBody.query) {
-      throw new Error(
-        `Paginator: Invalid GraphQL request body: ${JSON.stringify(
-          messageBody
-        )}`
-      );
+      throw new Error(`Paginator: Invalid GraphQL request body: ${JSON.stringify(messageBody)}`);
     }
     return {
       ...messageBody,
@@ -728,28 +617,25 @@ export class GraphQLConnectionsPaginator extends Paginator {
     };
   }
 
-  public getNextPage(
+  public async getNextPage(
     dataSet: IDataSet,
     data: any,
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     headers?: { [name: string]: string[] }
-  ): string | undefined {
+  ): Promise<string | undefined> {
     this.ensureDataSetArray(dataSet);
     const pagingScheme = dataSet.pagingScheme as IGraphQLConnectionsScheme;
     const { pageUntil } = pagingScheme;
     if (pageUntil === PageUntilCondition.NoNextPage) {
       const pageInfoExpression = pagingScheme.response.pageInfo;
-      const pageInfo = this.getPropertyValue(data, pageInfoExpression);
+      const pageInfo = await this.getPropertyValue(data, pageInfoExpression);
       const hasNextPage: boolean = pageInfo.hasNextPage;
       const endCursor: string = pageInfo.endCursor;
       return hasNextPage === true ? endCursor : undefined;
     }
   }
 
-  protected validatePagingScheme(
-    pagingScheme: IGraphQLConnectionsScheme,
-    method?: DataSetMethod
-  ): string | undefined {
+  protected validatePagingScheme(pagingScheme: IGraphQLConnectionsScheme, method?: DataSetMethod): string | undefined {
     const request = pagingScheme.request as GraphQLConnectionsRequest;
     if (!request['limitParameter']) {
       return `Request parameters must be defined for ${pagingScheme.type} schemes.`;

@@ -1,13 +1,13 @@
 import { ICriteriaField } from './ICriteriaProvider';
-import {
-  IHypersyncProofField,
-  IHypersyncSchemaField
-} from './ProofProviderBase';
+import { IHypersyncProofField, IHypersyncSchemaField } from './ProofProviderBase';
 
 import {
   HypersyncFieldType,
-  IHypersyncField
+  IHypersyncField,
+  IProofTypeCatalogEntry,
+  SchemaCategory
 } from '@hyperproof/hypersync-models';
+import { compareValues } from '@hyperproof/integration-sdk';
 import createHttpError from 'http-errors';
 import { StatusCodes } from 'http-status-codes';
 import queryString from 'query-string';
@@ -19,15 +19,22 @@ export const ID_NONE = 'deeee249-c2eb-4598-8824-3db79927c7a6';
 export const ID_UNDEFINED = 'a9e2b542-33b8-4dde-93d6-7eb97d395c08'; // Unselected optional value
 
 /**
+ * Pattern for validating vendor user IDs in custom auth connectors.
+ * Matches either:
+ * - Base64url-encoded SHA-256 hash (43 characters: A-Z, a-z, 0-9, _, -)
+ * - Legacy format (44 characters of any type)
+ */
+export const VENDOR_USER_ID_PATTERN = /^([A-Za-z0-9_-]{43}|.{44})$/;
+
+// SchemaCategory values used to auto-detect special-purpose proof types.
+const SCHEMA_CATEGORY_VALUES = new Set<string>(Object.values(SchemaCategory));
+
+/**
  * Used to map one string value to another.
  */
 export type StringMap = { [key: string]: string };
 
-export const formatHypersyncError = (
-  err: any,
-  hypersyncId: string,
-  text: string
-) => {
+export const formatHypersyncError = (err: any, hypersyncId: string, text: string) => {
   const status = err.status || err.statusCode;
   const statusMessage = status ? ` - ${status}` : '';
   text = text ? `${text}\n` : '';
@@ -45,10 +52,7 @@ export const formatBoolean = (value: boolean, formatString: string) => {
   return value ? parts[0] : parts[1];
 };
 
-export const validateProofType = (
-  criteriaProofType: string,
-  providerProofType: string
-) => {
+export const validateProofType = (criteriaProofType: string, providerProofType: string) => {
   if (criteriaProofType !== providerProofType) {
     throw createHttpError(
       StatusCodes.BAD_REQUEST,
@@ -62,9 +66,7 @@ export const validateProofType = (
  * field that can be used in a generated proof layout.  Note that we only
  * include non-default type information.
  */
-export const convertFieldToLayoutField = (
-  f: IHypersyncField
-): IHypersyncProofField => ({
+export const convertFieldToLayoutField = (f: IHypersyncField): IHypersyncProofField => ({
   property: f.property,
   label: f.label,
   width: f.width,
@@ -76,9 +78,7 @@ export const convertFieldToLayoutField = (
  * Converts a universal field object from a connector's layouts map into a
  * field that can be used in a generated schema.
  */
-export const convertFieldToSchemaField = (
-  f: IHypersyncField
-): IHypersyncSchemaField => ({
+export const convertFieldToSchemaField = (f: IHypersyncField): IHypersyncSchemaField => ({
   property: f.property,
   label: f.label,
   type: f.type || HypersyncFieldType.Text
@@ -104,11 +104,7 @@ export const getSelectedOptionLabel = (
  * @param {number} pageSize The number of items to process per page
  * @returns
  */
-export const paginate = (
-  entities: any[],
-  page: number | string = 0,
-  pageSize: number
-) => {
+export const paginate = (entities: any[], page: number | string = 0, pageSize: number) => {
   page = Number(page);
   pageSize = Number(pageSize);
   const startIndex = page * pageSize;
@@ -120,8 +116,7 @@ export const paginate = (
 
 const uuidRegex = `[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}`;
 const customCriteriaRegEx = RegExp(`^CriterionValue\\|${uuidRegex}$`);
-export const isSavedCriteriaValue = (value: string) =>
-  customCriteriaRegEx.test(value);
+export const isSavedCriteriaValue = (value: string) => customCriteriaRegEx.test(value);
 
 export class LayoutFields {
   private _fields: IHypersyncProofField[];
@@ -132,9 +127,7 @@ export class LayoutFields {
   createArgMap(args: string[]) {
     return args.reduce((map: { [key: string]: any }, arg) => {
       if (typeof arg !== 'string') {
-        console.log(
-          `Expected string, but found ${typeof arg}. Ignored ${arg}.`
-        );
+        console.log(`Expected string, but found ${typeof arg}. Ignored ${arg}.`);
         return map;
       }
       map[arg] = true;
@@ -199,9 +192,7 @@ export const parseUrlDelimiter = (url: string) => {
  * @param input to convert to base64 string
  * @returns base64 string
  */
-export const toBase64 = (
-  input: WithImplicitCoercion<Uint8Array | readonly number[] | string>
-) => {
+export const toBase64 = (input: WithImplicitCoercion<Uint8Array | readonly number[] | string>) => {
   return Buffer.from(input).toString('base64');
 };
 
@@ -217,3 +208,98 @@ export const stringToBoolean = (value: string | undefined | null): boolean => {
   const lowerValue = value.toLowerCase();
   return lowerValue === 'true' || lowerValue === '1';
 };
+
+/**
+ * Sort comparator for proof type catalog entries.
+ * Sorts by category name first, then by proof type name.
+ */
+export function compareProofTypeCatalogEntries(a: IProofTypeCatalogEntry, b: IProofTypeCatalogEntry): number {
+  return (
+    compareValues(a.proofCategoryName ?? '', b.proofCategoryName ?? '') ||
+    compareValues(a.proofTypeName, b.proofTypeName)
+  );
+}
+
+/**
+ * Input entry for buildProofTypeCatalog.  If a layout object is provided,
+ * fields and isActEnabled are computed from it automatically.
+ */
+export interface IProofTypeInfo extends Omit<IProofTypeCatalogEntry, 'appId'> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  layout?: any;
+}
+
+/**
+ * Builds a proof type catalog from a simple array of proof type entries.
+ * Utility for connectors that don't use ProofProviderFactory.
+ *
+ * If a layout object is provided on an entry, fields and isActEnabled are
+ * computed from it (fields via formatLayoutFields, isActEnabled when the
+ * layout has fields and is not hierarchical).
+ *
+ * If schemaCategory is not provided on an entry, it is inferred from the
+ * proof type value when it matches a SchemaCategory enum value (e.g.
+ * 'uarApplication' maps to SchemaCategory.UarApplication).
+ */
+export function buildProofTypeCatalog(appId: string, proofTypes: IProofTypeInfo[]): IProofTypeCatalogEntry[] {
+  return proofTypes
+    .map(pt => {
+      const layout = pt.layout;
+      const fields = pt.fields ?? (layout ? formatLayoutFields(layout) : undefined);
+      const hasSubLayouts = layout?.subLayouts?.length > 0;
+      const isActEnabled = pt.isActEnabled ?? (fields ? !hasSubLayouts : false);
+
+      return {
+        appId,
+        proofType: pt.proofType,
+        proofTypeName: pt.proofTypeName,
+        proofCategoryId: pt.proofCategoryId,
+        proofCategoryName: pt.proofCategoryName,
+        schemaCategory:
+          pt.schemaCategory ??
+          (SCHEMA_CATEGORY_VALUES.has(pt.proofType) ? (pt.proofType as SchemaCategory) : undefined),
+        fields,
+        hasDynamicFields: pt.hasDynamicFields ?? layout?.hasDynamicFields,
+        isActEnabled
+      };
+    })
+    .sort(compareProofTypeCatalogEntries);
+}
+
+/**
+ * Formats a layout's fields (and optional subLayouts) into a human-readable string.
+ *
+ * Simple proof types produce: "Field1, Field2, Field3"
+ * Hierarchical proof types produce:
+ *   "Field1, Field2\nSubLayout1: Field3, Field4\nSubLayout2: Field5, Field6"
+ */
+export function formatLayoutFields(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  layout: any
+): string {
+  const lines: string[] = [];
+  const fieldLabels = layout.fields?.map((f: IHypersyncField) => f.label).join(', ');
+  if (fieldLabels) {
+    lines.push(fieldLabels);
+  }
+  const subs = layout.subLayouts;
+  if (subs) {
+    for (const sub of subs) {
+      const subFields = sub.fields?.map((f: IHypersyncField) => f.label).join(', ');
+      if (subFields) {
+        lines.push(sub.label ? `${sub.label}: ${subFields}` : subFields);
+      }
+      // Handle nested subLayouts (e.g. Cloudflare zone details)
+      const nestedSubs = sub.subLayouts;
+      if (nestedSubs) {
+        for (const nested of nestedSubs) {
+          const nestedFields = nested.fields?.map((f: IHypersyncField) => f.label).join(', ');
+          if (nestedFields) {
+            lines.push(nested.label ? `${nested.label}: ${nestedFields}` : nestedFields);
+          }
+        }
+      }
+    }
+  }
+  return lines.join('\n');
+}

@@ -96,9 +96,6 @@
         "noResultsMessage": {
           "type": "string"
         },
-        "autoLayout": {
-          "type": "boolean"
-        },
         "sort": {
           "type": "array",
           "items": {
@@ -194,7 +191,8 @@
                 "type": "string"
               },
               "width": {
-                "type": "string"
+                "type": "string",
+                "pattern": "^[0-9]+px$"
               },
               "type": {
                 "type": "string",
@@ -231,16 +229,7 @@
     "proofSpec": {
       "$id": "/schemas/proofSpec",
       "$ref": "#/$defs/overrideSpec",
-      "required": [
-        "period",
-        "useVersioning",
-        "suggestedName",
-        "format",
-        "title",
-        "subtitle",
-        "dataSet",
-        "fields"
-      ]
+      "required": ["period", "useVersioning", "suggestedName", "format", "title", "subtitle", "dataSet", "fields"]
     }
   }
 }
