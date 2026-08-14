@@ -60,17 +60,17 @@
   resolved "https://registry.yarnpkg.com/@humanwhocodes/object-schema/-/object-schema-2.0.3.tgz#4a2868d75d6d6963e423bcf90b7fd1be343409d3"
   integrity sha512-93zYdMES/c1D69yZiKDBj0V24vqNzB/koF26KPaagAfd3P/4gUlh3Dys5ogAK+Exi9QyzlD8x/08Zt7wIKcDcA==
 
-"@hyperproof/hypersync-models@7.0.0":
-  version "7.0.0"
-  resolved "https://registry.yarnpkg.com/@hyperproof/hypersync-models/-/hypersync-models-7.0.0.tgz#6ad987394a5f6099a4aa04c93af41b89134a665f"
-  integrity sha512-u8TLEFLo8RLonch5bEk2/+SmMjBgZ8ApLacq6b53lEf71hW4dsP2TNwJtzRyazOg5DR4E2t8r7k0HCkpqQ+cFw==
+"@hyperproof/hypersync-models@7.0.1":
+  version "7.0.1"
+  resolved "https://registry.yarnpkg.com/@hyperproof/hypersync-models/-/hypersync-models-7.0.1.tgz#4f83d78499ea5f845b96c7c7891f8ddb7b41d0f4"
+  integrity sha512-CQ6FPJj+Y4s5rYMDcT0pdT9dBgr6bTDcRyIUsu8GW21QQsrdRDEN7O9cwxwNcLho8twI0CiHG7IYkk3BV/oqJA==
 
-"@hyperproof/integration-sdk@7.0.0":
-  version "7.0.0"
-  resolved "https://registry.yarnpkg.com/@hyperproof/integration-sdk/-/integration-sdk-7.0.0.tgz#5bb53339fd6755db897cee0328393d537d53f720"
-  integrity sha512-x8o99H9/OvXT/VtXEpOj62o8cfVt/Y3EFLVuJX+2gK0bAn+LKBXP6V21kwvZa8S0NyI2j69ZdDfUp17KFhh2lA==
+"@hyperproof/integration-sdk@7.0.1":
+  version "7.0.1"
+  resolved "https://registry.yarnpkg.com/@hyperproof/integration-sdk/-/integration-sdk-7.0.1.tgz#dc865cc7c10059b95f1b09519eb90ef04739ef24"
+  integrity sha512-WtaugOcNbWziS+he9RKtCWAiWZXNnQyyFbn943Ye861Ajt5KKnzkzXp4v5ZxMS2wg7udiQZo2M1xTu1lZkJpZw==
   dependencies:
-    "@hyperproof/hypersync-models" "7.0.0"
+    "@hyperproof/hypersync-models" "7.0.1"
     "@js-joda/core" "3.2.0"
     abort-controller "3.0.0"
     body-parser "1.20.3"
