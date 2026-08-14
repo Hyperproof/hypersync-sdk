@@ -8,7 +8,7 @@ To get started with the Hypersync SDK hop on over to the [SDK documentation](doc
 
 ## Release Notes
 
-### 7.0.0
+### 7.0.1
 
 See the [migration guide](doc/migration.md) for upgrade instructions.
 
